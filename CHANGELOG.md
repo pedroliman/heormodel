@@ -10,6 +10,8 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-04
+
 ### Added
 
 - Microsimulation engines: `DiscreteTimeMicrosimEngine` advances an
@@ -66,6 +68,7 @@ bring-your-own-outputs ingestion (`heval.run`), cost-effectiveness analysis
 (`heval.cea`), value-of-information analysis (`heval.voi`), optional ABC
 calibration (`heval.calibrate`), and reporting plots (`heval.report`).
 
-[Unreleased]: https://github.com/pedroliman/heval/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/pedroliman/heval/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/pedroliman/heval/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/pedroliman/heval/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/pedroliman/heval/releases/tag/v0.1.0
