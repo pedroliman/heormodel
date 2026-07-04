@@ -17,11 +17,17 @@ Subpackages:
     - :mod:`heval.report`: plots and reproducibility scaffolding
 """
 
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _version
+
 from heval.models import ModelEngine, ModelFn, Outcomes
 from heval.params import ParameterSet
 from heval.run import SeedManager, as_outcomes, run_psa
 
-__version__ = "0.1.0"
+try:
+    __version__ = _version("heval")
+except PackageNotFoundError:  # pragma: no cover - not installed, e.g. running from source
+    __version__ = "0.0.0"
 
 __all__ = [
     "ModelEngine",

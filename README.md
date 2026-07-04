@@ -1,5 +1,11 @@
 # heval
 
+[![CI](https://github.com/pedroliman/heval/actions/workflows/ci.yml/badge.svg)](https://github.com/pedroliman/heval/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/pedroliman/heval/branch/main/graph/badge.svg)](https://codecov.io/gh/pedroliman/heval)
+[![PyPI](https://img.shields.io/pypi/v/heval.svg)](https://pypi.org/project/heval/)
+[![Python versions](https://img.shields.io/pypi/pyversions/heval.svg)](https://pypi.org/project/heval/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Health economic evaluation in Python: parameter specification and probabilistic sampling, simulation across multiple model types, cost-effectiveness analysis (CEA), and value-of-information (VoI) analysis for model-based HEOR/HTA work.
 
 ## The core idea
@@ -38,9 +44,15 @@ print(evpi(outcomes, wtp=50_000))
 | `heval.calibrate` | done, optional | ABC-SMC via `pyabc`; posterior as an iteration-indexed draw matrix |
 | `heval.report` | done | CE plane, CEAC/CEAF, frontier, tornado plots; provenance, model card |
 
-Next steps are prioritized in [`roadmap/`](roadmap/README.md). Prose follows [`guidance/writing_style.md`](guidance/writing_style.md).
+Next steps are prioritized in [`roadmap/`](roadmap/README.md). Prose follows [`guidance/writing_style.md`](guidance/writing_style.md). Changes are tracked in [CHANGELOG.md](CHANGELOG.md); the release process is in [RELEASING.md](RELEASING.md).
 
-## Installation and development
+## Installation
+
+```bash
+pip install heval
+```
+
+## Development
 
 Requires Python 3.11+ and [`uv`](https://docs.astral.sh/uv/):
 

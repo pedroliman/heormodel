@@ -29,7 +29,7 @@ dependencies = [
 
 [project.optional-dependencies]
 calibration = ["pyabc>=0.12"]
-dev = ["pytest>=8", "ruff>=0.5", "mypy>=1.10", "pyabc>=0.12"]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.5", "mypy>=1.10", "pyabc>=0.12"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -54,3 +54,9 @@ files = ["src/heval"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["src/heval"]
+
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover"]
