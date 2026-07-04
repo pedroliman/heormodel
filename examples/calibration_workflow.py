@@ -26,7 +26,7 @@ Run it with::
 
 Outputs (written to ``examples/output/``):
     - ce_plane_calib.png, ceac_calib.png, frontier_calib.png, tornado_calib.png
-    - model_card_calib.md, run_record_calib.json
+    - run_report_calib.md, run_record_calib.json
 """
 
 from __future__ import annotations
@@ -229,10 +229,10 @@ def main() -> None:
         ),
     )
     record.to_json(OUT / "run_record_calib.json")
-    (OUT / "model_card_calib.md").write_text(
-        record.model_card("heval calibration workflow model card")
+    (OUT / "run_report_calib.md").write_text(
+        record.to_markdown("heval calibration workflow run report")
     )
-    print(f"\nWrote plots, model card, and run record to {OUT}/")
+    print(f"\nWrote plots, run report, and run record to {OUT}/")
 
 
 if __name__ == "__main__":

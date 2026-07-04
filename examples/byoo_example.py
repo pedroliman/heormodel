@@ -12,7 +12,7 @@ Run it with::
 
 Outputs (written next to this script, in ``examples/output/``):
     - ce_plane.png, ceac.png, frontier.png, tornado.png
-    - model_card.md, run_record.json
+    - run_report.md, run_record.json
 """
 
 from __future__ import annotations
@@ -129,8 +129,8 @@ def main() -> None:
         note="Bring-your-own-outputs example: external PSA CSV through CEA and VoI.",
     )
     record.to_json(OUT / "run_record.json")
-    (OUT / "model_card.md").write_text(record.model_card("heval example model card"))
-    print(f"\nWrote plots, model card, and run record to {OUT}/")
+    (OUT / "run_report.md").write_text(record.to_markdown("heval example run report"))
+    print(f"\nWrote plots, run report, and run record to {OUT}/")
 
 
 if __name__ == "__main__":

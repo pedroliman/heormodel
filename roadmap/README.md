@@ -14,7 +14,7 @@ All prose follows [guidance/writing_style.md](../guidance/writing_style.md).
 - `cea`: ICERs, dominance, extended dominance, frontier, NMB/NHB, CEAC/CEAF
 - `voi`: EVPI, EVPPI (spline/GP), EVSI (nonparametric regression)
 - `calibrate`: ABC-SMC via pyabc, posterior returned as a draw matrix
-- `report`: CE plane, CEAC/CEAF, frontier, tornado, provenance, model card
+- `report`: CE plane, CEAC/CEAF, frontier, tornado, provenance, run report
 
 ## Shipped since phase 1
 

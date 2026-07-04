@@ -52,7 +52,7 @@ One parameter object flows through swappable model engines into a shared analysi
 ## Where to go next
 
 - [Get started](get-started.qmd): install and run your first analysis.
-- [Bring your own outputs](tutorials/byo-outputs.qmd): an external PSA table through CEA, VoI, plots, and a model card.
+- [Bring your own outputs](tutorials/byo-outputs.qmd): an external PSA table through CEA, VoI, plots, and a run report.
 - [Full pipeline](tutorials/full-pipeline.qmd): parameters, `run_psa`, CEA, and VoI end to end.
 - [Calibration workflow](tutorials/calibration-workflow.qmd): calibrate some parameters, take the rest from the literature, mix both with `mix_draws`, then run CEA and VoI.
 - [API reference](reference/index.qmd): every public function, generated from docstrings.

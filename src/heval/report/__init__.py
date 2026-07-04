@@ -2,7 +2,7 @@
 
 Standard cost-effectiveness plots (CE plane, CEAC/CEAF, efficiency
 frontier, tornado) and reproducibility scaffolding (seed logging,
-parameter provenance, model cards).
+parameter provenance, run reports).
 """
 
 from heval.report.plots import (
