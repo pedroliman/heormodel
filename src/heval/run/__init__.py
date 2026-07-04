@@ -1,4 +1,4 @@
-"""Run orchestration (:mod:`heval.run`).
+"""Run orchestration (`heval.run`).
 
 Seed management, the PSA run loop (serial or ``joblib``-parallel), the
 bring-your-own-outputs ingestion point, and convergence diagnostics.

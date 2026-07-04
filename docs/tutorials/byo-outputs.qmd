@@ -1,0 +1,111 @@
+---
+title: Bring your own outputs
+---
+
+This tutorial walks the adoption wedge of `heval` end to end: a costs/effects PSA table produced by any external model is loaded with `as_outcomes` and driven through CEA, VoI, plots, and a model card, without touching a model engine. It is the narrated version of [`examples/byoo_example.py`](https://github.com/pedroliman/heval/blob/main/examples/byoo_example.py). It assumes you have [installed `heval`](../get-started.qmd).
+
+## An external PSA table
+
+Three strategies for a chronic disease: standard of care, a new drug, and drug plus monitoring. To stand in for a spreadsheet export or a legacy simulator, we synthesise the table from sampled parameters, so the VoI results later are traceable to known drivers.
+
+```{python}
+import numpy as np
+import pandas as pd
+from heval.params import Beta, Gamma, Normal, ParameterSet
+from heval.run import SeedManager, as_outcomes
+
+WTP = 30_000.0  # sits between the two frontier ICERs, so the decision is uncertain
+N = 2_000
+
+seed_manager = SeedManager(20260704)
+params = ParameterSet(
+    {
+        "p_response": Beta.from_mean_se(0.35, 0.05),
+        "rr_drug": Normal(0.75, 0.08),
+        "c_drug": Gamma.from_mean_se(12_000, 1_500),
+        "c_monitoring": Gamma.from_mean_se(2_000, 400),
+        "u_gain": Beta.from_mean_se(0.12, 0.03),
+    },
+    correlation={("p_response", "u_gain"): 0.3},
+)
+draws = params.sample(N, seed=seed_manager.generator())
+
+base_qaly = 8.0
+effect_drug = base_qaly + draws["u_gain"] * draws["p_response"] / draws["rr_drug"] * 10
+rows = pd.concat([
+    pd.DataFrame({"strategy": "Standard care", "iteration": draws.index,
+                  "cost": 40_000.0, "qaly": base_qaly}),
+    pd.DataFrame({"strategy": "New drug", "iteration": draws.index,
+                  "cost": 40_000.0 + draws["c_drug"], "qaly": effect_drug}),
+    pd.DataFrame({"strategy": "Drug + monitoring", "iteration": draws.index,
+                  "cost": 40_000.0 + draws["c_drug"] + draws["c_monitoring"],
+                  "qaly": effect_drug + 0.15 * draws["p_response"]}),
+])
+```
+
+## One call into the standard schema
+
+`as_outcomes` accepts a tidy DataFrame or a CSV path and returns `Outcomes`, the schema every analysis consumes.
+
+```{python}
+outcomes = as_outcomes(rows)
+outcomes.summary().round(2)
+```
+
+## Cost-effectiveness analysis
+
+```{python}
+from heval.cea import ceac, ceaf, icer_table
+
+icer_table(outcomes).round(3)
+```
+
+The table orders strategies by cost and reports incremental results along the efficiency frontier. The `status` column marks dominated (`D`) and extended-dominated (`ED`) strategies; here all three are non-dominated (`ND`), and the willingness-to-pay threshold of 30,000 sits between the two frontier ICERs, so the decision is genuinely uncertain.
+
+```{python}
+grid = np.linspace(0, 80_000, 51)
+ceac_df = ceac(outcomes, grid)
+ceaf_df = ceaf(outcomes, grid)
+```
+
+## Value of information
+
+EVPI at the willingness-to-pay threshold, then a single-parameter EVPPI ranking for research prioritisation. The ranking needs the draw matrix, linked to outcomes by the shared iteration index.
+
+```{python}
+from heval.voi import evpi, evppi_ranking
+
+print(f"EVPI at WTP {WTP:,.0f}: {evpi(outcomes, WTP):,.1f}")
+evppi_ranking(outcomes, draws, WTP).round(1)
+```
+
+## Plots
+
+```{python}
+from heval.report import plot_ce_plane, plot_ceac, plot_frontier, plot_tornado, tornado_data
+
+plot_ce_plane(outcomes, comparator="Standard care", wtp=WTP);
+```
+
+```{python}
+plot_ceac(ceac_df, ceaf_df=ceaf_df);
+```
+
+```{python}
+td = tornado_data(outcomes, draws, WTP, strategy="New drug", comparator="Standard care")
+plot_tornado(td);
+```
+
+## Reproducibility record
+
+`capture_run` snapshots the seed, parameter specs, and outcome shape; the record serialises to JSON and renders a model card.
+
+```{python}
+from heval.report import capture_run
+
+record = capture_run(seed=seed_manager, params=params, outcomes=outcomes,
+                     note="Bring-your-own-outputs tutorial.")
+print(record.model_card("heval example model card"))
+```
+
+Next: the [full pipeline tutorial](full-pipeline.qmd) replaces the synthetic table with a model evaluated through `run_psa`.

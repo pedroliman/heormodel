@@ -8,8 +8,8 @@ Planned design (phase 3):
 - ``ContinuousTimeMicrosimEngine``: competing time-to-event sampling from
   parametric hazards, no cycle grid.
 - Both simulate a population per PSA iteration (with seeds spawned by
-  :class:`heval.run.SeedManager`), average within iteration, and emit the
-  standard :class:`~heval.models.outcomes.Outcomes` schema. Internals are
+  `heval.run.SeedManager`), average within iteration, and emit the
+  standard `Outcomes` schema. Internals are
   deliberately not shared with the cohort engine; the output contract is
   the only common surface.
 """

@@ -1,6 +1,6 @@
 """Reproducible seed management built on ``numpy.random.SeedSequence``.
 
-A single :class:`SeedManager` is the root of all randomness in a run:
+A single `SeedManager` is the root of all randomness in a run:
 parameter sampling, per-iteration engine streams, and any study-data
 simulation for EVSI all derive from it, so one recorded entropy value
 reproduces the whole analysis.
@@ -16,7 +16,7 @@ class SeedManager:
 
     Args:
         seed: Root seed. ``None`` draws fresh OS entropy; record
-            :attr:`entropy` afterwards to reproduce the run.
+            `entropy` afterwards to reproduce the run.
 
     Example:
         >>> from heval.run import SeedManager

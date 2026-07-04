@@ -75,11 +75,13 @@ def evsi_regression(
         outcomes: Standard PSA outcomes.
         summaries: Simulated study summaries, one row per PSA iteration,
             aligned on the outcomes' iteration index (see
-            :func:`simulate_summaries`).
+            `simulate_summaries`).
         wtp: Willingness to pay per unit of effect.
         effect: Effect column (default: the primary effect).
-        method, n_knots, degree, seed: Metamodel controls; see
-            :func:`heval.voi.evppi.evppi`.
+        method: Metamodel; see `heval.voi.evppi.evppi`.
+        n_knots: Spline knot count.
+        degree: Spline degree.
+        seed: Subsample seed for the GP method.
 
     Returns:
         The EVSI estimate, clipped at zero.

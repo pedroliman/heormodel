@@ -1,0 +1,65 @@
+---
+title: Get started
+---
+
+This page installs `heval` and runs a first analysis on an existing PSA table. It assumes Python 3.11 or newer. For a narrated analysis, continue to the [bring your own outputs tutorial](tutorials/byo-outputs.qmd).
+
+## Install
+
+With [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv add heval
+```
+
+Or with pip:
+
+```bash
+pip install heval
+```
+
+The `calibration` extra adds ABC-SMC calibration via `pyabc`: `uv add "heval[calibration]"`.
+
+## Bring your own outputs in ten lines
+
+You do not need a model engine to use `heval`. Any tidy costs/effects table with `strategy`, `iteration`, `cost`, and `qaly` columns (a spreadsheet export, a legacy simulator's output) enters the pipeline through `as_outcomes`:
+
+```{python}
+import numpy as np
+import pandas as pd
+from heval.run import as_outcomes
+from heval.cea import ceac, icer_table
+from heval.voi import evpi
+
+rng = np.random.default_rng(20260704)
+n = 2_000
+df = pd.concat(
+    pd.DataFrame({
+        "strategy": name, "iteration": range(n),
+        "cost": rng.normal(cost, 1_500, n), "qaly": rng.normal(q, 0.35, n),
+    })
+    for name, cost, q in [("A", 30_000, 7.0), ("B", 38_000, 7.4), ("C", 55_000, 7.5)]
+)
+
+outcomes = as_outcomes(df)          # accepts a DataFrame or a CSV path
+icer_table(outcomes).round(1)
+```
+
+The incremental analysis reports ICERs along the efficiency frontier; the `status` column marks dominated (`D`) and extended-dominated (`ED`) strategies, and here all three are non-dominated (`ND`). From the same object, acceptability curves and value of information:
+
+```{python}
+curves = ceac(outcomes, np.linspace(0, 100_000, 41))
+curves.iloc[::10].round(3)
+```
+
+```{python}
+print(f"EVPI at WTP 50,000: {evpi(outcomes, wtp=50_000):,.1f}")
+```
+
+`as_outcomes` also reads a CSV path directly, and column names are remappable via keyword arguments; see [`as_outcomes`](reference/as_outcomes.qmd).
+
+## Next steps
+
+- [Bring your own outputs](tutorials/byo-outputs.qmd): the same wedge, expanded to plots, EVPPI ranking, and a model card.
+- [Full pipeline](tutorials/full-pipeline.qmd): specify parameters, sample with correlation, and run a model through `run_psa`.
+- [Architecture](concepts/architecture.qmd): the `Outcomes` schema and the shared iteration index.

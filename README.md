@@ -8,6 +8,8 @@
 
 Health economic evaluation in Python: parameter specification and probabilistic sampling, simulation across multiple model types, cost-effectiveness analysis (CEA), and value-of-information (VoI) analysis for model-based HEOR/HTA work.
 
+Documentation: [pedroliman.github.io/heval](https://pedroliman.github.io/heval/)
+
 ## The core idea
 
 One parameter object flows through swappable model engines into a shared analysis layer. Engines do not share an implementation API; they share a contract on their outputs. Given a matrix of parameter draws, every engine returns costs and effects per strategy per iteration in one standardized structure, `Outcomes`, a tidy frame indexed by `(strategy, iteration)`. Standardized outputs make CEA and VoI engine-agnostic.
@@ -64,6 +66,15 @@ uv run ruff check . && uv run mypy
 ```
 
 Two validation checks anchor the test suite: a hand-verified five-strategy dominance and ICER example (`tests/test_cea.py`), and analytic Gaussian EVPI/EVPPI/EVSI recovered within Monte Carlo error at 80,000 iterations (`tests/test_voi.py`).
+
+The documentation site lives in `docs/` and builds with [Quarto](https://quarto.org) and [quartodoc](https://machow.github.io/quartodoc/); tutorials execute at render time, so the build doubles as a test. With Quarto installed and the `docs` extra synced (`uv sync --extra docs`):
+
+```bash
+uv run quartodoc build --config docs/_quarto.yml   # generate the API reference
+quarto preview docs                                 # or: quarto render docs
+```
+
+CI (`.github/workflows/docs.yml`) rebuilds and publishes the site to GitHub Pages on every push to `main`.
 
 ## Design notes and deviations
 

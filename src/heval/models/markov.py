@@ -8,7 +8,7 @@ Planned design (phase 2):
   half-cycle correction.
 - Vectorised evaluation across PSA iterations: one matrix-power sweep per
   iteration chunk, accumulating discounted costs and QALYs per strategy.
-- Output: the standard :class:`~heval.models.outcomes.Outcomes` schema,
+- Output: the standard `Outcomes` schema,
   optionally with per-state cost components. Nothing beyond that schema is
   exposed to the analysis layer.
 """

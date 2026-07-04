@@ -1,0 +1,53 @@
+---
+title: Architecture
+---
+
+This page explains the two invariants that hold everywhere in `heval`: the outcome schema as the integration point, and the shared iteration index. It assumes the [quickstart](../index.qmd); [engines](engines.qmd) covers the model side of the contract.
+
+## The outcome schema is the integration point
+
+`Outcomes` is a tidy frame indexed by `(strategy, iteration)` with a `cost` column, a primary effect column (`qaly` by default), and optionally more numeric columns carried as disaggregated components. Every engine targets this schema, every analysis consumes it, and none reaches into engine internals.
+
+The constructor validates the contract so analyses do not have to: a balanced panel (every strategy evaluated on every iteration), unique `(strategy, iteration)` pairs, numeric columns, and no NaN or infinite values.
+
+```{python}
+import pandas as pd
+from heval.models import Outcomes
+
+tidy = pd.DataFrame({
+    "strategy": ["A", "A", "B", "B"],
+    "iteration": [0, 1, 0, 1],
+    "cost": [100.0, 110.0, 200.0, 190.0],
+    "qaly": [1.0, 1.1, 1.4, 1.3],
+})
+out = Outcomes.from_tidy(tidy)
+out.summary()
+```
+
+Three constructors cover the common shapes: `from_tidy` for long tables (the bring-your-own-outputs entry point, wrapped by `as_outcomes`), `from_wide` for paired iterations-by-strategies cost and effect tables, and the raw constructor for a frame already in schema.
+
+Because the analysis layer sees only this schema, CEA and VoI are engine-agnostic: `icer_table`, `ceac`, and `evpi` work identically on outcomes from a spreadsheet export, a decision tree callable, or a future microsimulation engine.
+
+## The shared iteration index
+
+Parameter draw matrices and outcomes share one iteration index. `ParameterSet.sample` returns a draw matrix whose row index is the canonical iteration index, and `run_psa` guarantees the outcomes it returns carry exactly that index, in the same order.
+
+The point is traceability: EVPPI and EVSI regress outcome quantities on parameter draws, which is only valid when row `i` of the draws produced iteration `i` of the outcomes. Analyses that need both objects, such as `evppi` and `tornado_data`, rely on the index to align them.
+
+```{python}
+from heval.params import Normal, ParameterSet
+from heval.run import run_psa
+
+def model(d: pd.DataFrame) -> Outcomes:
+    costs = pd.DataFrame({"A": d["c"], "B": d["c"] + 10})
+    effects = pd.DataFrame({"A": d["c"] * 0, "B": d["c"] * 0 + 0.1})
+    return Outcomes.from_wide(costs, effects)
+
+draws = ParameterSet({"c": Normal(100, 5)}).sample(500, seed=1)
+outcomes = run_psa(model, draws)
+outcomes.iterations.equals(draws.index)
+```
+
+`run_psa` rejects duplicated draw indices and re-checks the index on the way out, including after parallel batches are reassembled. If you bypass `run_psa` and pair a draw matrix with external outcomes, keeping the indices aligned is your responsibility; `evppi` will refuse mismatched indices.
+
+Next: [engines](engines.qmd) describes the `ModelEngine` protocol and what a contract on outputs means in practice.

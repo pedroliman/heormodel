@@ -1,7 +1,7 @@
-"""Parameter distributions and probabilistic sampling (:mod:`heval.params`).
+"""Parameter distributions and probabilistic sampling (`heval.params`).
 
 Defines distribution specs (with method-of-moments constructors from
-published means and standard errors), and :class:`ParameterSet`, which
+published means and standard errors), and `ParameterSet`, which
 produces the correlated parameter draw matrix consumed by model engines and
 value-of-information analyses.
 """

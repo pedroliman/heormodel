@@ -1,0 +1,38 @@
+---
+title: Engines
+---
+
+This page explains the engine side of the contract: what `ModelEngine` requires, why engines share outputs rather than an implementation API, and where the built-in engines stand. It assumes [architecture](architecture.qmd), which covers the `Outcomes` schema those engines target.
+
+## A contract on outputs, not internals
+
+Model engines differ radically inside: cohort matrix algebra, individual-level simulation, discrete-event simulation. `heval` deliberately does not force them into a shared implementation API. What they share is one obligation: given a parameter draw matrix, return `Outcomes` whose iteration index equals the draws' index.
+
+Two invariants follow. The returned iteration index must match `draws.index` in values and order, preserving the parameter/outcome linkage that EVPPI and EVSI need. And every strategy must be evaluated on every iteration, a balanced panel, which the `Outcomes` constructor enforces.
+
+## The protocol and the plain function
+
+`ModelEngine` is a runtime-checkable protocol with a single method, `evaluate`. Any object with a conforming `evaluate` satisfies it, no inheritance required:
+
+```{python}
+import pandas as pd
+from heval.models import ModelEngine, Outcomes
+
+class TwoStrategyModel:
+    def evaluate(self, draws: pd.DataFrame) -> Outcomes:
+        costs = pd.DataFrame({"A": draws["c"], "B": draws["c"] * 2})
+        effects = pd.DataFrame({"A": draws["e"], "B": draws["e"] * 1.5})
+        return Outcomes.from_wide(costs, effects)
+
+isinstance(TwoStrategyModel(), ModelEngine)
+```
+
+A plain function `draws -> Outcomes` works too; the alias `ModelFn` names that shape, and `run_psa` accepts either. The [full pipeline tutorial](../tutorials/full-pipeline.qmd) runs a decision tree written as a function.
+
+`run_psa` is where the contract is enforced rather than trusted. It rejects empty or duplicate-indexed draws, checks the returned index, and when `n_jobs` splits the draws into parallel batches, it verifies strategies are consistent across batches and reassembles the panel before checking again. An engine that violates the contract fails loudly at the run boundary, not silently inside an analysis.
+
+## Built-in engines are stubs
+
+Phase 1 fixed the contract; the engines land in later phases, in roadmap order. `MarkovCohortEngine`, `DiscreteTimeMicrosimEngine`, `ContinuousTimeMicrosimEngine`, and `DESEngine` exist as stubs that raise `NotImplementedError` with a pointer to the alternatives: write a `ModelFn` callable, or skip engines entirely and bring your own outputs through `as_outcomes`.
+
+This ordering is deliberate. Because analyses consume only the schema, everything downstream of an engine already works, so each engine phase ships against a stable analysis layer and a documented contract. The design notes for each engine are on the [roadmap](../roadmap/index.md).

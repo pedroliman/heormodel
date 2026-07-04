@@ -10,6 +10,22 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ## [Unreleased]
 
+### Added
+
+- Documentation website built with Quarto and quartodoc, published to GitHub
+  Pages from CI on every merge to `main`: executed tutorials, concept pages, a
+  generated API reference, the roadmap, and this changelog
+  ([#3](https://github.com/pedroliman/heval/pull/3)).
+
+### Changed
+
+- Docstring cross-references use plain backticks instead of Sphinx roles, so
+  they render cleanly on the website and in `help()`
+  ([#3](https://github.com/pedroliman/heval/pull/3)).
+- Distribution spec strings format floats at 6 significant digits, so
+  provenance records and model cards stay readable
+  ([#3](https://github.com/pedroliman/heval/pull/3)).
+
 ## [0.1.0] - 2026-07-04
 
 Initial release: parameter sampling (`heval.params`), the `Outcomes` schema

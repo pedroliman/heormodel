@@ -1,6 +1,6 @@
 """Reproducibility scaffolding: seed logging, parameter provenance, model card.
 
-A :class:`RunRecord` snapshots everything needed to reproduce and audit an
+A `RunRecord` snapshots everything needed to reproduce and audit an
 analysis (the root seed entropy, the parameter specification, the outcome
 dimensions, and package versions) and renders it as JSON (for archives) or
 a markdown model card (for reports).
@@ -67,7 +67,7 @@ class RunRecord:
 
     @classmethod
     def from_json(cls, text: str) -> RunRecord:
-        """Rebuild a record from :meth:`to_json` output."""
+        """Rebuild a record from `to_json` output."""
         return cls(**json.loads(text))
 
     def model_card(self, title: str = "Model card") -> str:
@@ -102,11 +102,11 @@ def capture_run(
     outcomes: Outcomes | None = None,
     note: str = "",
 ) -> RunRecord:
-    """Snapshot a run's provenance into a :class:`RunRecord`.
+    """Snapshot a run's provenance into a `RunRecord`.
 
     Args:
-        seed: The run's :class:`~heval.run.SeedManager` (or raw seed).
-        params: The sampled :class:`~heval.params.ParameterSet`, if any.
+        seed: The run's `SeedManager` (or raw seed).
+        params: The sampled `ParameterSet`, if any.
         outcomes: The resulting outcomes, if available.
         note: Free-text description of the analysis.
 

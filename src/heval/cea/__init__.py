@@ -1,4 +1,4 @@
-"""Cost-effectiveness analysis (:mod:`heval.cea`).
+"""Cost-effectiveness analysis (`heval.cea`).
 
 Engine-agnostic decision analysis on the standard outcome schema:
 incremental analysis with dominance and extended dominance, the efficiency

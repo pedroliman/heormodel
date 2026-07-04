@@ -3,8 +3,8 @@
 Bridges ``heval`` parameter specs to ``pyabc`` priors, runs ABC-SMC against
 observed calibration targets, and returns the posterior as an
 equally-weighted parameter draw matrix carrying the standard ``iteration``
-index, so calibrated draws flow through :func:`heval.run.run_psa` and the
-analysis layer exactly like draws from :meth:`heval.params.ParameterSet.sample`.
+index, so calibrated draws flow through `heval.run.run_psa` and the
+analysis layer exactly like draws from `heval.params.ParameterSet.sample`.
 
 ``pyabc`` is an optional dependency: install with ``uv pip install
 'heval[calibration]'``.
@@ -48,8 +48,8 @@ def _require_pyabc() -> Any:
 def to_pyabc_prior(distributions: Mapping[str, Distribution | Dirichlet]) -> Any:
     """Translate ``heval`` distribution specs into a ``pyabc`` prior.
 
-    Supported: :class:`Beta`, :class:`Gamma`, :class:`LogNormal`,
-    :class:`Normal`, :class:`Uniform`. Dirichlet and Fixed parameters cannot
+    Supported: `Beta`, `Gamma`, `LogNormal`,
+    `Normal`, `Uniform`. Dirichlet and Fixed parameters cannot
     be calibrated directly; hold them constant inside the simulator instead.
 
     Example:
@@ -85,7 +85,7 @@ class CalibrationResult:
     Attributes:
         posterior: Equally-weighted posterior draw matrix with a
             ``RangeIndex`` named ``iteration``, ready for
-            :func:`heval.run.run_psa`.
+            `heval.run.run_psa`.
         weighted: The raw weighted particle population (columns = parameters,
             plus a ``weight`` column).
         n_populations: Number of ABC-SMC populations run.
@@ -128,7 +128,7 @@ def abc_calibrate(
             temporary file).
 
     Returns:
-        A :class:`CalibrationResult` whose ``posterior`` plugs directly into
+        A `CalibrationResult` whose ``posterior`` plugs directly into
         the PSA pipeline.
 
     Example:

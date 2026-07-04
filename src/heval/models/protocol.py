@@ -3,7 +3,7 @@
 Engines differ radically inside (cohort matrix algebra, individual-level
 simulation, discrete-event simulation) and deliberately do **not** share an
 implementation API. What they share is this: given a parameter draw matrix,
-an engine returns an :class:`~heval.models.outcomes.Outcomes` object whose
+an engine returns an `Outcomes` object whose
 iteration index matches the draws it was given. Analysis code depends only
 on that contract and never reaches into engine internals.
 """
@@ -24,11 +24,11 @@ class ModelEngine(Protocol):
 
     Implementations must satisfy two invariants:
 
-    1. The returned :class:`Outcomes` iteration index equals ``draws.index``
+    1. The returned `Outcomes` iteration index equals ``draws.index``
        (same values, same order); this preserves the parameter/outcome
        linkage required by EVPPI and EVSI.
     2. Every strategy is evaluated on every iteration (a balanced panel);
-       the :class:`Outcomes` constructor enforces this.
+       the `Outcomes` constructor enforces this.
 
     Example:
         >>> import pandas as pd
