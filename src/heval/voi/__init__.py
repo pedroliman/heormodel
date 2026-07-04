@@ -1,4 +1,4 @@
-"""Value-of-information analysis (:mod:`heval.voi`).
+"""Value-of-information analysis (`heval.voi`).
 
 EVPI directly from the PSA; EVPPI via nonparametric-regression
 metamodeling; EVSI via nonparametric regression on simulated study

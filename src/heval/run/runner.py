@@ -2,13 +2,13 @@
 
 Two first-class entry points:
 
-- :func:`run_psa` evaluates a model engine (or plain callable) over the
+- `run_psa` evaluates a model engine (or plain callable) over the
   parameter draw matrix, optionally in parallel via ``joblib``, and
   guarantees the returned outcomes carry the draws' iteration index.
-- :func:`as_outcomes` normalises a bring-your-own-outputs PSA table (from
+- `as_outcomes` normalises a bring-your-own-outputs PSA table (from
   any external simulator or spreadsheet export) into the standard
-  :class:`~heval.models.outcomes.Outcomes` schema so it can flow straight
-  into :mod:`heval.cea` and :mod:`heval.voi` without touching an engine.
+  `Outcomes` schema so it can flow straight
+  into `heval.cea` and `heval.voi` without touching an engine.
 """
 
 from __future__ import annotations
@@ -37,9 +37,12 @@ def as_outcomes(
     any source directly into the analysis layer.
 
     Args:
-        source: An :class:`Outcomes` (returned unchanged), a tidy long
+        source: An `Outcomes` (returned unchanged), a tidy long
             ``DataFrame``, or a path to a CSV file of one.
-        strategy, iteration, cost, effect: Column names in the table.
+        strategy: Column holding the strategy label.
+        iteration: Column holding the PSA iteration.
+        cost: Column holding the cost per iteration.
+        effect: Column holding the effect (QALYs by default).
 
     Example:
         >>> import pandas as pd
@@ -82,10 +85,10 @@ def run_psa(
     linkage intact for value-of-information analysis.
 
     Args:
-        model: A :class:`~heval.models.protocol.ModelEngine` or a callable
+        model: A `ModelEngine` or a callable
             ``draws -> Outcomes``.
         draws: Parameter draw matrix (rows = iterations), e.g. from
-            :meth:`heval.params.ParameterSet.sample`.
+            `heval.params.ParameterSet.sample`.
         n_jobs: ``joblib`` worker count; 1 runs in-process.
         batch_size: Rows per parallel batch (default: split evenly across
             workers).

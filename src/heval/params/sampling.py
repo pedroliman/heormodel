@@ -1,6 +1,6 @@
 """Correlated probabilistic sampling of parameter sets.
 
-A :class:`ParameterSet` maps parameter names to distribution specs and
+A `ParameterSet` maps parameter names to distribution specs and
 produces the **parameter draw matrix**: a tidy ``pandas.DataFrame`` with one
 row per PSA iteration (index named ``"iteration"``) and one column per scalar
 parameter. That matrix is the shared currency of the package: model engines
@@ -48,8 +48,8 @@ class ParameterSet:
 
     Args:
         distributions: Mapping of parameter name to a univariate
-            :class:`~heval.params.distributions.Distribution` or a
-            :class:`~heval.params.distributions.Dirichlet` (which expands to
+            `Distribution` or a
+            `Dirichlet` (which expands to
             one column per component, named ``name[component]``).
         correlation: Target Spearman rank correlations between scalar
             parameter columns. Either a symmetric ``DataFrame`` labelled by

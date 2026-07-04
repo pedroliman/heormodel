@@ -1,7 +1,7 @@
-"""Model engines behind an output contract (:mod:`heval.models`).
+"""Model engines behind an output contract (`heval.models`).
 
-The durable pieces here are :class:`Outcomes`, the standardized
-(strategy, iteration) outcome schema, and :class:`ModelEngine`, the
+The durable pieces here are `Outcomes`, the standardized
+(strategy, iteration) outcome schema, and `ModelEngine`, the
 protocol every engine satisfies. Engine implementations (cohort
 state-transition, microsimulation, discrete-event) arrive in later phases;
 their stubs document the planned designs.

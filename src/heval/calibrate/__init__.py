@@ -1,4 +1,4 @@
-"""Model calibration (:mod:`heval.calibrate`).
+"""Model calibration (`heval.calibrate`).
 
 Approximate Bayesian computation via ``pyabc`` (optional dependency):
 translate ``heval`` priors, calibrate a simulator to observed targets, and

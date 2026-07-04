@@ -118,8 +118,8 @@ def plot_ceac(
     """Cost-effectiveness acceptability curves, optionally with the frontier.
 
     Args:
-        ceac_df: Output of :func:`heval.cea.ceac`.
-        ceaf_df: Optional output of :func:`heval.cea.ceaf`; drawn as a bold
+        ceac_df: Output of `heval.cea.ceac`.
+        ceaf_df: Optional output of `heval.cea.ceaf`; drawn as a bold
             trace over the optimal strategy's curve.
         ax: Existing axes to draw on.
 
@@ -270,7 +270,7 @@ def tornado_data(
 
 
 def plot_tornado(td: pd.DataFrame, *, ax: Axes | None = None) -> Axes:
-    """Tornado diagram from :func:`tornado_data`.
+    """Tornado diagram from `tornado_data`.
 
     Example:
         >>> import pandas as pd

@@ -1,0 +1,146 @@
+project:
+  type: website
+  pre-render: _prerender.py
+
+website:
+  title: heval
+  site-url: https://pedroliman.github.io/heval/
+  repo-url: https://github.com/pedroliman/heval
+  page-navigation: true
+  navbar:
+    search: true
+    left:
+      - href: get-started.qmd
+        text: Get started
+      - text: Tutorials
+        menu:
+          - href: tutorials/byo-outputs.qmd
+            text: Bring your own outputs
+          - href: tutorials/full-pipeline.qmd
+            text: Full pipeline
+      - text: Concepts
+        menu:
+          - href: concepts/architecture.qmd
+            text: Architecture
+          - href: concepts/engines.qmd
+            text: Engines
+      - href: reference/index.qmd
+        text: Reference
+      - href: roadmap/index.md
+        text: Roadmap
+      - href: changelog.md
+        text: Changelog
+    right:
+      - icon: github
+        href: https://github.com/pedroliman/heval
+
+format:
+  html:
+    theme:
+      light: flatly
+      dark: darkly
+    toc: true
+    code-copy: true
+
+metadata-files:
+  - reference/_sidebar.yml
+
+filters:
+  - interlinks
+
+interlinks:
+  sources:
+    numpy:
+      url: https://numpy.org/doc/stable/
+    pandas:
+      url: https://pandas.pydata.org/docs/
+    scipy:
+      url: https://docs.scipy.org/doc/scipy/
+
+quartodoc:
+  package: heval
+  dir: reference
+  title: API reference
+  parser: google
+  sidebar: reference/_sidebar.yml
+  render_interlinks: true
+  sections:
+    - title: Parameters (`heval.params`)
+      desc: Distribution specs, mean/SE constructors, and correlated sampling into a parameter draw matrix.
+      package: heval.params
+      contents:
+        - Distribution
+        - Normal
+        - LogNormal
+        - Beta
+        - Gamma
+        - Uniform
+        - Fixed
+        - Dirichlet
+        - ParameterSet
+    - title: Models (`heval.models`)
+      desc: The `Outcomes` schema every engine targets and the `ModelEngine` protocol. Engine classes are stubs until their phases land.
+      package: heval.models
+      contents:
+        - Outcomes
+        - ModelEngine
+        - ModelFn
+        - MarkovCohortEngine
+        - DiscreteTimeMicrosimEngine
+        - ContinuousTimeMicrosimEngine
+        - DESEngine
+    - title: Run loop (`heval.run`)
+      desc: Drive a model over parameter draws, or ingest external PSA tables.
+      package: heval.run
+      contents:
+        - SeedManager
+        - run_psa
+        - as_outcomes
+        - running_means
+    - title: Cost-effectiveness analysis (`heval.cea`)
+      desc: ICERs, dominance, the efficiency frontier, net benefit, and acceptability curves.
+      package: heval.cea
+      contents:
+        - icer_table
+        - frontier
+        - nmb
+        - nhb
+        - expected_nmb
+        - ceac
+        - ceaf
+        - ce_plane
+        - STATUS_D
+        - STATUS_ED
+        - STATUS_ND
+    - title: Value of information (`heval.voi`)
+      desc: EVPI, EVPPI via metamodels, and EVSI estimators.
+      package: heval.voi
+      contents:
+        - evpi
+        - evppi
+        - evppi_ranking
+        - simulate_summaries
+        - evsi_regression
+        - evsi_moment_matching
+        - evsi_importance_sampling
+    - title: Calibration (`heval.calibrate`)
+      desc: ABC-SMC calibration; the posterior returns as a standard draw matrix. Requires the `calibration` extra.
+      package: heval.calibrate
+      contents:
+        - TargetSimulator
+        - abc_calibrate
+        - CalibrationResult
+        - to_pyabc_prior
+    - title: Reporting (`heval.report`)
+      desc: Standard plots, provenance capture, and model cards.
+      package: heval.report
+      contents:
+        - plot_ce_plane
+        - plot_ceac
+        - plot_frontier
+        - tornado_data
+        - plot_tornado
+        - strategy_colors
+        - PALETTE
+        - capture_run
+        - RunRecord

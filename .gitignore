@@ -8,3 +8,16 @@ __pycache__/
 dist/
 build/
 examples/output/
+
+# Quarto site build artifacts (docs/reference and copies are generated)
+docs/_site/
+docs/.quarto/
+docs/reference/
+docs/_inv/
+docs/objects.json
+docs/changelog.md
+docs/roadmap/
+docs/index_files/
+
+/.quarto/
+**/*.quarto_ipynb

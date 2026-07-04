@@ -7,9 +7,9 @@ models:
 - patient trajectory recording (event log per entity),
 - resource-constraint helpers (queues, capacities) mapped to costs,
 - continuous cost and utility accrual between events with discounting,
-- per-iteration seeding via :class:`heval.run.SeedManager`, and
+- per-iteration seeding via `heval.run.SeedManager`, and
 - aggregation of entity-level accruals into the standard
-  :class:`~heval.models.outcomes.Outcomes` schema.
+  `Outcomes` schema.
 
 The SimPy environment and process functions remain the user's own code;
 this engine never hides or re-implements the simulation loop.

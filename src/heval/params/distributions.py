@@ -2,7 +2,7 @@
 
 Each distribution is a small immutable spec object backed by ``scipy.stats``.
 Specs expose the quantile function (``ppf``), which is what the correlated
-Gaussian-copula sampler in :mod:`heval.params.sampling` needs, plus direct
+Gaussian-copula sampler in `heval.params.sampling` needs, plus direct
 sampling and moments for convenience.
 
 Method-of-moments constructors (``from_mean_se``) build the distribution
@@ -26,7 +26,7 @@ class Distribution(ABC):
     """Abstract base class for univariate parameter distributions.
 
     Subclasses wrap a frozen ``scipy.stats`` distribution and are the scalar
-    building blocks of a :class:`~heval.params.sampling.ParameterSet`.
+    building blocks of a `ParameterSet`.
     """
 
     @abstractmethod
@@ -56,8 +56,26 @@ class Distribution(ABC):
         """Distribution standard deviation."""
         return float(self._frozen().std())
 
+    def __repr__(self) -> str:
+        """Spec string with floats at 6 significant digits.
 
-@dataclass(frozen=True)
+        Keeps provenance records readable: method-of-moments constructors
+        produce floats whose full repr is noise.
+
+        Example:
+            >>> from heval.params import Beta
+            >>> Beta.from_mean_se(0.2, 0.05)
+            Beta(alpha=12.6, beta=50.4)
+        """
+        parts = []
+        for name in getattr(self, "__dataclass_fields__", {}):
+            value = getattr(self, name)
+            text = format(value, ".6g") if isinstance(value, float) else repr(value)
+            parts.append(f"{name}={text}")
+        return f"{type(self).__name__}({', '.join(parts)})"
+
+
+@dataclass(frozen=True, repr=False)
 class Beta(Distribution):
     """Beta distribution, for probabilities and utilities on [0, 1].
 
@@ -92,7 +110,7 @@ class Beta(Distribution):
         return stats.beta(self.alpha, self.beta)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class Gamma(Distribution):
     """Gamma distribution, for non-negative quantities such as costs.
 
@@ -123,7 +141,7 @@ class Gamma(Distribution):
         return stats.gamma(self.shape, scale=self.scale)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class LogNormal(Distribution):
     """Lognormal distribution, for relative risks and skewed costs.
 
@@ -156,7 +174,7 @@ class LogNormal(Distribution):
         return stats.lognorm(self.sigma, scale=math.exp(self.mu))
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class Normal(Distribution):
     """Normal distribution.
 
@@ -177,7 +195,7 @@ class Normal(Distribution):
         return stats.norm(self.mean_, self.sd_)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class Uniform(Distribution):
     """Uniform distribution on [low, high].
 
@@ -198,7 +216,7 @@ class Uniform(Distribution):
         return stats.uniform(self.low, self.high - self.low)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class Fixed(Distribution):
     """Degenerate distribution: a parameter held constant across iterations.
 
@@ -234,7 +252,7 @@ class Fixed(Distribution):
 class Dirichlet:
     """Dirichlet distribution: a vector of transition probabilities summing to 1.
 
-    Multivariate: inside a :class:`~heval.params.sampling.ParameterSet` a
+    Multivariate: inside a `ParameterSet` a
     Dirichlet named ``p`` with component names ``("a", "b")`` expands to draw
     columns ``p[a]`` and ``p[b]``. Sampling uses the standard construction of
     independent Gamma(alpha_i, 1) marginals normalised to sum to one, which
