@@ -16,3 +16,8 @@ Guidance for Claude Code when working in this repository.
 - Do not mention external existing R packages in code or documentation.
 - Lint/format with `ruff`, type-check the public API with `mypy`, test with `pytest`.
 - Every public function carries a docstring with a short worked example.
+
+## Git identity
+
+- All commits belong to the repo owner's GitHub account, never to Claude. Do not add `Co-Authored-By: Claude ...` or `Claude-Session:` trailers to commit messages.
+- A `SessionStart` hook (`.claude/hooks/session-start.sh`) sets `user.name`/`user.email` and installs a `commit-msg` hook that strips any such trailers as a safety net; it reruns every session since `.git/hooks` and local git config do not survive a fresh clone.
