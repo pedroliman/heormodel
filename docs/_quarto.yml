@@ -22,6 +22,8 @@ website:
             text: Calibration workflow
           - href: tutorials/microsim.qmd
             text: Microsimulation engine
+          - href: tutorials/des.qmd
+            text: Discrete-event simulation
       - text: Concepts
         menu:
           - href: concepts/architecture.qmd
@@ -84,7 +86,7 @@ quartodoc:
         - ParameterSet
         - mix_draws
     - title: Models (`heval.models`)
-      desc: The `Outcomes` schema every engine targets, the `ModelEngine` protocol, and the microsimulation engines. `MarkovCohortEngine` and `DESEngine` are stubs until their phases land.
+      desc: The `Outcomes` schema every engine targets, the `ModelEngine` protocol, and the microsimulation and discrete-event engines. `MarkovCohortEngine` is a stub until its phase lands.
       package: heval.models
       contents:
         - Outcomes
@@ -94,6 +96,7 @@ quartodoc:
         - DiscreteTimeMicrosimEngine
         - ContinuousTimeMicrosimEngine
         - DESEngine
+        - queue_waits
     - title: Run loop (`heval.run`)
       desc: Drive a model over parameter draws, or ingest external PSA tables.
       package: heval.run

@@ -5,7 +5,6 @@ import pandas as pd
 import pytest
 
 from heval.models import (
-    DESEngine,
     MarkovCohortEngine,
     ModelEngine,
     Outcomes,
@@ -151,8 +150,6 @@ class TestEngineStubs:
     def test_stubs_raise_not_implemented(self):
         with pytest.raises(NotImplementedError):
             MarkovCohortEngine()
-        with pytest.raises(NotImplementedError):
-            DESEngine()
 
 
 class TestDiagnostics:

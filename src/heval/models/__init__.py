@@ -7,7 +7,7 @@ state-transition, microsimulation, discrete-event) arrive in later phases;
 their stubs document the planned designs.
 """
 
-from heval.models.des import DESEngine
+from heval.models.des import DESEngine, queue_waits
 from heval.models.markov import MarkovCohortEngine
 from heval.models.microsim import ContinuousTimeMicrosimEngine, DiscreteTimeMicrosimEngine
 from heval.models.outcomes import Outcomes
@@ -21,4 +21,5 @@ __all__ = [
     "ModelEngine",
     "ModelFn",
     "Outcomes",
+    "queue_waits",
 ]

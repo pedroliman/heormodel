@@ -10,6 +10,23 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ## [Unreleased]
 
+### Added
+
+- Discrete-event simulation engine: `DESEngine` wraps SimPy. The environment,
+  process functions, and resources stay the user's own code; the engine adds a
+  per-entity toolkit for discounted cost and utility accrual, per-iteration
+  seeding from a `SeedManager` so results do not depend on `n_jobs`, and an
+  optional event log. It reuses `heval.models._accrual` and uses common random
+  numbers across strategies by default, staying coherent with the
+  microsimulation engines.
+- `heval.models.queue_waits`: derive per-request waiting times from a `DESEngine`
+  trace, so queueing reports come from the event log rather than engine
+  internals.
+- `simpy` as an optional dependency behind the `des` extra
+  (`uv pip install 'heval[des]'`).
+- Discrete-event example (`examples/des.py`) and website tutorial, validated
+  against an M/M/1 queue and the exponential cohort solution.
+
 ## [0.3.0] - 2026-07-04
 
 ### Added

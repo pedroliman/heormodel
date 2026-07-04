@@ -57,12 +57,14 @@ round(evpi(outcomes, wtp=30_000), 1)
 
 [`examples/microsim.py`](examples/microsim.py) builds an individual-level model with `DiscreteTimeMicrosimEngine`: frailty heterogeneity and a mortality risk that rises with time spent sick, two features a cohort average cannot carry, then runs it through CEA and VoI. Run it with `uv run python examples/microsim.py`.
 
+[`examples/des.py`](examples/des.py) builds a resource-constrained clinic with `DESEngine`, a thin SimPy wrapper: patients queue for a scarce specialist, so added capacity buys QALYs by cutting waiting time, a coupling a cohort model cannot carry. Run it with `uv run python examples/des.py` after installing the `des` extra.
+
 ## Package layout
 
 | Subpackage | Status | Contents |
 |---|---|---|
 | `heval.params` | done | Distribution specs with mean/SE constructors; correlated sampling |
-| `heval.models` | contract done | `Outcomes` schema, `ModelEngine` protocol; microsimulation engines built, Markov and DES stubbed |
+| `heval.models` | contract done | `Outcomes` schema, `ModelEngine` protocol; microsimulation and discrete-event engines built, Markov stubbed |
 | `heval.run` | done | `SeedManager`, `run_psa`, `as_outcomes`, running-mean diagnostics |
 | `heval.cea` | done | ICERs, dominance, extended dominance, frontier, NMB/NHB, CEAC/CEAF |
 | `heval.voi` | done | EVPI; EVPPI (spline/GP metamodels); EVSI (regression; others stubbed) |
@@ -76,7 +78,7 @@ Full docs are at [pedroliman.github.io/heval](https://pedroliman.github.io/heval
 Requires Python 3.11+ and [`uv`](https://docs.astral.sh/uv/):
 
 ```bash
-uv venv && uv pip install -e ".[dev]"   # extras: calibration (pyabc), dev
+uv venv && uv pip install -e ".[dev]"   # extras: calibration (pyabc), des (simpy), dev
 uv run pytest                            # suite incl. validation checks
 uv run pytest --doctest-modules src      # every docstring example runs
 uv run ruff check . && uv run mypy

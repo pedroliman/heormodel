@@ -1,0 +1,100 @@
+---
+title: Discrete-event simulation engine
+---
+
+This tutorial builds a resource-constrained model with `DESEngine` and runs it through CEA and VoI. It assumes the [microsimulation tutorial](microsim.qmd), which covers the shared ideas: configure once and evaluate on draws, per-iteration seeding, and the accrual layer. The narrated version here is [`examples/des.py`](https://github.com/pedroliman/heval/blob/main/examples/des.py). A discrete-event model earns its cost when a shared, scarce resource makes entities queue, so one patient's outcome depends on the others in the system, a coupling a cohort or independent-microsimulation model cannot carry.
+
+## The model
+
+A specialist clinic over a four-year horizon. Patients arrive over time and wait for a specialist, a SimPy `Resource`. While waiting, untreated disease costs `c_wait_year` per year at utility `u_wait`. Once seen, a one-off treatment cost is incurred and the patient spends the rest of the horizon treated at the higher `u_treated`. `DESEngine` wraps SimPy: the environment, the process, and the resource stay your own code, and the `toolkit` adds discounted accrual, seeding, and an event log.
+
+```{python}
+import numpy as np
+import pandas as pd
+import simpy
+
+HORIZON = 4.0
+ARRIVAL_RATE = 15.0  # patients per year
+
+def patients(rng, n):
+    return pd.DataFrame({"arrival": np.cumsum(rng.exponential(1.0 / ARRIVAL_RATE, n))})
+
+def resources(env, params, strategy):
+    return {"specialist": simpy.Resource(env, capacity=int(params["n_servers"]))}
+
+def clinic(env, patient, params, strategy, toolkit):
+    arrival = float(patient["arrival"])
+    if arrival >= HORIZON:
+        return
+    yield env.timeout(arrival)
+    toolkit.state("waiting")
+    with toolkit.request("specialist") as slot:
+        result = yield slot | env.timeout(HORIZON - env.now)  # race the horizon
+        served = slot in result
+        toolkit.accrue_over(arrival, env.now, params["c_wait_year"], params["u_wait"])
+        if served:
+            toolkit.accrue_cost(params["c_treat"] + params["c_capacity"])
+            toolkit.accrue_over(env.now, HORIZON, params["c_followup_year"], params["u_treated"])
+            yield env.timeout(toolkit.rng.gamma(2.0, params["service_time"] / 2.0))
+```
+
+`toolkit.accrue_over(start, end, cost_rate, utility_rate)` integrates and discounts a flow over an absolute interval, so billing the queueing time an entity just endured is one call after the grant. A patient still waiting at the horizon is never seen: the request loses the race and only the waiting segment is billed.
+
+## Configure once, evaluate on draws
+
+The constructor takes the model; `evaluate` takes only the draw matrix. The two strategies differ only in capacity, `n_servers`, and a per-patient overhead `c_capacity` for the expanded arm. They see the same patients and service draws through common random numbers, so the incremental result reflects the capacity change, not sampling noise.
+
+```{python}
+from heval.models import DESEngine
+from heval.params import Beta, Gamma, ParameterSet
+from heval.run import SeedManager, run_psa
+
+seeds = SeedManager(20260704)
+parameters = ParameterSet({
+    "service_time": Gamma.from_mean_se(0.08, 0.015),
+    "u_wait": Beta.from_mean_se(0.60, 0.05),
+    "u_treated": Beta.from_mean_se(0.85, 0.03),
+    "c_wait_year": Gamma.from_mean_se(9_000.0, 1_500.0),
+    "c_treat": Gamma.from_mean_se(5_000.0, 800.0),
+    "c_followup_year": Gamma.from_mean_se(1_500.0, 300.0),
+    "c_capacity": Gamma.from_mean_se(3_500.0, 600.0),
+})
+draws = parameters.sample(128, seed=seeds.generator())
+
+engine = DESEngine(
+    process=clinic, entities=patients, n_entities=30, resources=resources,
+    strategies={"Standard capacity": {"n_servers": 1, "c_capacity": 0.0},
+                "Expanded capacity": {"n_servers": 2}},
+    horizon=HORIZON, seed_manager=seeds,
+)
+outcomes = run_psa(engine, draws)
+outcomes.summary().round(2)
+```
+
+## CEA, VoI, and the queue
+
+From here nothing is engine-specific. Expanded capacity buys QALYs by cutting the wait at the low utility, at a higher cost.
+
+```{python}
+from heval.cea import icer_table
+icer_table(outcomes).round(2)
+```
+
+```{python}
+from heval.voi import evpi, evppi_ranking
+
+WTP = 30_000.0
+print(f"EVPI at WTP {WTP:,.0f}: {evpi(outcomes, WTP):,.1f}")
+evppi_ranking(outcomes, draws, WTP).round(1)
+```
+
+Service time leads the EVPPI ranking: it sets how fast the queue clears, so it drives whether the extra capacity pays off. The `trace` side channel carries the event log, and `queue_waits` turns it into per-request waits without touching engine internals.
+
+```{python}
+from heval.models import queue_waits
+
+_, trace = engine.evaluate(draws.iloc[[0]], trace=True)
+(queue_waits(trace).groupby("strategy", sort=False)["wait"].mean() * 365).round(1)
+```
+
+The single specialist leaves patients waiting weeks; the second clears the queue to about a day. See the [engines](../concepts/engines.qmd) concept page for where the engine sits in the contract, and the [microsimulation tutorial](microsim.qmd) for the individual-level engines it shares the accrual layer with.

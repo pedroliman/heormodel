@@ -140,5 +140,5 @@ The two agree to under 1% at 60,000 individuals, and the gap shrinks with the po
 
 ## Continuous time
 
-`ContinuousTimeMicrosimEngine` shares this constructor shape. Instead of per-cycle probabilities, `hazards` returns sampled times to each competing event; the engine races them, advances to the earliest, and accrues continuously between events. On constant hazards it reproduces the exponential cohort solution. See the [engines](../concepts/engines.qmd) concept page for where both fit in the contract, and the [roadmap](../roadmap/index.md) for the discrete-event engine that reuses the same accrual layer.
+`ContinuousTimeMicrosimEngine` shares this constructor shape. Instead of per-cycle probabilities, `hazards` returns sampled times to each competing event; the engine races them, advances to the earliest, and accrues continuously between events. On constant hazards it reproduces the exponential cohort solution. See the [engines](../concepts/engines.qmd) concept page for where both fit in the contract, and the [discrete-event tutorial](des.qmd) for the SimPy-wrapping engine that reuses the same accrual layer.
 ```

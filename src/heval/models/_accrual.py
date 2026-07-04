@@ -82,7 +82,9 @@ def accrue(
 
 
 def integrate_flow(
-    t0: NDArray[np.float64], duration: NDArray[np.float64], rate: float
+    t0: float | NDArray[np.float64],
+    duration: float | NDArray[np.float64],
+    rate: float,
 ) -> NDArray[np.float64]:
     """Integrate a unit continuous flow over ``[t0, t0 + duration]``, discounted.
 
