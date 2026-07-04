@@ -51,7 +51,7 @@ round(evpi(outcomes, wtp=30_000), 1)
 # 4339.3
 ```
 
-[`examples/byoo_example.py`](examples/byoo_example.py) runs the same wedge end to end: an external table through CEA, VoI, plots, and a model card, plus the full pipeline (`ParameterSet` sampling, `SeedManager`, `run_psa`).
+[`examples/byoo_example.py`](examples/byoo_example.py) runs the same wedge end to end: an external table through CEA, VoI, plots, and a run report, plus the full pipeline (`ParameterSet` sampling, `SeedManager`, `run_psa`).
 
 [`examples/calibration_workflow.py`](examples/calibration_workflow.py) mixes parameter sources: a natural-history model's transition rates are calibrated to observed prevalence with `abc_calibrate`, utilities and costs come from the literature, and `mix_draws` joins the two into one PSA that flows through CEA and VoI. Run it with `uv run python examples/calibration_workflow.py` after installing the `calibration` extra.
 
@@ -65,7 +65,7 @@ round(evpi(outcomes, wtp=30_000), 1)
 | `heval.cea` | done | ICERs, dominance, extended dominance, frontier, NMB/NHB, CEAC/CEAF |
 | `heval.voi` | done | EVPI; EVPPI (spline/GP metamodels); EVSI (regression; others stubbed) |
 | `heval.calibrate` | done, optional | ABC-SMC via `pyabc`; posterior as an iteration-indexed draw matrix |
-| `heval.report` | done | CE plane, CEAC/CEAF, frontier, tornado plots; provenance, model card |
+| `heval.report` | done | CE plane, CEAC/CEAF, frontier, tornado plots; provenance, run report |
 
 Full docs are at [pedroliman.github.io/heval](https://pedroliman.github.io/heval/). Next steps are prioritized in [`roadmap/`](roadmap/README.md); shipped changes are in [CHANGELOG.md](CHANGELOG.md); the release process is in [RELEASING.md](RELEASING.md). Prose follows [`guidance/writing_style.md`](guidance/writing_style.md).
 

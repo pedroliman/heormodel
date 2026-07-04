@@ -39,7 +39,7 @@ Notes:
 
 - Resampling a posterior with replacement to a larger `n` is standard practice; document that it adds no information.
 - Valid inputs by construction: `ParameterSet.sample` output, `CalibrationResult.posterior`, and any external draw matrix with an `iteration` index (bring-your-own-draws, mirroring bring-your-own-outputs).
-- Provenance: `capture_run` gains a `draw_sources` mapping so the model card shows where every parameter came from.
+- Provenance: `capture_run` gains a `draw_sources` mapping so the run report shows where every parameter came from.
 
 ## Deliverables
 

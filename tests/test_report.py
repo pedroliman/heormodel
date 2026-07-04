@@ -88,25 +88,25 @@ class TestProvenance:
         restored = RunRecord.from_json(path.read_text())
         assert restored == record
 
-    def test_model_card_contents(self, psa):
+    def test_to_markdown_contents(self, psa):
         outcomes, _ = psa
         ps = ParameterSet({"x": Normal(0, 1)})
-        card = capture_run(seed=5, params=ps, outcomes=outcomes).model_card()
-        assert card.startswith("# Model card")
-        assert "Root seed entropy:** 5" in card
-        assert "| x |" in card
+        report = capture_run(seed=5, params=ps, outcomes=outcomes).to_markdown()
+        assert report.startswith("# Run report")
+        assert "Root seed entropy:** 5" in report
+        assert "| x |" in report
 
     def test_draw_sources_recorded_and_rendered(self):
         sources = {"beta": "ABC posterior", "u_healthy": "literature"}
         record = capture_run(seed=1, draw_sources=sources)
         assert record.draw_sources == sources
-        card = record.model_card()
-        assert "## Draw sources" in card
-        assert "| beta | ABC posterior |" in card
+        report = record.to_markdown()
+        assert "## Draw sources" in report
+        assert "| beta | ABC posterior |" in report
         # round trip preserves the mapping
         assert RunRecord.from_json(record.to_json()).draw_sources == sources
 
     def test_draw_sources_absent_by_default(self, psa):
         outcomes, _ = psa
-        card = capture_run(seed=5, outcomes=outcomes).model_card()
-        assert "Draw sources" not in card
+        report = capture_run(seed=5, outcomes=outcomes).to_markdown()
+        assert "Draw sources" not in report

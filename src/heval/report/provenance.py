@@ -1,9 +1,9 @@
-"""Reproducibility scaffolding: seed logging, parameter provenance, model card.
+"""Reproducibility scaffolding: seed logging, parameter provenance, run reports.
 
 A `RunRecord` snapshots everything needed to reproduce and audit an
 analysis (the root seed entropy, the parameter specification, the outcome
 dimensions, and package versions) and renders it as JSON (for archives) or
-a markdown model card (for reports).
+a markdown run report (for reports).
 """
 
 from __future__ import annotations
@@ -72,12 +72,12 @@ class RunRecord:
         """Rebuild a record from `to_json` output."""
         return cls(**json.loads(text))
 
-    def model_card(self, title: str = "Model card") -> str:
-        """Render a markdown model card for reports and repositories.
+    def to_markdown(self, title: str = "Run report") -> str:
+        """Render the record as a markdown run report.
 
         Example:
             >>> from heval.report import capture_run
-            >>> capture_run().model_card().startswith("# Model card")
+            >>> capture_run().to_markdown().startswith("# Run report")
             True
         """
         lines = [f"# {title}", "", f"- **Created:** {self.created}"]

@@ -2,7 +2,7 @@
 title: Bring your own outputs
 ---
 
-This tutorial walks the adoption wedge of `heval` end to end: a costs/effects PSA table produced by any external model is loaded with `as_outcomes` and driven through CEA, VoI, plots, and a model card, without touching a model engine. It is the narrated version of [`examples/byoo_example.py`](https://github.com/pedroliman/heval/blob/main/examples/byoo_example.py). It assumes you have [installed `heval`](../get-started.qmd).
+This tutorial walks the adoption wedge of `heval` end to end: a costs/effects PSA table produced by any external model is loaded with `as_outcomes` and driven through CEA, VoI, plots, and a run report, without touching a model engine. It is the narrated version of [`examples/byoo_example.py`](https://github.com/pedroliman/heval/blob/main/examples/byoo_example.py). It assumes you have [installed `heval`](../get-started.qmd).
 
 ## An external PSA table
 
@@ -98,14 +98,14 @@ plot_tornado(td);
 
 ## Reproducibility record
 
-`capture_run` snapshots the seed, parameter specs, and outcome shape; the record serialises to JSON and renders a model card.
+`capture_run` snapshots the seed, parameter specs, and outcome shape; the record serialises to JSON and renders a run report.
 
 ```{python}
 from heval.report import capture_run
 
 record = capture_run(seed=seed_manager, params=params, outcomes=outcomes,
                      note="Bring-your-own-outputs tutorial.")
-print(record.model_card("heval example model card"))
+print(record.to_markdown("heval example run report"))
 ```
 
 Next: the [full pipeline tutorial](full-pipeline.qmd) replaces the synthetic table with a model evaluated through `run_psa`.

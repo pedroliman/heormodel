@@ -20,7 +20,7 @@ Each entry links to the pull request that introduced it. Add a line under
   (a calibrated posterior and literature draws) into one PSA matrix,
   resampling whole rows so joint correlation survives and sources stay
   independent.
-- `capture_run` records a `draw_sources` map, so the model card shows where
+- `capture_run` records a `draw_sources` map, so the run report shows where
   each parameter's draws came from.
 - Calibration workflow example (`examples/calibration_workflow.py`) and
   website tutorial: calibrate a natural-history model's rates, mix them with
@@ -32,7 +32,7 @@ Each entry links to the pull request that introduced it. Add a line under
   they render cleanly on the website and in `help()`
   ([#3](https://github.com/pedroliman/heval/pull/3)).
 - Distribution spec strings format floats at 6 significant digits, so
-  provenance records and model cards stay readable
+  provenance records and run reports stay readable
   ([#3](https://github.com/pedroliman/heval/pull/3)).
 
 ## [0.1.0] - 2026-07-04

@@ -149,7 +149,7 @@ The treatment effect `rr_progression` leads the ranking. The calibrated rates ra
 
 ## Provenance across sources
 
-`capture_run` takes a `draw_sources` map so the model card records where each parameter came from.
+`capture_run` takes a `draw_sources` map so the run report records where each parameter came from.
 
 ```{python}
 from heval.report import capture_run
@@ -163,7 +163,7 @@ record = capture_run(
     },
     note="Calibration workflow tutorial.",
 )
-print(record.model_card("heval calibration workflow model card"))
+print(record.to_markdown("heval calibration workflow run report"))
 ```
 
 Next: the [roadmap](../roadmap/index.md) lists the microsimulation and discrete-event engines that will replace this hand-written model while keeping the same analysis layer.

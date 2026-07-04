@@ -135,7 +135,7 @@ quartodoc:
         - CalibrationResult
         - to_pyabc_prior
     - title: Reporting (`heval.report`)
-      desc: Standard plots, provenance capture, and model cards.
+      desc: Standard plots, provenance capture, and run reports.
       package: heval.report
       contents:
         - plot_ce_plane
