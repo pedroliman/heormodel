@@ -1,34 +1,20 @@
 # 3. Microsimulation engine
 
-Implement `DiscreteTimeMicrosimEngine` first, then
-`ContinuousTimeMicrosimEngine`, replacing the stubs in
-`heval/models/microsim.py`. Both simulate an individual-level population
-per PSA iteration and emit the standard `Outcomes` schema.
+Implement `DiscreteTimeMicrosimEngine` first, then `ContinuousTimeMicrosimEngine`, replacing the stubs in `heval/models/microsim.py`. Both simulate an individual-level population per PSA iteration and emit the standard `Outcomes` schema.
 
 ## Architectural commitments
 
-The DES engine (item 4) must stay coherent with these decisions, so they
-are fixed here:
+The DES engine (item 4) must stay coherent with these decisions, so they are fixed here:
 
-1. Configure once, evaluate on draws. The constructor takes the model
-   structure; `evaluate(draws)` takes only the parameter draw matrix and
-   returns `Outcomes` with `draws.index` as the iteration index. The
-   existing protocol, unchanged.
-2. Randomness comes from a `SeedManager` injected at construction.
-   `evaluate` spawns one child generator per iteration, so iteration i is
-   reproducible in isolation and results do not depend on `n_jobs`.
-   Individual-level streams derive from the iteration stream, never from
-   a global RNG.
-3. A shared accrual layer, not a shared engine API. Cost and utility
-   accrual, discounting, and aggregation to `Outcomes` live in a new
-   internal module `heval/models/_accrual.py`, used by microsim and DES:
+1. Configure once, evaluate on draws. The constructor takes the model structure; `evaluate(draws)` takes only the parameter draw matrix and returns `Outcomes` with `draws.index` as the iteration index. The existing protocol, unchanged.
+2. Randomness comes from a `SeedManager` injected at construction. `evaluate` spawns one child generator per iteration, so iteration i is reproducible in isolation and results do not depend on `n_jobs`. Individual-level streams derive from the iteration stream, never from a global RNG.
+3. A shared accrual layer, not a shared engine API. Cost and utility accrual, discounting, and aggregation to `Outcomes` live in a new internal module `heval/models/_accrual.py`, used by microsim and DES:
    - `discount_factor(t, rate)`, continuous and per-cycle variants
    - `accrue(occupancy_or_events, payoffs, rate)` per individual
    - `aggregate(per_individual, strategy, iteration)` to `Outcomes` rows
+
    The engines share these helpers and the output contract, nothing else.
-4. Population averaging happens inside the engine. `Outcomes` stays
-   (strategy, iteration). Individual-level detail is an optional side
-   channel (a `trace=` flag), never part of the analysis contract.
+4. Population averaging happens inside the engine. `Outcomes` stays (strategy, iteration). Individual-level detail is an optional side channel (a `trace=` flag), never part of the analysis contract.
 
 ## Discrete-time engine (first)
 
@@ -48,32 +34,17 @@ DiscreteTimeMicrosimEngine(
 )
 ```
 
-- Vectorize over individuals, loop over cycles. State is an integer
-  vector; transitions are sampled with one `rng.random(n)` and a
-  cumulative-probability comparison per cycle. History dependence enters
-  through `attrs` columns (time in state, prior events), updated
-  vectorized.
-- Parallelism reuses `run_psa` unchanged. Children are spawned by
-  iteration position, so chunking does not change streams; document this.
-- Common random numbers across strategies by default (variance reduction
-  for incremental results); `independent_streams=True` disables it.
+- Vectorize over individuals, loop over cycles. State is an integer vector; transitions are sampled with one `rng.random(n)` and a cumulative-probability comparison per cycle. History dependence enters through `attrs` columns (time in state, prior events), updated vectorized.
+- Parallelism reuses `run_psa` unchanged. Children are spawned by iteration position, so chunking does not change streams; document this.
+- Common random numbers across strategies by default (variance reduction for incremental results); `independent_streams=True` disables it.
 
 ## Continuous-time engine (second)
 
-Same constructor shape. Instead of per-cycle `transition` probabilities,
-`hazards` returns competing time-to-event samplers. The engine takes the
-minimum, advances, and accrues continuously between events with the same
-`_accrual` helpers (discounting integrated between event times). No cycle
-grid; `horizon` truncates.
+Same constructor shape. Instead of per-cycle `transition` probabilities, `hazards` returns competing time-to-event samplers. The engine takes the minimum, advances, and accrues continuously between events with the same `_accrual` helpers (discounting integrated between event times). No cycle grid; `horizon` truncates.
 
 ## Validation (acceptance)
 
-- A three-state discrete-time microsimulation parameterized to match a
-  cohort model with a closed-form solution: mean costs and QALYs converge
-  to the analytic values as the population grows.
-- The continuous-time engine on constant hazards reproduces the
-  exponential cohort solution.
-- Reproducibility: same seed gives identical `Outcomes` at any `n_jobs`;
-  different iterations differ.
-- Contract tests: iteration index preserved, balanced panel, strategies
-  in declared order.
+- A three-state discrete-time microsimulation parameterized to match a cohort model with a closed-form solution: mean costs and QALYs converge to the analytic values as the population grows.
+- The continuous-time engine on constant hazards reproduces the exponential cohort solution.
+- Reproducibility: same seed gives identical `Outcomes` at any `n_jobs`; different iterations differ.
+- Contract tests: iteration index preserved, balanced panel, strategies in declared order.

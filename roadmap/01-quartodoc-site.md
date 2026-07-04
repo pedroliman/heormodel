@@ -1,9 +1,6 @@
 # 1. Documentation website with quartodoc
 
-Build a public documentation site with [Quarto](https://quarto.org) and
-[quartodoc](https://machow.github.io/quartodoc/), publishing from CI. The
-API reference is generated from docstrings, so it regenerates as the
-engine phases land.
+Build a public documentation site with [Quarto](https://quarto.org) and [quartodoc](https://machow.github.io/quartodoc/), publishing from CI. The API reference is generated from docstrings, so it regenerates as the engine phases land.
 
 ## Structure
 
@@ -24,37 +21,24 @@ docs/
 
 ## quartodoc configuration
 
-- `quartodoc:` section in `_quarto.yml` with `package: heval` and one
-  reference section per subpackage (`params`, `models`, `run`, `cea`,
-  `voi`, `calibrate`, `report`), listing the names each `__init__.py`
-  exports in `__all__`.
-- Docstrings are Google style with worked `Example:` blocks. quartodoc
-  renders them directly, and `uv run pytest --doctest-modules src/heval`
-  keeps every example on the site true.
+- `quartodoc:` section in `_quarto.yml` with `package: heval` and one reference section per subpackage (`params`, `models`, `run`, `cea`, `voi`, `calibrate`, `report`), listing the names each `__init__.py` exports in `__all__`.
+- Docstrings are Google style with worked `Example:` blocks. quartodoc renders them directly, and `uv run pytest --doctest-modules src/heval` keeps every example on the site true.
 - Interlinks to numpy, pandas, and scipy documentation.
 
 ## Tutorials execute at render time
 
-`.qmd` tutorials run against the installed package when the site builds,
-so the build fails if the API drifts. Treat the docs build as a test. Keep
-tutorial runtimes small: thousands of iterations, not the 80,000 used in
-the validation tests.
+`.qmd` tutorials run against the installed package when the site builds, so the build fails if the API drifts. Treat the docs build as a test. Keep tutorial runtimes small: thousands of iterations, not the 80,000 used in the validation tests.
 
 ## Tooling and CI
 
-- Add `quartodoc` to the `[dev]` extra. Quarto itself is a system binary,
-  installed in CI with `quarto-dev/quarto-actions/setup`.
-- Local workflow: `uv run quartodoc build --config docs/_quarto.yml`, then
-  `quarto preview docs`.
-- GitHub Actions workflow `docs.yml`: on push to `main`, build and deploy
-  to GitHub Pages.
-- Add the site URL to `[project.urls]` in `pyproject.toml` and to the
-  README.
+- Add `quartodoc` to the `[dev]` extra. Quarto itself is a system binary, installed in CI with `quarto-dev/quarto-actions/setup`.
+- Local workflow: `uv run quartodoc build --config docs/_quarto.yml`, then `quarto preview docs`.
+- GitHub Actions workflow `docs.yml`: on push to `main`, build and deploy to GitHub Pages.
+- Add the site URL to `[project.urls]` in `pyproject.toml` and to the README.
 
 ## Acceptance
 
 - The site builds clean in CI from a fresh checkout.
-- Every public symbol exported by the subpackage `__init__.py` files
-  appears in the reference.
+- Every public symbol exported by the subpackage `__init__.py` files appears in the reference.
 - Tutorials execute during the build and their outputs render.
 - Site prose follows `guidance/writing_style.md`.
