@@ -3,36 +3,55 @@
 [![CI](https://github.com/pedroliman/heval/actions/workflows/ci.yml/badge.svg)](https://github.com/pedroliman/heval/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/pedroliman/heval/branch/main/graph/badge.svg)](https://codecov.io/gh/pedroliman/heval)
 [![PyPI](https://img.shields.io/pypi/v/heval.svg)](https://pypi.org/project/heval/)
-[![Python versions](https://img.shields.io/pypi/pyversions/heval.svg)](https://pypi.org/project/heval/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Health economic evaluation in Python: parameter specification and probabilistic sampling, simulation across multiple model types, cost-effectiveness analysis (CEA), and value-of-information (VoI) analysis for model-based HEOR/HTA work.
+Health economic evaluation in Python: parameter specification and probabilistic sampling, simulation across model types, cost-effectiveness analysis (CEA), and value-of-information (VoI) analysis for model-based HEOR and HTA work.
+
+Every model engine returns costs and effects in one standardized structure, so CEA and VoI run the same on outputs from any source. You do not need a built-in engine to start: a PSA table from a spreadsheet or a legacy simulator enters the pipeline through one call.
 
 Documentation: [pedroliman.github.io/heval](https://pedroliman.github.io/heval/)
 
-## The core idea
+## Install
 
-One parameter object flows through swappable model engines into a shared analysis layer. Engines do not share an implementation API; they share a contract on their outputs. Given a matrix of parameter draws, every engine returns costs and effects per strategy per iteration in one standardized structure, `Outcomes`, a tidy frame indexed by `(strategy, iteration)`. Standardized outputs make CEA and VoI engine-agnostic.
+```bash
+pip install heval
+```
 
-Two invariants hold everywhere. First, the outcome schema is the integration point: every engine targets it, every analysis consumes it, and none reaches into engine internals. Second, parameter and outcome matrices share the iteration index, so EVPPI and EVSI can trace which draw produced which outcome; `run_psa` enforces it.
+The `calibration` extra adds ABC-SMC calibration: `pip install "heval[calibration]"`. Development uses [`uv`](https://docs.astral.sh/uv/); see [Development](#development).
 
-## Bring your own outputs
+## Quickstart
 
-You do not need an engine to use `heval`. A costs/effects PSA table from any source enters the pipeline through one call:
+Load a costs/effects PSA table with `as_outcomes`, then run incremental analysis and value of information from the same object:
 
 ```python
 import numpy as np
+import pandas as pd
 from heval.run import as_outcomes
-from heval.cea import icer_table, ceac
+from heval.cea import icer_table
 from heval.voi import evpi
 
-outcomes = as_outcomes("my_psa.csv")   # columns: strategy, iteration, cost, qaly
-print(icer_table(outcomes))            # ICERs, dominance, extended dominance
-curves = ceac(outcomes, np.linspace(0, 150_000, 61))
-print(evpi(outcomes, wtp=50_000))
+rng = np.random.default_rng(7)
+n = 2_000
+df = pd.concat(
+    pd.DataFrame({
+        "strategy": name, "iteration": range(n),
+        "cost": rng.normal(cost, 2_000, n), "qaly": rng.normal(q, 0.4, n),
+    })
+    for name, cost, q in [("Standard care", 40_000, 8.0), ("New drug", 52_000, 8.6)]
+)
+
+outcomes = as_outcomes(df)   # accepts a DataFrame or a CSV path
+icer_table(outcomes).round(1)
+#                   cost  effect  inc_cost  inc_effect     icer status
+# strategy
+# Standard care  39920.1     8.0       NaN         NaN      NaN     ND
+# New drug       51985.1     8.6   12065.0         0.6  20606.0     ND
+
+round(evpi(outcomes, wtp=30_000), 1)
+# 4339.3
 ```
 
-[`examples/byoo_example.py`](examples/byoo_example.py) is a runnable walkthrough: an external CSV through CEA, VoI, plots, and a model card, plus the full pipeline (`ParameterSet` sampling, `SeedManager`, `run_psa`).
+[`examples/byoo_example.py`](examples/byoo_example.py) runs the same wedge end to end: an external table through CEA, VoI, plots, and a model card, plus the full pipeline (`ParameterSet` sampling, `SeedManager`, `run_psa`).
 
 ## Package layout
 
@@ -46,13 +65,7 @@ print(evpi(outcomes, wtp=50_000))
 | `heval.calibrate` | done, optional | ABC-SMC via `pyabc`; posterior as an iteration-indexed draw matrix |
 | `heval.report` | done | CE plane, CEAC/CEAF, frontier, tornado plots; provenance, model card |
 
-Next steps are prioritized in [`roadmap/`](roadmap/README.md). Prose follows [`guidance/writing_style.md`](guidance/writing_style.md). Changes are tracked in [CHANGELOG.md](CHANGELOG.md); the release process is in [RELEASING.md](RELEASING.md).
-
-## Installation
-
-```bash
-pip install heval
-```
+Full docs are at [pedroliman.github.io/heval](https://pedroliman.github.io/heval/). Next steps are prioritized in [`roadmap/`](roadmap/README.md); shipped changes are in [CHANGELOG.md](CHANGELOG.md); the release process is in [RELEASING.md](RELEASING.md). Prose follows [`guidance/writing_style.md`](guidance/writing_style.md).
 
 ## Development
 
@@ -65,7 +78,7 @@ uv run pytest --doctest-modules src      # every docstring example runs
 uv run ruff check . && uv run mypy
 ```
 
-Two validation checks anchor the test suite: a hand-verified five-strategy dominance and ICER example (`tests/test_cea.py`), and analytic Gaussian EVPI/EVPPI/EVSI recovered within Monte Carlo error at 80,000 iterations (`tests/test_voi.py`).
+Two validation checks anchor the suite: a hand-verified five-strategy dominance and ICER example (`tests/test_cea.py`), and analytic Gaussian EVPI/EVPPI/EVSI recovered within Monte Carlo error at 80,000 iterations (`tests/test_voi.py`).
 
 The documentation site lives in `docs/` and builds with [Quarto](https://quarto.org) and [quartodoc](https://machow.github.io/quartodoc/); tutorials execute at render time, so the build doubles as a test. With Quarto installed and the `docs` extra synced (`uv sync --extra docs`):
 
@@ -76,9 +89,9 @@ quarto preview docs                                 # or: quarto render docs
 
 CI (`.github/workflows/docs.yml`) rebuilds and publishes the site to GitHub Pages on every push to `main`.
 
-## Design notes and deviations
+## Design notes
 
-- VoI metamodeling uses scikit-learn (`pygam` does not install against numpy 2.4+); `method=` leaves room for other backends.
+- VoI metamodeling uses scikit-learn; `method=` leaves room for other backends.
 - `heval.calibrate` is a seventh subpackage beyond the original six; calibrated draws re-enter the pipeline as a standard draw matrix.
 - Mean/SE constructors turn published estimates into sampling distributions; direct parameterisation remains available.
 - Dirichlet vectors sample as normalised independent Gammas; leave their correlation targets at zero.

@@ -20,7 +20,7 @@ pip install heval
 
 The `calibration` extra adds ABC-SMC calibration via `pyabc`: `uv add "heval[calibration]"`.
 
-## Bring your own outputs in ten lines
+## Bring your own outputs
 
 You do not need a model engine to use `heval`. Any tidy costs/effects table with `strategy`, `iteration`, `cost`, and `qaly` columns (a spreadsheet export, a legacy simulator's output) enters the pipeline through `as_outcomes`:
 

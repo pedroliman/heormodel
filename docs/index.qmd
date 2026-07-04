@@ -2,17 +2,19 @@
 title: heval
 ---
 
-Health economic evaluation in Python: parameter specification and probabilistic sampling, simulation across model types, cost-effectiveness analysis, and value-of-information analysis for model-based HEOR and HTA work.
+Health economic evaluation in Python: parameter sampling, simulation across model types, cost-effectiveness analysis, and value-of-information analysis for model-based HEOR and HTA work.
 
-## The core idea
+## Install
 
-One parameter object flows through swappable model engines into a shared analysis layer. Engines do not share an implementation API; they share a contract on their outputs. Given a matrix of parameter draws, every engine returns costs and effects per strategy per iteration in one standardized structure, `Outcomes`, a tidy frame indexed by `(strategy, iteration)`. Standardized outputs make CEA and VoI engine-agnostic.
+```bash
+pip install heval
+```
 
-Two invariants hold everywhere. First, the outcome schema is the integration point: every engine targets it, every analysis consumes it, and none reaches into engine internals. Second, parameter and outcome matrices share the iteration index, so EVPPI and EVSI can trace which draw produced which outcome; `run_psa` enforces it. [Architecture](concepts/architecture.qmd) covers both in detail.
+The `calibration` extra adds ABC-SMC calibration: `pip install "heval[calibration]"`.
 
 ## Quickstart
 
-A PSA table from any source enters the pipeline through one call:
+A probabilistic sensitivity analysis (PSA) table from any source enters the pipeline through one call, `as_outcomes`. From the resulting object, run incremental cost-effectiveness analysis and value of information:
 
 ```{python}
 import numpy as np
@@ -35,14 +37,22 @@ outcomes = as_outcomes(df)
 icer_table(outcomes).round(1)
 ```
 
+The `icer_table` orders strategies by cost and reports the ICER along the efficiency frontier; the `status` column flags dominated (`D`) and extended-dominated (`ED`) strategies. EVPI reads off the same object:
+
 ```{python}
 print(f"EVPI at WTP 30,000: {evpi(outcomes, wtp=30_000):,.1f}")
 ```
 
+## How it fits together
+
+One parameter object flows through swappable model engines into a shared analysis layer. Every engine returns costs and effects in one standardized structure, `Outcomes`, indexed by `(strategy, iteration)`, so `icer_table`, `ceac`, and `evpi` behave the same whether the numbers come from a spreadsheet export, a decision tree callable, or a future engine. You do not need an engine to start: bring your own PSA table, as the quickstart does.
+
+[Architecture](concepts/architecture.qmd) covers the schema and the shared iteration index that EVPPI and EVSI rely on.
+
 ## Where to go next
 
 - [Get started](get-started.qmd): install and run your first analysis.
-- [Bring your own outputs](tutorials/byo-outputs.qmd): an external PSA CSV through CEA, VoI, plots, and a model card.
+- [Bring your own outputs](tutorials/byo-outputs.qmd): an external PSA table through CEA, VoI, plots, and a model card.
 - [Full pipeline](tutorials/full-pipeline.qmd): parameters, `run_psa`, CEA, and VoI end to end.
 - [API reference](reference/index.qmd): every public function, generated from docstrings.
 - [Roadmap](roadmap/index.md) and [changelog](changelog.md): what is planned and what has shipped.
