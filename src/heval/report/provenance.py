@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import platform
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from importlib import metadata
@@ -49,6 +50,7 @@ class RunRecord:
     n_iterations: int | None
     strategies: list[str] | None
     parameters: dict[str, str] | None
+    draw_sources: dict[str, str] | None = None
     versions: dict[str, str] = field(default_factory=_versions)
     note: str = ""
 
@@ -90,6 +92,9 @@ class RunRecord:
         if self.parameters:
             lines += ["", "## Parameters", "", "| Parameter | Distribution |", "|---|---|"]
             lines += [f"| {name} | `{spec}` |" for name, spec in self.parameters.items()]
+        if self.draw_sources:
+            lines += ["", "## Draw sources", "", "| Parameter | Source |", "|---|---|"]
+            lines += [f"| {name} | {src} |" for name, src in self.draw_sources.items()]
         lines += ["", "## Software versions", "", "| Package | Version |", "|---|---|"]
         lines += [f"| {pkg} | {ver} |" for pkg, ver in self.versions.items()]
         return "\n".join(lines) + "\n"
@@ -100,6 +105,7 @@ def capture_run(
     seed: SeedManager | int | None = None,
     params: ParameterSet | None = None,
     outcomes: Outcomes | None = None,
+    draw_sources: Mapping[str, str] | None = None,
     note: str = "",
 ) -> RunRecord:
     """Snapshot a run's provenance into a `RunRecord`.
@@ -108,6 +114,9 @@ def capture_run(
         seed: The run's `SeedManager` (or raw seed).
         params: The sampled `ParameterSet`, if any.
         outcomes: The resulting outcomes, if available.
+        draw_sources: Where each parameter's draws came from, for analyses
+            that mix sources with `heval.params.mix_draws` (for example,
+            ``{"beta": "ABC posterior", "u_healthy": "literature"}``).
         note: Free-text description of the analysis.
 
     Example:
@@ -127,5 +136,6 @@ def capture_run(
         n_iterations=outcomes.n_iterations if outcomes is not None else None,
         strategies=outcomes.strategies if outcomes is not None else None,
         parameters=params.spec() if params is not None else None,
+        draw_sources=dict(draw_sources) if draw_sources is not None else None,
         note=note,
     )

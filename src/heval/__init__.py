@@ -21,7 +21,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _version
 
 from heval.models import ModelEngine, ModelFn, Outcomes
-from heval.params import ParameterSet
+from heval.params import ParameterSet, mix_draws
 from heval.run import SeedManager, as_outcomes, run_psa
 
 try:
@@ -37,5 +37,6 @@ __all__ = [
     "SeedManager",
     "__version__",
     "as_outcomes",
+    "mix_draws",
     "run_psa",
 ]

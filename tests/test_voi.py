@@ -13,6 +13,7 @@ import pytest
 from scipy.stats import norm
 
 from heval.models import Outcomes
+from heval.params import mix_draws
 from heval.voi import (
     evpi,
     evppi,
@@ -85,6 +86,38 @@ class TestValidationAnalyticGaussian:
         s_evsi = WTP * SD_E**2 / np.hypot(SD_E, TAU)
         expected = analytic_voi(s_evsi)
         assert evsi_regression(outcomes, summaries, WTP) == pytest.approx(expected, rel=0.05)
+
+
+class TestCalibrationWorkflowVoi:
+    """Acceptance check for the calibration workflow: VoI on a calibrated
+    parameter survives ``mix_draws``.
+
+    One Gaussian column stands in for a calibrated posterior, another for a
+    literature draw. After mixing them into one PSA matrix, single-parameter
+    EVPPI must still recover the closed-form value, confirming that mixing
+    keeps the parameter/outcome linkage VoI depends on.
+    """
+
+    def test_evppi_of_calibrated_parameter_recovered_after_mixing(self):
+        calibrated = pd.DataFrame(
+            {"e_b": np.random.default_rng(1).normal(MU_E, SD_E, N)},
+            index=pd.RangeIndex(N, name="iteration"),
+        )
+        literature = pd.DataFrame(
+            {"c_b": np.random.default_rng(2).normal(MU_C, SD_C, N)},
+            index=pd.RangeIndex(N, name="iteration"),
+        )
+        draws = mix_draws(calibrated, literature, n=N, seed=0)
+        costs = pd.DataFrame({"A": np.zeros(N), "B": draws["c_b"]}, index=draws.index)
+        effects = pd.DataFrame({"A": np.zeros(N), "B": draws["e_b"]}, index=draws.index)
+        outcomes = Outcomes.from_wide(costs, effects)
+
+        assert evppi(outcomes, draws, "e_b", WTP) == pytest.approx(
+            analytic_voi(WTP * SD_E), rel=0.05
+        )
+        assert evppi(outcomes, draws, "c_b", WTP) == pytest.approx(analytic_voi(SD_C), rel=0.05)
+        joint = evppi(outcomes, draws, ["e_b", "c_b"], WTP)
+        assert joint == pytest.approx(evpi(outcomes, WTP), rel=0.10)
 
 
 class TestVoiProperties:

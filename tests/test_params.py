@@ -5,7 +5,17 @@ import pandas as pd
 import pytest
 from scipy import stats
 
-from heval.params import Beta, Dirichlet, Fixed, Gamma, LogNormal, Normal, ParameterSet, Uniform
+from heval.params import (
+    Beta,
+    Dirichlet,
+    Fixed,
+    Gamma,
+    LogNormal,
+    Normal,
+    ParameterSet,
+    Uniform,
+    mix_draws,
+)
 
 
 class TestMethodOfMoments:
@@ -116,3 +126,66 @@ class TestParameterSet:
         assert ps.means()["a"] == 3.0
         assert ps.means()["p[0]"] == pytest.approx(0.5)
         assert "Fixed" in ps.spec()["a"]
+
+
+class TestMixDraws:
+    def test_columns_union_and_index_contract(self):
+        a = ParameterSet({"x": Normal(0, 1), "y": Normal(0, 1)}).sample(300, seed=1)
+        b = ParameterSet({"z": Uniform(0, 1)}).sample(500, seed=2)
+        mixed = mix_draws(a, b, seed=0)
+        assert list(mixed.columns) == ["x", "y", "z"]
+        assert len(mixed) == 300  # min source length
+        assert mixed.index.name == "iteration"
+        assert list(mixed.index) == list(range(300))
+
+    def test_explicit_n_resamples_short_source_with_replacement(self):
+        a = ParameterSet({"x": Normal(0, 1)}).sample(50, seed=1)
+        b = ParameterSet({"z": Uniform(0, 1)}).sample(2_000, seed=2)
+        mixed = mix_draws(a, b, n=1_000, seed=0)
+        assert len(mixed) == 1_000
+        # the 50-row source must have duplicated rows to reach 1000
+        assert mixed["x"].nunique() <= 50
+
+    def test_reproducible_under_seed(self):
+        a = ParameterSet({"x": Normal(0, 1)}).sample(400, seed=1)
+        b = ParameterSet({"z": Uniform(0, 1)}).sample(400, seed=2)
+        pd.testing.assert_frame_equal(mix_draws(a, b, seed=7), mix_draws(a, b, seed=7))
+
+    def test_preserves_within_source_correlation(self):
+        # Two columns from ONE correlated source: their Spearman correlation
+        # must survive mixing because whole rows are resampled together.
+        joint = ParameterSet(
+            {"a": Normal(0, 1), "b": Gamma.from_mean_se(10, 3)},
+            correlation={("a", "b"): 0.6},
+        ).sample(20_000, seed=11)
+        other = ParameterSet({"c": Uniform(0, 1)}).sample(20_000, seed=12)
+        rho_before = stats.spearmanr(joint["a"], joint["b"]).statistic
+        mixed = mix_draws(joint, other, seed=3)
+        rho_after = stats.spearmanr(mixed["a"], mixed["b"]).statistic
+        assert rho_after == pytest.approx(rho_before, abs=0.02)
+
+    def test_sources_are_independent_after_mixing(self):
+        # Two sources built from the same seed carry identical row order, yet
+        # mixing must break any cross-source correlation.
+        a = ParameterSet({"x": Normal(0, 1)}).sample(20_000, seed=1)
+        b = ParameterSet({"z": Normal(0, 1)}).sample(20_000, seed=1)
+        assert stats.spearmanr(a["x"].to_numpy(), b["z"].to_numpy()).statistic == pytest.approx(
+            1.0
+        )  # identical order before mixing
+        mixed = mix_draws(a, b, seed=5)
+        assert abs(stats.spearmanr(mixed["x"], mixed["z"]).statistic) < 0.03
+
+    def test_disjoint_columns_required(self):
+        a = ParameterSet({"x": Normal(0, 1)}).sample(10, seed=1)
+        b = ParameterSet({"x": Uniform(0, 1)}).sample(10, seed=2)
+        with pytest.raises(ValueError, match="disjoint"):
+            mix_draws(a, b)
+
+    def test_empty_source_rejected(self):
+        a = ParameterSet({"x": Normal(0, 1)}).sample(10, seed=1)
+        with pytest.raises(ValueError, match="empty"):
+            mix_draws(a, a.iloc[:0])
+
+    def test_no_sources_rejected(self):
+        with pytest.raises(ValueError, match="at least one"):
+            mix_draws()

@@ -16,6 +16,15 @@ Each entry links to the pull request that introduced it. Add a line under
   Pages from CI on every merge to `main`: executed tutorials, concept pages, a
   generated API reference, the roadmap, and this changelog
   ([#3](https://github.com/pedroliman/heval/pull/3)).
+- `heval.params.mix_draws` combines draw matrices from different sources
+  (a calibrated posterior and literature draws) into one PSA matrix,
+  resampling whole rows so joint correlation survives and sources stay
+  independent.
+- `capture_run` records a `draw_sources` map, so the model card shows where
+  each parameter's draws came from.
+- Calibration workflow example (`examples/calibration_workflow.py`) and
+  website tutorial: calibrate a natural-history model's rates, mix them with
+  literature parameters, and run CEA and VoI on the result.
 
 ### Changed
 

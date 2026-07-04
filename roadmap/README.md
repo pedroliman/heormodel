@@ -16,16 +16,19 @@ All prose follows [guidance/writing_style.md](../guidance/writing_style.md).
 - `calibrate`: ABC-SMC via pyabc, posterior returned as a draw matrix
 - `report`: CE plane, CEAC/CEAF, frontier, tornado, provenance, model card
 
+## Shipped since phase 1
+
+- Item 1, quartodoc documentation website ([01-quartodoc-site.md](01-quartodoc-site.md)): the site publishes to GitHub Pages with API reference, tutorials, and concept pages.
+- Item 2, full calibration workflow ([02-calibration-workflow.md](02-calibration-workflow.md)): `heval.params.mix_draws` combines calibrated and literature draw matrices; `capture_run` records `draw_sources`; `examples/calibration_workflow.py` and the calibration workflow tutorial run it end to end.
+
 ## Prioritized next steps
 
 | # | Item | Design note |
 |---|------|-------------|
-| 1 | quartodoc documentation website | [01-quartodoc-site.md](01-quartodoc-site.md) |
-| 2 | Full calibration workflow example: mix calibrated and literature parameters, then CEA and VoI | [02-calibration-workflow.md](02-calibration-workflow.md) |
 | 3 | Microsimulation engine (discrete-time, then continuous-time) | [03-microsim-engine.md](03-microsim-engine.md) |
 | 4 | DES engine wrapping SimPy, coherent with the microsim architecture | [04-des-engine.md](04-des-engine.md) |
 
-Item 1 starts immediately and grows as the later items land: each new feature ships with a website tutorial.
+Each new feature ships with a website tutorial, as items 1 and 2 did.
 
 ## Backlog
 

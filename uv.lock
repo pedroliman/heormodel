@@ -856,6 +856,7 @@ docs = [
     { name = "ipykernel" },
     { name = "nbclient" },
     { name = "nbformat" },
+    { name = "pyabc" },
     { name = "pyyaml" },
     { name = "quartodoc" },
 ]
@@ -872,6 +873,7 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.1" },
     { name = "pyabc", marker = "extra == 'calibration'", specifier = ">=0.12" },
     { name = "pyabc", marker = "extra == 'dev'", specifier = ">=0.12" },
+    { name = "pyabc", marker = "extra == 'docs'", specifier = ">=0.12" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5" },
     { name = "pyyaml", marker = "extra == 'docs'", specifier = ">=6" },

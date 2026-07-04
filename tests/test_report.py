@@ -95,3 +95,18 @@ class TestProvenance:
         assert card.startswith("# Model card")
         assert "Root seed entropy:** 5" in card
         assert "| x |" in card
+
+    def test_draw_sources_recorded_and_rendered(self):
+        sources = {"beta": "ABC posterior", "u_healthy": "literature"}
+        record = capture_run(seed=1, draw_sources=sources)
+        assert record.draw_sources == sources
+        card = record.model_card()
+        assert "## Draw sources" in card
+        assert "| beta | ABC posterior |" in card
+        # round trip preserves the mapping
+        assert RunRecord.from_json(record.to_json()).draw_sources == sources
+
+    def test_draw_sources_absent_by_default(self, psa):
+        outcomes, _ = psa
+        card = capture_run(seed=5, outcomes=outcomes).model_card()
+        assert "Draw sources" not in card

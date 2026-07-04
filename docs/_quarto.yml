@@ -18,6 +18,8 @@ website:
             text: Bring your own outputs
           - href: tutorials/full-pipeline.qmd
             text: Full pipeline
+          - href: tutorials/calibration-workflow.qmd
+            text: Calibration workflow
       - text: Concepts
         menu:
           - href: concepts/architecture.qmd
@@ -78,6 +80,7 @@ quartodoc:
         - Fixed
         - Dirichlet
         - ParameterSet
+        - mix_draws
     - title: Models (`heval.models`)
       desc: The `Outcomes` schema every engine targets and the `ModelEngine` protocol. Engine classes are stubs until their phases land.
       package: heval.models
