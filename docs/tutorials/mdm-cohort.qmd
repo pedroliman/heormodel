@@ -2,7 +2,7 @@
 title: Cohort state-transition model
 ---
 
-This tutorial reproduces a published cohort state-transition cost-effectiveness analysis with `MarkovCohortEngine`, then runs its probabilistic sensitivity analysis through the same pipeline. It assumes the [full pipeline tutorial](full-pipeline.qmd). The source is the introductory Sick-Sicker tutorial of Alarid-Escudero and others (2023); the full script is [`examples/mdm_cohort.py`](https://github.com/pedroliman/heval/blob/main/examples/mdm_cohort.py). See the [replication gallery](replication-gallery.qmd) for the companion time-dependent and microsimulation replications.
+This tutorial reproduces a published cohort state-transition cost-effectiveness analysis with `MarkovModel`, then runs its probabilistic sensitivity analysis through the same pipeline. It assumes the [full pipeline tutorial](full-pipeline.qmd). The source is the introductory Sick-Sicker tutorial of Alarid-Escudero and others (2023); the full script is [`examples/mdm_cohort.py`](https://github.com/pedroliman/heval/blob/main/examples/mdm_cohort.py). See the [replication gallery](replication-gallery.qmd) for the companion time-dependent and microsimulation replications.
 
 ## The model
 
@@ -11,7 +11,7 @@ Four states, Healthy, Sick, Sicker, Dead, over 75 annual cycles from age 25. Fou
 ```{python}
 import numpy as np
 import pandas as pd
-from heval.models import CohortSpec, MarkovCohortEngine
+from heval.models import CohortSpec, MarkovModel
 
 STATES = ("H", "S1", "S2", "D")
 STRATEGIES = ("Standard of care", "Strategy A", "Strategy B", "Strategy AB")
@@ -19,7 +19,7 @@ STRATEGIES = ("Standard of care", "Strategy A", "Strategy B", "Strategy AB")
 def r2p(rate):  # rate to per-cycle probability
     return 1.0 - np.exp(-np.asarray(rate))
 
-def build(p, strategy):
+def model(p, strategy):
     p_HS1, p_S1H, p_S1S2 = r2p(p["r_HS1"]), r2p(p["r_S1H"]), r2p(p["r_S1S2"])
     p_HD, p_S1D, p_S2D = r2p(p["r_HD"]), r2p(p["r_HD"] * p["hr_S1"]), r2p(p["r_HD"] * p["hr_S2"])
     prog = r2p(p["r_S1S2"] * p["hr_S1S2_trtB"]) if "B" in strategy else p_S1S2
@@ -34,7 +34,7 @@ def build(p, strategy):
     u_s1 = p["u_trtA"] if strategy in ("Strategy A", "Strategy AB") else p["u_S1"]
     return CohortSpec(P, cost, np.array([p["u_H"], u_s1, p["u_S2"], 0.0]))
 
-engine = MarkovCohortEngine(states=STATES, strategies=STRATEGIES, build=build,
+engine = MarkovModel(states=STATES, strategies=STRATEGIES, model_fn=model,
                             n_cycles=75, start="H", half_cycle_correction="simpson")
 ```
 

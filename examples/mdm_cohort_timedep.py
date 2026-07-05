@@ -6,7 +6,7 @@ Cost-Effectiveness Analysis Example," Medical Decision Making 2023;43(1):21-41.
 
 This extends the introductory model in two ways. Background mortality now varies
 by age: the Healthy-to-Dead rate follows a US life table, and the Sick and Sicker
-states scale it by their hazard ratios, so `build` returns a per-cycle transition
+states scale it by their hazard ratios, so `model` returns a per-cycle transition
 array rather than one matrix. Transition rewards attach a one-time cost of dying,
 a one-time cost of becoming Sick, and a disutility of onset to the flows between
 states, not to the states themselves.
@@ -28,7 +28,7 @@ import numpy as np
 import pandas as pd
 
 from heval.cea import ceac, ceaf, icer_table
-from heval.models import CohortSpec, MarkovCohortEngine
+from heval.models import CohortSpec, MarkovModel
 from heval.params import Beta, Gamma, LogNormal, ParameterSet
 from heval.report import capture_run, plot_ce_plane, plot_ceac, plot_frontier
 from heval.run import SeedManager, run_psa
@@ -70,7 +70,7 @@ def rate_to_prob(rate: float | np.ndarray, t: float = 1.0) -> np.ndarray:
     return 1.0 - np.exp(-np.asarray(rate) * t)
 
 
-def build(params: pd.Series, strategy: str) -> CohortSpec:
+def model(params: pd.Series, strategy: str) -> CohortSpec:
     """Per-cycle transition array, state payoffs, and transition rewards."""
     p_HS1 = rate_to_prob(params["r_HS1"])
     p_S1H = rate_to_prob(params["r_S1H"])
@@ -143,9 +143,9 @@ def parameters() -> ParameterSet:
 def main() -> None:
     OUT.mkdir(exist_ok=True)
     seeds = SeedManager(20260705)
-    engine = MarkovCohortEngine(
-        states=STATES, strategies=STRATEGIES, build=build, n_cycles=N_CYCLES,
-        start="H", discount_cost=0.03, discount_effect=0.03,
+    engine = MarkovModel(
+        states=STATES, strategies=STRATEGIES, model_fn=model, n_cycles=N_CYCLES,
+        start="H", discount_rate=0.03,
         half_cycle_correction="simpson",
     )
 

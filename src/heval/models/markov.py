@@ -1,13 +1,13 @@
 """Cohort state-transition (Markov) engine.
 
-`MarkovCohortEngine` evaluates a cohort state-transition model across PSA
+`MarkovModel` evaluates a cohort state-transition model across PSA
 iterations and emits the standard `Outcomes` schema. The cohort trace is a
 matrix-power sweep: the state-occupancy vector is multiplied by a transition
 matrix each cycle. Transitions may be constant or vary by cycle, which is how
 age-dependent mortality enters.
 
 The engine configures once and evaluates on draws. The constructor takes the
-model structure (states, strategies, a ``build`` callback, cycle count,
+model structure (states, strategies, a ``model_fn`` callback, cycle count,
 discounting, within-cycle correction); ``evaluate`` takes only the parameter
 draw matrix and returns `Outcomes` indexed by ``draws.index``. Cohort models
 are deterministic given a parameter set, so no random streams are involved.
@@ -39,7 +39,7 @@ _PROB_TOL = 1e-8
 class CohortSpec:
     """One strategy's matrices for a single parameter set.
 
-    Returned by the engine's ``build`` callback. Arrays are plain ``numpy``
+    Returned by the engine's ``model_fn`` callback. Arrays are plain ``numpy``
     arrays over the engine's state order.
 
     Args:
@@ -101,37 +101,41 @@ def gen_wcc(n_cycles: int, method: str = "simpson") -> NDArray[np.float64]:
     return wcc
 
 
-class MarkovCohortEngine:
+class MarkovModel:
     """Cohort state-transition model engine.
+
+    ``discount_rate`` is an annual rate on an annual clock. ``cycle_length``
+    scales the clock: with ``cycle_length=0.5`` each cycle discounts by half a
+    year.
 
     Args:
         states: State labels; their order fixes every array's axis order.
         strategies: Strategy names, in the order they appear in `Outcomes`.
-        build: ``fn(params, strategy) -> CohortSpec`` returning the transition
-            matrix and reward arrays for one strategy under one parameter set.
-            ``params`` is a draw-matrix row (a ``pandas.Series``); ``strategy``
-            is one of ``strategies``.
+        model_fn: ``fn(params, strategy) -> CohortSpec`` returning the
+            transition matrix and reward arrays for one strategy under one
+            parameter set. ``params`` is a draw-matrix row (a ``pandas.Series``);
+            ``strategy`` is one of ``strategies``.
         n_cycles: Number of cycles in the time horizon.
         start: Initial state distribution: a state label (all mass there), a
             mapping of state label to probability, or a length-``n_states``
             array. Defaults to all mass in the first state.
         cycle_length: Years per cycle; scales the discount clock.
-        discount_cost: Annual discount rate for costs.
-        discount_effect: Annual discount rate for effects.
+        discount_rate: Annual discount rate for costs and effects (0.03 by
+            default).
         half_cycle_correction: ``"simpson"`` (default), ``"half-cycle"``, or
             ``"none"``; see `gen_wcc`.
         effect: Name of the primary effect column (QALYs by default).
 
     Example:
         >>> import numpy as np, pandas as pd
-        >>> from heval.models.markov import CohortSpec, MarkovCohortEngine
-        >>> def build(params, strategy):
+        >>> from heval.models.markov import CohortSpec, MarkovModel
+        >>> def model(params, strategy):
         ...     p = params["p_die"]
         ...     P = np.array([[1 - p, p], [0.0, 1.0]])
         ...     return CohortSpec(P, np.array([params["cost"], 0.0]),
         ...                       np.array([1.0, 0.0]))
-        >>> engine = MarkovCohortEngine(
-        ...     states=("alive", "dead"), strategies=("care",), build=build,
+        >>> engine = MarkovModel(
+        ...     states=("alive", "dead"), strategies=("care",), model_fn=model,
         ...     n_cycles=10, half_cycle_correction="none")
         >>> draws = pd.DataFrame({"p_die": [0.1], "cost": [1000.0]},
         ...                      index=pd.RangeIndex(1, name="iteration"))
@@ -144,12 +148,11 @@ class MarkovCohortEngine:
         *,
         states: Sequence[str],
         strategies: Sequence[str],
-        build: Callable[[pd.Series, str], CohortSpec],
+        model_fn: Callable[[pd.Series, str], CohortSpec],
         n_cycles: int,
         start: str | Mapping[str, float] | Sequence[float] | None = None,
         cycle_length: float = 1.0,
-        discount_cost: float = 0.03,
-        discount_effect: float = 0.03,
+        discount_rate: float = 0.03,
         half_cycle_correction: str = "simpson",
         effect: str = "qaly",
     ) -> None:
@@ -162,16 +165,14 @@ class MarkovCohortEngine:
         self._states = tuple(states)
         self._n_states = len(self._states)
         self._strategies = tuple(strategies)
-        self._build = build
+        self._model_fn = model_fn
         self._n_cycles = int(n_cycles)
         self._cycle_length = float(cycle_length)
-        self._discount_cost = float(discount_cost)
-        self._discount_effect = float(discount_effect)
+        self._discount_rate = float(discount_rate)
         self._effect = effect
         self._start = self._resolve_start(start)
         times = np.arange(self._n_cycles + 1, dtype=np.float64) * self._cycle_length
-        self._disc_cost = discount_factor(times, self._discount_cost)
-        self._disc_effect = discount_factor(times, self._discount_effect)
+        self._disc = discount_factor(times, self._discount_rate)
         self._wcc = gen_wcc(self._n_cycles, half_cycle_correction)
 
     def _resolve_start(
@@ -263,8 +264,8 @@ class MarkovCohortEngine:
             eff_cycle = eff_cycle + self._transition_reward(
                 trace, spec.transition, spec.transition_effect
             )
-        total_cost = float(cost_cycle @ (self._disc_cost * self._wcc))
-        total_effect = float(eff_cycle @ (self._disc_effect * self._wcc))
+        total_cost = float(cost_cycle @ (self._disc * self._wcc))
+        total_effect = float(eff_cycle @ (self._disc * self._wcc))
         return total_cost, total_effect
 
     def evaluate(self, draws: pd.DataFrame) -> Outcomes:
@@ -284,7 +285,7 @@ class MarkovCohortEngine:
         keys: list[tuple[str, object]] = []
         for label, (_, params) in zip(draws.index, draws.iterrows(), strict=True):
             for name in self._strategies:
-                spec = self._build(params, name)
+                spec = self._model_fn(params, name)
                 cost, effect = self._accrue(spec)
                 costs.append(cost)
                 effects.append(effect)

@@ -2,7 +2,7 @@
 title: Microsimulation replication
 ---
 
-This tutorial reproduces a published individual-level cost-effectiveness analysis with `DiscreteTimeMicrosimEngine`, the Sick-Sicker microsimulation of Krijkamp and others (2018). It assumes the [microsimulation engine tutorial](microsim.qmd). The full script is [`examples/mdm_microsim.py`](https://github.com/pedroliman/heval/blob/main/examples/mdm_microsim.py).
+This tutorial reproduces a published individual-level cost-effectiveness analysis with `MicrosimModel`, the Sick-Sicker microsimulation of Krijkamp and others (2018). It assumes the [microsimulation engine tutorial](microsim.qmd). The full script is [`examples/mdm_microsim.py`](https://github.com/pedroliman/heval/blob/main/examples/mdm_microsim.py).
 
 ## Why an individual-level model
 
@@ -11,7 +11,7 @@ Two features rule out a cohort average. Mortality in the Sick and Sicker states 
 ```{python}
 import numpy as np
 import pandas as pd
-from heval.models import DiscreteTimeMicrosimEngine
+from heval.models import MicrosimModel
 from heval.run import SeedManager, run_psa
 
 STATES = ("H", "S1", "S2", "D")
@@ -57,11 +57,11 @@ from heval.cea import icer_table
 base = dict(p_HD=0.005, p_HS1=0.15, p_S1H=0.5, p_S1S2=0.105, rr_S1=3.0, rr_S2=10.0,
             rp_S1S2=0.2, c_H=2000.0, c_S1=4000.0, c_S2=15000.0, c_Trt=12000.0,
             u_H=1.0, u_S1=0.75, u_S2=0.5, u_Trt=0.95, ru_S1S2=0.03)
-engine = DiscreteTimeMicrosimEngine(
+engine = MicrosimModel(
     states=STATES, transition=transition, payoffs=payoffs, population=population,
     n_individuals=50_000, seed_manager=SeedManager(1),
     strategies={"No Treatment": {"on_treatment": 0.0}, "Treatment": {"on_treatment": 1.0}},
-    horizon=30, discount_cost=0.03, discount_effect=0.03,
+    horizon=30, discount_rate=0.03,
     half_cycle_correction=False, duration_groups={"dur": ("S1", "S2")})
 outcomes = run_psa(engine, pd.DataFrame([base], index=pd.RangeIndex(1, name="iteration")))
 icer_table(outcomes).round(2)

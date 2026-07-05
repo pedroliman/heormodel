@@ -1,21 +1,16 @@
-"""Tests for the microsimulation engines.
+"""Tests for the microsimulation engine.
 
-Two validation checks anchor the file: a discrete-time engine converges to the
-closed-form cohort solution it mirrors, and the continuous-time engine on
-constant hazards recovers the exponential cohort integral. The rest cover
-reproducibility across ``n_jobs``, common random numbers, and the output
-contract.
+Two validation checks anchor the file: the discrete clock converges to the
+closed-form cohort solution it mirrors, and the continuous clock on constant
+hazards recovers the exponential cohort integral. The rest cover reproducibility
+across ``n_jobs``, common random numbers, and the output contract.
 """
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from heval.models import (
-    ContinuousTimeMicrosimEngine,
-    DiscreteTimeMicrosimEngine,
-    ModelEngine,
-)
+from heval.models import MicrosimModel, ModelEngine
 from heval.run import SeedManager, run_psa
 
 # A three-state cohort: Healthy, Sick, Dead. Constant transitions and payoffs.
@@ -63,15 +58,14 @@ def _draws(n_iter=1):
 class TestDiscreteValidation:
     def test_converges_to_cohort_closed_form(self):
         horizon = 40
-        engine = DiscreteTimeMicrosimEngine(
+        engine = MicrosimModel(
             states=("H", "S", "D"),
             transition=_transition,
             payoffs=_payoffs,
             population=60_000,
             strategies={"care": {}},
             horizon=horizon,
-            discount_cost=0.03,
-            discount_effect=0.03,
+            discount_rate=0.03,
             half_cycle_correction=True,
             seed_manager=SeedManager(2026),
         )
@@ -101,15 +95,15 @@ class TestContinuousValidation:
             alive = (state == 0).astype(float)
             return alive * cost_year, alive
 
-        engine = ContinuousTimeMicrosimEngine(
+        engine = MicrosimModel(
             states=("alive", "dead"),
+            clock="continuous",
             hazards=hazards,
             payoffs=payoffs,
             population=60_000,
             strategies={"care": {}},
             horizon=horizon,
-            discount_cost=rate,
-            discount_effect=rate,
+            discount_rate=rate,
             seed_manager=SeedManager(7),
         )
         out = engine.evaluate(_draws())
@@ -129,8 +123,9 @@ class TestContinuousValidation:
         def payoffs(params, state, attrs):
             return np.zeros(len(state)), np.zeros(len(state))
 
-        engine = ContinuousTimeMicrosimEngine(
+        engine = MicrosimModel(
             states=("a", "b"),
+            clock="continuous",
             hazards=hazards,
             payoffs=payoffs,
             population=10,
@@ -154,7 +149,7 @@ def _small_engine(**overrides):
         seed_manager=SeedManager(99),
     )
     kwargs.update(overrides)
-    return DiscreteTimeMicrosimEngine(**kwargs)
+    return MicrosimModel(**kwargs)
 
 
 class TestReproducibility:
@@ -259,7 +254,7 @@ class TestDurationGroups:
         def payoffs(params, state, attrs):
             return np.zeros(1), np.zeros(1)
 
-        engine = DiscreteTimeMicrosimEngine(
+        engine = MicrosimModel(
             states=("H", "S1", "S2", "D"), transition=transition, payoffs=payoffs,
             population=1, strategies={"s": {}}, horizon=len(path) - 1,
             seed_manager=SeedManager(0), duration_groups={"sick_dur": ("S1", "S2")},
@@ -276,3 +271,27 @@ class TestDurationGroups:
 
         engine = _small_engine(transition=transition)
         engine.evaluate(_draws())
+
+
+class TestClockValidation:
+    def test_bad_clock_rejected(self):
+        with pytest.raises(ValueError, match="clock"):
+            MicrosimModel(
+                states=("H", "S", "D"), transition=_transition, payoffs=_payoffs,
+                population=10, strategies={"care": {}}, seed_manager=SeedManager(0),
+                clock="quarterly",
+            )
+
+    def test_discrete_requires_transition(self):
+        with pytest.raises(TypeError, match="transition"):
+            MicrosimModel(
+                states=("H", "S", "D"), payoffs=_payoffs, population=10,
+                strategies={"care": {}}, seed_manager=SeedManager(0),
+            )
+
+    def test_continuous_requires_hazards(self):
+        with pytest.raises(TypeError, match="hazards"):
+            MicrosimModel(
+                states=("H", "S", "D"), clock="continuous", payoffs=_payoffs,
+                population=10, strategies={"care": {}}, seed_manager=SeedManager(0),
+            )

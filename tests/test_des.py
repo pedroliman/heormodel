@@ -15,8 +15,8 @@ import pytest
 simpy = pytest.importorskip("simpy")
 
 from heval.models import (  # noqa: E402
-    ContinuousTimeMicrosimEngine,
-    DESEngine,
+    DESModel,
+    MicrosimModel,
     ModelEngine,
     queue_waits,
 )
@@ -45,7 +45,7 @@ class TestMM1Validation:
                 yield req
                 yield env.timeout(toolkit.rng.exponential(1.0 / mu))
 
-        engine = DESEngine(
+        engine = DESModel(
             process=process,
             entities=entities,
             n_entities=n,
@@ -78,13 +78,12 @@ class TestExponentialCohort:
             toolkit.accrue_rate(cost_year, 1.0, tdeath)  # truncated at the horizon
             yield env.timeout(min(tdeath, horizon))
 
-        return DESEngine(
+        return DESModel(
             process=process,
             entities=60_000,
             strategies={"care": {}},
             horizon=horizon,
-            discount_cost=self.RATE,
-            discount_effect=self.RATE,
+            discount_rate=self.RATE,
             seed_manager=SeedManager(7),
         )
 
@@ -101,15 +100,15 @@ class TestExponentialCohort:
             alive = (state == 0).astype(float)
             return alive * cost_year, alive
 
-        return ContinuousTimeMicrosimEngine(
+        return MicrosimModel(
             states=("alive", "dead"),
+            clock="continuous",
             hazards=hazards,
             payoffs=payoffs,
             population=60_000,
             strategies={"care": {}},
             horizon=self.HORIZON,
-            discount_cost=self.RATE,
-            discount_effect=self.RATE,
+            discount_rate=self.RATE,
             seed_manager=SeedManager(7),
         )
 
@@ -143,7 +142,7 @@ def _small_engine(**overrides):
         seed_manager=SeedManager(99),
     )
     kwargs.update(overrides)
-    return DESEngine(**kwargs)
+    return DESModel(**kwargs)
 
 
 class TestReproducibility:
@@ -208,12 +207,12 @@ class TestAccrualDetails:
             yield env.timeout(2.0)
             toolkit.accrue_cost(100.0)
 
-        engine = DESEngine(
+        engine = DESModel(
             process=process,
             entities=1,
             strategies={"care": {}},
             horizon=10.0,
-            discount_cost=0.03,
+            discount_rate=0.03,
             seed_manager=SeedManager(1),
         )
         got = engine.evaluate(_draws()).summary().loc["care", "cost"]
@@ -224,13 +223,12 @@ class TestAccrualDetails:
             toolkit.accrue_rate(1.0, 1.0, 1_000.0)  # far past the horizon
             yield env.timeout(1.0)
 
-        engine = DESEngine(
+        engine = DESModel(
             process=process,
             entities=1,
             strategies={"care": {}},
             horizon=10.0,
-            discount_cost=0.0,
-            discount_effect=0.0,
+            discount_rate=0.0,
             seed_manager=SeedManager(1),
         )
         got = engine.evaluate(_draws()).summary().loc["care"]
@@ -243,12 +241,12 @@ class TestAccrualDetails:
             toolkit.accrue_cost(30.0, component="cost_clinic")
             yield env.timeout(1.0)
 
-        engine = DESEngine(
+        engine = DESModel(
             process=process,
             entities=10,
             strategies={"care": {}},
             horizon=5.0,
-            discount_cost=0.0,
+            discount_rate=0.0,
             seed_manager=SeedManager(1),
         )
         out = engine.evaluate(_draws())
@@ -266,7 +264,7 @@ class TestTraceAndGuards:
             toolkit.accrue_cost(10.0)
             yield env.timeout(1.0)
 
-        engine = DESEngine(
+        engine = DESModel(
             process=process,
             entities=5,
             strategies={"A": {}, "B": {}},
@@ -291,7 +289,7 @@ class TestTraceAndGuards:
             with toolkit.request("missing") as req:
                 yield req
 
-        engine = DESEngine(
+        engine = DESModel(
             process=process,
             entities=1,
             strategies={"care": {}},

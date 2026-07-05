@@ -12,6 +12,7 @@ Guidance for Claude Code when working in this repository.
 ## Conventions
 
 - `src/` layout; the package lives in `src/heval`.
+- Do not keep backward compatibility unless explicitly asked. The API is pre-1.0 and stabilizing; when a change renames or removes public names, make a clean break (update every call site) rather than adding deprecation aliases, shims, or compatibility keyword arguments.
 - Follow `guidance/writing_style.md` for all prose: README, roadmap, docstrings, comments, commit messages, and website pages. In short: concise, no em-dashes, HEOR vocabulary.
 - Do not mention external existing R packages in code or documentation.
 - Lint/format with `ruff`, type-check the public API with `mypy`, test with `pytest`.

@@ -29,7 +29,7 @@ import numpy as np
 import pandas as pd
 
 from heval.cea import icer_table
-from heval.models import DiscreteTimeMicrosimEngine
+from heval.models import MicrosimModel
 from heval.report import capture_run, plot_ce_plane, plot_frontier
 from heval.run import SeedManager, run_psa
 
@@ -109,12 +109,12 @@ def payoffs(
 def main() -> None:
     OUT.mkdir(exist_ok=True)
     seeds = SeedManager(1)
-    engine = DiscreteTimeMicrosimEngine(
+    engine = MicrosimModel(
         states=STATES, transition=transition, payoffs=payoffs, population=population,
         n_individuals=POP,
         strategies={"No Treatment": {"on_treatment": 0.0},
                     "Treatment": {"on_treatment": 1.0}},
-        horizon=HORIZON, discount_cost=0.03, discount_effect=0.03,
+        horizon=HORIZON, discount_rate=0.03,
         half_cycle_correction=False, seed_manager=seeds,
         duration_groups={"dur": ("S1", "S2")},
     )

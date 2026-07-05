@@ -6,9 +6,9 @@ Published cost-effectiveness tutorials reproduced with `heval`, one per model ty
 
 | Replication | Engine | Deterministic result |
 |---|---|---|
-| [Cohort state-transition model](mdm-cohort.qmd) | `MarkovCohortEngine` | Matches the published ICERs exactly |
-| [Time-dependent cohort model](mdm-cohort-timedep.qmd) | `MarkovCohortEngine`, per-cycle transitions | Matches the published ICERs exactly |
-| [Microsimulation](mdm-microsim.qmd) | `DiscreteTimeMicrosimEngine`, `duration_groups` | Matches within Monte Carlo error |
+| [Cohort state-transition model](mdm-cohort.qmd) | `MarkovModel` | Matches the published ICERs exactly |
+| [Time-dependent cohort model](mdm-cohort-timedep.qmd) | `MarkovModel`, per-cycle transitions | Matches the published ICERs exactly |
+| [Microsimulation](mdm-microsim.qmd) | `MicrosimModel`, `duration_groups` | Matches within Monte Carlo error |
 
 ## What each one shows
 

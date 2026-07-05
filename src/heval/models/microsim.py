@@ -1,18 +1,18 @@
-"""Individual-level (microsimulation) engines.
+"""Individual-level (microsimulation) engine.
 
-Two engines simulate an individual-level population per PSA iteration and emit
-the standard `Outcomes` schema:
+`MicrosimModel` simulates an individual-level population per PSA iteration and
+emits the standard `Outcomes` schema. One class covers two clocks:
 
-- `DiscreteTimeMicrosimEngine` advances every individual on a fixed cycle grid,
-  sampling state transitions from per-cycle probabilities. History dependence
-  enters through attribute columns the engine maintains (``cycle`` and
-  ``time_in_state``).
-- `ContinuousTimeMicrosimEngine` races competing time-to-event samplers, takes
-  the earliest, and accrues continuously between events. No cycle grid; the
-  horizon truncates.
+- ``clock="discrete"`` (default) advances every individual on a fixed cycle
+  grid, sampling state transitions from per-cycle probabilities. History
+  dependence enters through attribute columns the engine maintains (``cycle``
+  and ``time_in_state``). Supply a ``transition`` callback.
+- ``clock="continuous"`` races competing time-to-event samplers, takes the
+  earliest, and accrues continuously between events. No cycle grid; the horizon
+  truncates. Supply a ``hazards`` callback.
 
-Both configure once and evaluate on draws: the constructor takes the model
-structure, and `evaluate` takes only the parameter draw matrix, returning
+The engine configures once and evaluates on draws: the constructor takes the
+model structure, and `evaluate` takes only the parameter draw matrix, returning
 `Outcomes` indexed by ``draws.index``. Randomness comes from a `SeedManager`
 injected at construction; each iteration draws a stream keyed by its index, so
 iteration ``i`` is reproducible in isolation and results do not depend on how a
@@ -48,10 +48,10 @@ def _iteration_key(label: Any) -> int:
 
 
 class _MicrosimBase:
-    """Shared configuration and per-iteration streaming for both engines.
+    """Shared configuration and per-iteration streaming for the microsim clocks.
 
-    Not an engine API: subclasses implement ``_simulate`` privately. The only
-    surface either engine shares with the outside world is the `Outcomes`
+    Not an engine API: `MicrosimModel` implements ``_simulate`` per clock. The
+    only surface either clock shares with the outside world is the `Outcomes`
     contract.
     """
 
@@ -65,8 +65,7 @@ class _MicrosimBase:
         seed_manager: SeedManager,
         n_individuals: int,
         initial_state: str | int,
-        discount_cost: float,
-        discount_effect: float,
+        discount_rate: float,
         effect: str,
         independent_streams: bool,
     ) -> None:
@@ -78,8 +77,7 @@ class _MicrosimBase:
         self._payoffs = payoffs
         self._strategies = {name: dict(overrides) for name, overrides in strategies.items()}
         self._seed_manager = seed_manager
-        self._discount_cost = float(discount_cost)
-        self._discount_effect = float(discount_effect)
+        self._discount_rate = float(discount_rate)
         self._effect = effect
         self._independent_streams = bool(independent_streams)
         if isinstance(population, bool):  # bool is an int subclass; reject it explicitly
@@ -193,52 +191,76 @@ class _MicrosimBase:
         return outcomes
 
 
-class DiscreteTimeMicrosimEngine(_MicrosimBase):
-    """Discrete-time individual-level state-transition engine.
+class MicrosimModel(_MicrosimBase):
+    """Individual-level microsimulation engine, discrete- or continuous-time.
 
-    Vectorize over individuals, loop over cycles. The state is an integer
-    vector; each cycle one ``rng.random(n)`` draw and a cumulative-probability
-    comparison samples the next state. History enters through two attribute
-    columns the engine maintains and passes to ``transition`` and ``payoffs``:
-    ``cycle`` (0-based cycle index) and ``time_in_state`` (cycles the individual
-    has spent in its current state).
+    The ``clock`` argument selects the simulation kernel and which callback the
+    constructor expects.
+
+    ``clock="discrete"`` vectorizes over individuals and loops over cycles. The
+    state is an integer vector; each cycle one ``rng.random(n)`` draw and a
+    cumulative-probability comparison samples the next state. History enters
+    through two attribute columns the engine maintains and passes to
+    ``transition`` and ``payoffs``: ``cycle`` (0-based cycle index) and
+    ``time_in_state`` (cycles the individual has spent in its current state).
+
+    ``clock="continuous"`` races competing time-to-event samplers. ``hazards``
+    returns sampled times to each competing event; the engine takes the
+    earliest, advances the clock to it, and accrues cost and utility
+    continuously over the elapsed segment. There is no cycle grid; ``horizon``
+    truncates. The current clock is passed to ``hazards`` and ``payoffs`` as a
+    ``time`` attribute column.
+
+    ``discount_rate`` is an annual rate on an annual clock. ``cycle_length``
+    scales the discrete clock: with ``cycle_length=0.5`` each cycle discounts
+    by half a year.
 
     Args:
         states: State labels; the first is the default starting state.
-        transition: ``fn(params, state, attrs, rng) -> probs``. ``state`` is the
-            current integer state vector; ``probs`` has shape ``(n, n_states)``
-            and each row sums to 1.
-        payoffs: ``fn(params, state, attrs) -> (cost, qaly)``, the per-cycle
-            cost and effect of each individual's current state, each shape
-            ``(n,)``.
-        population: Attribute sampler ``fn(rng, n) -> DataFrame`` for
-            heterogeneity, or an ``int`` count for a featureless population.
-            ``None`` uses ``n_individuals`` with no attributes.
+        payoffs: Discrete clock: ``fn(params, state, attrs) -> (cost, qaly)``,
+            the per-cycle cost and effect of each individual's current state.
+            Continuous clock: ``fn(params, state, attrs) -> (cost_rate,
+            qaly_rate)``, the per-year flows. Each returns shape ``(n,)``.
         strategies: Map of strategy name to a parameter-override dict merged
             into ``params`` for that strategy. Order is preserved in `Outcomes`.
         seed_manager: Root of all randomness.
-        cycle_length: Years per cycle.
-        horizon: Number of cycles to simulate.
-        discount_cost: Annual discount rate for costs.
-        discount_effect: Annual discount rate for effects.
-        half_cycle_correction: Halve the first and last cycle's accrual.
+        clock: ``"discrete"`` (default) or ``"continuous"``.
+        transition: Discrete clock only. ``fn(params, state, attrs, rng) ->
+            probs``, shape ``(n, n_states)`` with each row summing to 1.
+        hazards: Continuous clock only. ``fn(params, state, attrs, rng) ->
+            times``, shape ``(n, n_states)``, the sampled time to each
+            destination state. Use ``inf`` where a transition cannot occur,
+            including a state's own column and every column of an absorbing
+            state.
+        population: Attribute sampler ``fn(rng, n) -> DataFrame`` for
+            heterogeneity, or an ``int`` count for a featureless population.
+            ``None`` uses ``n_individuals`` with no attributes.
+        cycle_length: Discrete clock: years per cycle.
+        horizon: Discrete clock: number of cycles to simulate. Continuous clock:
+            time horizon in years; trajectories truncate here.
+        discount_rate: Annual discount rate for costs and effects (0.03 by
+            default).
+        half_cycle_correction: Discrete clock: halve the first and last cycle's
+            accrual.
         n_individuals: Population size when ``population`` is a sampler or None.
         initial_state: Starting state label or index.
         effect: Name of the effect column (QALYs by default).
         independent_streams: Give each strategy its own population and
-            transition stream instead of common random numbers.
-        duration_groups: Optional map of attribute name to a set of state
-            labels. For each entry the engine maintains a per-individual counter
-            of consecutive cycles spent in that set of states (0 on the first
-            such cycle, reset when the individual leaves the set) and passes it
-            to ``transition`` and ``payoffs`` in ``attrs``. Unlike
-            ``time_in_state``, which counts one exact state, a duration group
-            spans several states, so a sojourn that progresses (Sick to Sicker)
-            keeps counting.
+            simulation stream instead of common random numbers.
+        duration_groups: Discrete clock only. Optional map of attribute name to
+            a set of state labels. For each entry the engine maintains a
+            per-individual counter of consecutive cycles spent in that set of
+            states (0 on the first such cycle, reset when the individual leaves
+            the set) and passes it to ``transition`` and ``payoffs`` in
+            ``attrs``. Unlike ``time_in_state``, which counts one exact state, a
+            duration group spans several states, so a sojourn that progresses
+            (Sick to Sicker) keeps counting.
+        max_events: Continuous clock only. Safety cap on events per individual
+            before raising.
 
     Example:
         >>> import numpy as np, pandas as pd
-        >>> from heval.models import DiscreteTimeMicrosimEngine
+        >>> from heval.models import MicrosimModel
         >>> from heval.run import SeedManager
         >>> def transition(params, state, attrs, rng):
         ...     probs = np.zeros((len(state), 2))
@@ -248,7 +270,7 @@ class DiscreteTimeMicrosimEngine(_MicrosimBase):
         >>> def payoffs(params, state, attrs):
         ...     alive = (state == 0).astype(float)
         ...     return alive * params["cost"], alive
-        >>> engine = DiscreteTimeMicrosimEngine(
+        >>> engine = MicrosimModel(
         ...     states=("healthy", "dead"), transition=transition, payoffs=payoffs,
         ...     population=500, strategies={"care": {}}, horizon=10,
         ...     seed_manager=SeedManager(0), half_cycle_correction=False)
@@ -262,22 +284,26 @@ class DiscreteTimeMicrosimEngine(_MicrosimBase):
         self,
         *,
         states: tuple[str, ...],
-        transition: Callable[..., NDArray[np.float64]],
         payoffs: Callable[..., tuple[NDArray[np.float64], NDArray[np.float64]]],
-        population: PopulationSpec = None,
         strategies: StrategySpec,
         seed_manager: SeedManager,
+        clock: str = "discrete",
+        transition: Callable[..., NDArray[np.float64]] | None = None,
+        hazards: Callable[..., NDArray[np.float64]] | None = None,
+        population: PopulationSpec = None,
         cycle_length: float = 1.0,
-        horizon: int = 60,
-        discount_cost: float = 0.03,
-        discount_effect: float = 0.03,
+        horizon: float = 60,
+        discount_rate: float = 0.03,
         half_cycle_correction: bool = True,
         n_individuals: int = 1_000,
         initial_state: str | int = 0,
         effect: str = "qaly",
         independent_streams: bool = False,
         duration_groups: Mapping[str, Sequence[str | int]] | None = None,
+        max_events: int = 10_000,
     ) -> None:
+        if clock not in ("discrete", "continuous"):
+            raise ValueError(f"clock must be 'discrete' or 'continuous', got {clock!r}.")
         super().__init__(
             states=states,
             payoffs=payoffs,
@@ -286,31 +312,54 @@ class DiscreteTimeMicrosimEngine(_MicrosimBase):
             seed_manager=seed_manager,
             n_individuals=n_individuals,
             initial_state=initial_state,
-            discount_cost=discount_cost,
-            discount_effect=discount_effect,
+            discount_rate=discount_rate,
             effect=effect,
             independent_streams=independent_streams,
         )
-        if horizon < 1:
-            raise ValueError("horizon must be at least one cycle.")
-        self._transition = transition
-        self._cycle_length = float(cycle_length)
-        self._horizon = int(horizon)
-        self._half_cycle_correction = bool(half_cycle_correction)
-        self._duration_groups = {
-            name: np.array([self._state_index(s) for s in members], dtype=np.int64)
-            for name, members in (duration_groups or {}).items()
-        }
+        self._clock = clock
+        if clock == "discrete":
+            if transition is None:
+                raise TypeError("clock='discrete' requires a transition callback.")
+            if hazards is not None:
+                raise TypeError("hazards is only valid with clock='continuous'.")
+            if horizon < 1:
+                raise ValueError("horizon must be at least one cycle.")
+            self._transition = transition
+            self._cycle_length = float(cycle_length)
+            self._horizon: float = int(horizon)
+            self._half_cycle_correction = bool(half_cycle_correction)
+            self._duration_groups = {
+                name: np.array([self._state_index(s) for s in members], dtype=np.int64)
+                for name, members in (duration_groups or {}).items()
+            }
+        else:
+            if hazards is None:
+                raise TypeError("clock='continuous' requires a hazards callback.")
+            if transition is not None:
+                raise TypeError("transition is only valid with clock='discrete'.")
+            if horizon <= 0:
+                raise ValueError("horizon must be positive.")
+            self._hazards = hazards
+            self._horizon = float(horizon)
+            self._max_events = int(max_events)
 
     def _simulate(
         self, params: pd.Series, attrs: pd.DataFrame, rng: np.random.Generator
     ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+        if self._clock == "discrete":
+            return self._simulate_discrete(params, attrs, rng)
+        return self._simulate_continuous(params, attrs, rng)
+
+    def _simulate_discrete(
+        self, params: pd.Series, attrs: pd.DataFrame, rng: np.random.Generator
+    ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
         n = len(attrs)
         n_states = len(self._states)
+        horizon = int(self._horizon)
         state = np.full(n, self._initial_index, dtype=np.int64)
         time_in_state = np.zeros(n, dtype=np.int64)
         durations = {name: np.zeros(n, dtype=np.int64) for name in self._duration_groups}
-        n_points = self._horizon + 1
+        n_points = horizon + 1
         cost_grid = np.empty((n, n_points), dtype=np.float64)
         eff_grid = np.empty((n, n_points), dtype=np.float64)
         for c in range(n_points):
@@ -318,7 +367,7 @@ class DiscreteTimeMicrosimEngine(_MicrosimBase):
             cost, eff = self._payoffs(params, state, view)
             cost_grid[:, c] = cost
             eff_grid[:, c] = eff
-            if c < self._horizon:
+            if c < horizon:
                 probs = np.asarray(self._transition(params, state, view, rng), dtype=np.float64)
                 if probs.shape != (n, n_states):
                     raise ValueError(
@@ -338,8 +387,8 @@ class DiscreteTimeMicrosimEngine(_MicrosimBase):
         weights = np.ones(n_points, dtype=np.float64)
         if self._half_cycle_correction:
             weights[0] = weights[-1] = 0.5
-        cost_total = accrue(cost_grid, times, self._discount_cost, weights=weights)
-        eff_total = accrue(eff_grid, times, self._discount_effect, weights=weights)
+        cost_total = accrue(cost_grid, times, self._discount_rate, weights=weights)
+        eff_total = accrue(eff_grid, times, self._discount_rate, weights=weights)
         return cost_total, eff_total
 
     @staticmethod
@@ -351,104 +400,12 @@ class DiscreteTimeMicrosimEngine(_MicrosimBase):
         u = np.asarray(rng.random(probs.shape[0]))
         return (u[:, None] < cdf).argmax(axis=1).astype(np.int64)
 
-
-class ContinuousTimeMicrosimEngine(_MicrosimBase):
-    """Continuous-time individual-level competing-risks engine.
-
-    Instead of per-cycle probabilities, ``hazards`` returns sampled times to
-    each competing event. The engine takes the earliest, advances the clock to
-    it, and accrues cost and utility continuously over the elapsed segment with
-    the same discounting integrated between event times. There is no cycle grid;
-    ``horizon`` truncates. The current clock is passed to ``hazards`` and
-    ``payoffs`` as a ``time`` attribute column.
-
-    Args:
-        states: State labels; the first is the default starting state.
-        hazards: ``fn(params, state, attrs, rng) -> times``, shape
-            ``(n, n_states)``, the sampled time to each destination state. Use
-            ``inf`` where a transition cannot occur, including a state's own
-            column and every column of an absorbing state.
-        payoffs: ``fn(params, state, attrs) -> (cost_rate, qaly_rate)``, the
-            per-year cost and effect flow of each individual's current state.
-        population: Attribute sampler ``fn(rng, n) -> DataFrame``, an ``int``
-            count, or ``None``.
-        strategies: Map of strategy name to a parameter-override dict.
-        seed_manager: Root of all randomness.
-        horizon: Time horizon in years; trajectories truncate here.
-        discount_cost: Annual discount rate for costs.
-        discount_effect: Annual discount rate for effects.
-        n_individuals: Population size when ``population`` is a sampler or None.
-        initial_state: Starting state label or index.
-        effect: Name of the effect column.
-        independent_streams: Give each strategy its own streams instead of
-            common random numbers.
-        max_events: Safety cap on events per individual before raising.
-
-    Example:
-        >>> import numpy as np, pandas as pd
-        >>> from heval.models import ContinuousTimeMicrosimEngine
-        >>> from heval.run import SeedManager
-        >>> def hazards(params, state, attrs, rng):
-        ...     n = len(state)
-        ...     times = np.full((n, 2), np.inf)
-        ...     alive = state == 0
-        ...     times[alive, 1] = rng.exponential(1.0 / params["rate"], alive.sum())
-        ...     return times
-        >>> def payoffs(params, state, attrs):
-        ...     alive = (state == 0).astype(float)
-        ...     return alive * params["cost_year"], alive
-        >>> engine = ContinuousTimeMicrosimEngine(
-        ...     states=("alive", "dead"), hazards=hazards, payoffs=payoffs,
-        ...     population=500, strategies={"care": {}}, horizon=30.0,
-        ...     seed_manager=SeedManager(0))
-        >>> draws = pd.DataFrame({"rate": [0.05], "cost_year": [1000.0]},
-        ...                      index=pd.RangeIndex(1, name="iteration"))
-        >>> engine.evaluate(draws).strategies
-        ['care']
-    """
-
-    def __init__(
-        self,
-        *,
-        states: tuple[str, ...],
-        hazards: Callable[..., NDArray[np.float64]],
-        payoffs: Callable[..., tuple[NDArray[np.float64], NDArray[np.float64]]],
-        population: PopulationSpec = None,
-        strategies: StrategySpec,
-        seed_manager: SeedManager,
-        horizon: float = 60.0,
-        discount_cost: float = 0.03,
-        discount_effect: float = 0.03,
-        n_individuals: int = 1_000,
-        initial_state: str | int = 0,
-        effect: str = "qaly",
-        independent_streams: bool = False,
-        max_events: int = 10_000,
-    ) -> None:
-        super().__init__(
-            states=states,
-            payoffs=payoffs,
-            population=population,
-            strategies=strategies,
-            seed_manager=seed_manager,
-            n_individuals=n_individuals,
-            initial_state=initial_state,
-            discount_cost=discount_cost,
-            discount_effect=discount_effect,
-            effect=effect,
-            independent_streams=independent_streams,
-        )
-        if horizon <= 0:
-            raise ValueError("horizon must be positive.")
-        self._hazards = hazards
-        self._horizon = float(horizon)
-        self._max_events = int(max_events)
-
-    def _simulate(
+    def _simulate_continuous(
         self, params: pd.Series, attrs: pd.DataFrame, rng: np.random.Generator
     ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
         n = len(attrs)
         n_states = len(self._states)
+        horizon = float(self._horizon)
         state = np.full(n, self._initial_index, dtype=np.int64)
         clock = np.zeros(n, dtype=np.float64)
         cost_total = np.zeros(n, dtype=np.float64)
@@ -465,11 +422,11 @@ class ContinuousTimeMicrosimEngine(_MicrosimBase):
                 )
             dest = np.argmin(times, axis=1)
             dt = times[np.arange(n), dest]
-            remaining = self._horizon - clock
+            remaining = horizon - clock
             segment = np.where(active, np.minimum(dt, remaining), 0.0)
             cost_rate, eff_rate = self._payoffs(params, state, view)
-            disc_cost = integrate_flow(clock, segment, self._discount_cost)
-            disc_eff = integrate_flow(clock, segment, self._discount_effect)
+            disc_cost = integrate_flow(clock, segment, self._discount_rate)
+            disc_eff = integrate_flow(clock, segment, self._discount_rate)
             cost_total += np.where(active, cost_rate * disc_cost, 0.0)
             eff_total += np.where(active, eff_rate * disc_eff, 0.0)
             event = active & np.isfinite(dt) & (dt <= remaining)
