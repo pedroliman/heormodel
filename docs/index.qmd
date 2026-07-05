@@ -1,5 +1,7 @@
 ---
 title: heormodel
+author: Pedro Nascimento de Lima
+date: 2026-07-05
 ---
 
 Health economic evaluation in Python: parameter sampling, simulation across model types, cost-effectiveness analysis, and value-of-information analysis for model-based HEOR and HTA work.
