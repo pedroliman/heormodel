@@ -63,7 +63,9 @@ engine = MicrosimModel(
     strategies={"No Treatment": {"on_treatment": 0.0}, "Treatment": {"on_treatment": 1.0}},
     horizon=30, discount_rate=0.03,
     half_cycle_correction=False, duration_groups={"dur": ("S1", "S2")})
-outcomes = run_psa(engine, pd.DataFrame([base], index=pd.RangeIndex(1, name="iteration")))
+outcomes = run_psa(
+    engine, pd.DataFrame([base], index=pd.RangeIndex(1, name="iteration")), sequential=True
+)
 icer_table(outcomes).round(2)
 ```
 

@@ -34,6 +34,20 @@ Each entry links to the pull request that introduced it. Add a line under
   `examples/dsa.py` and a website tutorial run all three forms on the
   Sick-Sicker model ([#14](https://github.com/pedroliman/heval/pull/14)).
 
+### Changed
+
+- `run_psa` runs in parallel over all cores by default (`n_jobs=-1`). Pass
+  `sequential=True` for an in-process run (the readable off switch for
+  debugging and reproducibility checks), or `n_jobs` for an explicit worker
+  count; a run with one iteration or one available core falls back to
+  sequential. The numbers are identical whichever way the run is split,
+  because each iteration is seeded by its index. A `progress` argument shows a
+  completed-count and time-remaining readout on `stderr` as experiments
+  finish, driven by the mean throughput of finished work; it is on when
+  `stderr` is a terminal and quiet otherwise, so CI logs and docs builds stay
+  silent unless `progress=True` is explicit
+  ([#15](https://github.com/pedroliman/heval/pull/15)).
+
 ## [0.6.0] - 2026-07-05
 
 ### Changed
