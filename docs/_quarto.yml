@@ -16,6 +16,8 @@ website:
         menu:
           - href: tutorials/byo-outputs.qmd
             text: Bring your own outputs
+          - href: tutorials/parameter-inputs.qmd
+            text: Parameter inputs from data
           - href: tutorials/full-pipeline.qmd
             text: Full pipeline
           - href: tutorials/calibration-workflow.qmd
@@ -96,6 +98,9 @@ quartodoc:
         - Fixed
         - Dirichlet
         - ParameterSet
+        - single_draw
+        - read_draws
+        - resample_posterior
         - mix_draws
     - title: Models (`heval.models`)
       desc: The `Outcomes` schema every engine targets, the `ModelEngine` protocol, and the cohort state-transition, microsimulation, and discrete-event engines.

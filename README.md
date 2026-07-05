@@ -55,6 +55,8 @@ round(evpi(outcomes, wtp=30_000), 1)
 
 [`examples/calibration_workflow.py`](examples/calibration_workflow.py) mixes parameter sources: a natural-history model's transition rates are calibrated to observed prevalence with `abc_calibrate`, utilities and costs come from the literature, and `mix_draws` joins the two into one PSA that flows through CEA and VoI. Run it with `uv run python examples/calibration_workflow.py` after installing the `calibration` extra.
 
+[`examples/parameter_inputs.py`](examples/parameter_inputs.py) shows the three ways parameters enter the run loop besides distribution sampling: `single_draw` (and `ParameterSet.at_means`) for a base-case run, `read_draws` for a draw matrix from a CSV or DataFrame, and `resample_posterior` for a weighted posterior resampled with replacement. Run it with `uv run python examples/parameter_inputs.py`.
+
 [`examples/microsim.py`](examples/microsim.py) builds an individual-level model with `MicrosimModel`: frailty heterogeneity and a mortality risk that rises with time spent sick, two features a cohort average cannot carry, then runs it through CEA and VoI. Run it with `uv run python examples/microsim.py`.
 
 [`examples/des.py`](examples/des.py) builds a resource-constrained clinic with `DESModel`, a thin SimPy wrapper: patients queue for a scarce specialist, so added capacity buys QALYs by cutting waiting time, a coupling a cohort model cannot carry. Run it with `uv run python examples/des.py` after installing the `des` extra.
@@ -65,7 +67,7 @@ The `examples/mdm_*.py` scripts replicate three published Sick-Sicker cost-effec
 
 | Subpackage | Status | Contents |
 |---|---|---|
-| `heval.params` | done | Distribution specs with mean/SE constructors; correlated sampling |
+| `heval.params` | done | Distribution specs with mean/SE constructors; correlated sampling; draw matrices from point values, CSVs, and weighted posteriors |
 | `heval.models` | done | `Outcomes` schema, `ModelEngine` protocol; cohort state-transition, microsimulation, and discrete-event engines built |
 | `heval.run` | done | `SeedManager`, `run_psa`, `as_outcomes`, running-mean diagnostics |
 | `heval.cea` | done | ICERs, dominance, extended dominance, frontier, NMB/NHB, CEAC/CEAF |

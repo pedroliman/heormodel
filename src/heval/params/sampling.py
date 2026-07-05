@@ -185,6 +185,21 @@ class ParameterSet:
                 out[name] = dist.mean()
         return pd.Series(out, name="mean")
 
+    def at_means(self) -> pd.DataFrame:
+        """Wrap the analytic means as a one-row base-case draw matrix.
+
+        Equivalent to ``single_draw(self.means().to_dict())``: the
+        deterministic run at point values that sits next to the PSA.
+
+        Example:
+            >>> from heval.params import Fixed, ParameterSet
+            >>> ParameterSet({"a": Fixed(2.0)}).at_means().shape
+            (1, 1)
+        """
+        from heval.params.inputs import single_draw
+
+        return single_draw(self.means().to_dict())
+
     def spec(self) -> dict[str, str]:
         """Human-readable provenance record of each distribution spec.
 

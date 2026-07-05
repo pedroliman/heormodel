@@ -12,6 +12,17 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Added
 
+- Parameter inputs from data in `heval.params`: `single_draw` wraps one named
+  set of point values as a one-row draw matrix (iteration 0) for a base-case
+  run, and `ParameterSet.at_means` is the same call on a distribution set's
+  analytic means. `read_draws` validates a CSV path or DataFrame as a draw
+  matrix, honouring an explicit `iteration` column and rejecting non-numeric
+  columns. `resample_posterior` resamples a weighted parameter table into an
+  unweighted draw matrix by drawing whole rows with replacement in proportion
+  to the weights, so joint correlation survives. Each result flows through
+  `run_psa` unchanged. `examples/parameter_inputs.py` and the parameter-inputs
+  tutorial run all three end to end
+  ([#13](https://github.com/pedroliman/heval/pull/13)).
 - Deterministic sensitivity analysis: `heval.dsa` builds scenario designs that
   run through `run_psa` unchanged. `one_way` sweeps a single parameter,
   `one_at_a_time` sweeps each parameter in turn (the tornado design), and `grid`

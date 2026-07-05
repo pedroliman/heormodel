@@ -1,0 +1,77 @@
+---
+title: Parameter inputs from data
+---
+
+Not every analysis starts from `ParameterSet` distributions. Some run at one base-case set of point values, some carry a draw matrix exported from another tool, and some carry a posterior sample with weights. This tutorial covers the three `heval.params` entry points that turn each source into a parameter draw matrix: `single_draw` (with `ParameterSet.at_means`), `read_draws`, and `resample_posterior`. It is the narrated version of [`examples/parameter_inputs.py`](https://github.com/pedroliman/heval/blob/main/examples/parameter_inputs.py). It assumes you have read [bring your own outputs](byo-outputs.qmd), which is the analogue on the outcome side. The rule that governs all three: once the result is a tidy draw matrix with an `iteration` index and numeric columns, `run_psa` does not care where it came from.
+
+## A model to run
+
+Two strategies for a chronic disease, standard care versus a new drug, with cost and QALYs per iteration as simple functions of three parameters.
+
+```{python}
+import numpy as np
+import pandas as pd
+from heval.models import Outcomes
+from heval.params import (
+    Beta, Gamma, ParameterSet, read_draws, resample_posterior, single_draw,
+)
+from heval.run import run_psa
+
+def model(draws: pd.DataFrame) -> Outcomes:
+    base_qaly = 8.0
+    effect_drug = base_qaly + draws["u_gain"] * draws["p_response"] * 10
+    costs = pd.DataFrame(
+        {"Standard care": 40_000.0, "New drug": 40_000.0 + draws["c_drug"]},
+        index=draws.index,
+    )
+    effects = pd.DataFrame(
+        {"Standard care": base_qaly, "New drug": effect_drug}, index=draws.index,
+    )
+    return Outcomes.from_wide(costs, effects)
+
+params = ParameterSet(
+    {
+        "p_response": Beta.from_mean_se(0.35, 0.05),
+        "c_drug": Gamma.from_mean_se(12_000, 1_500),
+        "u_gain": Beta.from_mean_se(0.12, 0.03),
+    },
+    correlation={("p_response", "u_gain"): 0.4},
+)
+```
+
+## Base case: one set of point values
+
+`ParameterSet.at_means` wraps the analytic means as a one-row draw matrix at iteration 0, the deterministic run that sits next to the PSA. It is `single_draw(params.means().to_dict())`; call `single_draw` directly when the point values come from elsewhere.
+
+```{python}
+base = params.at_means()
+run_psa(model, base).summary().round(2)
+```
+
+## A draw matrix from another tool
+
+`read_draws` validates a CSV path or a DataFrame as a draw matrix. It honours an explicit `iteration` column and otherwise assigns a fresh index; a non-numeric column raises rather than reaching the model. Here we write a sampled matrix to CSV to stand in for an external export, then read it back.
+
+```{python}
+external = params.sample(2_000, seed=1)
+external.to_csv("external_draws.csv")
+csv_draws = read_draws("external_draws.csv", iteration="iteration")
+run_psa(model, csv_draws).summary().round(2)
+```
+
+## A weighted posterior
+
+A calibration or a bootstrap may hand back parameter rows with a weight column. `resample_posterior` draws whole rows with replacement in proportion to the weights, so any correlation in the posterior survives, then drops the weight column. Resampling to an `n` larger than the input adds no information; it only smooths Monte Carlo noise in downstream expectations.
+
+```{python}
+grid = params.sample(500, seed=2)
+grid["weight"] = np.exp(4.0 * grid["p_response"])  # favour higher response
+posterior = resample_posterior(grid, n=2_000, seed=7)
+print(f"grid mean p_response {grid['p_response'].mean():.3f}, "
+      f"resample mean {posterior['p_response'].mean():.3f}")
+run_psa(model, posterior).summary().round(2)
+```
+
+The resampled mean of `p_response` sits above the unweighted grid mean, because the weights favour higher values, and the reweighting raises the new drug's expected QALYs.
+
+Next: the [calibration workflow](calibration-workflow.qmd) produces such a posterior with `abc_calibrate` and mixes it with literature draws through `mix_draws`.
