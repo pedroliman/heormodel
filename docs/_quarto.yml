@@ -103,7 +103,7 @@ format:
     toc: true
     code-copy: true
     footer: |
-      © 2026 [Pedro Nascimento de Lima](https://pedrodelima.com). All rights reserved.
+      © 2026 [Pedro Nascimento de Lima](https://pedrodelima.com)
 
 metadata-files:
   - reference/_sidebar.yml
