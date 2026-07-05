@@ -10,6 +10,8 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-05
+
 ### Changed
 
 - Resonant engine names and clearer parameters (breaking, no aliases). The
@@ -56,14 +58,15 @@ Each entry links to the pull request that introduced it. Add a line under
   seeding from a `SeedManager` so results do not depend on `n_jobs`, and an
   optional event log. It reuses `heval.models._accrual` and uses common random
   numbers across strategies by default, staying coherent with the
-  microsimulation engines.
+  microsimulation engines ([#8](https://github.com/pedroliman/heval/pull/8)).
 - `heval.models.queue_waits`: derive per-request waiting times from a `DESEngine`
   trace, so queueing reports come from the event log rather than engine
-  internals.
+  internals ([#8](https://github.com/pedroliman/heval/pull/8)).
 - `simpy` as an optional dependency behind the `des` extra
-  (`uv pip install 'heval[des]'`).
+  (`uv pip install 'heval[des]'`) ([#8](https://github.com/pedroliman/heval/pull/8)).
 - Discrete-event example (`examples/des.py`) and website tutorial, validated
-  against an M/M/1 queue and the exponential cohort solution.
+  against an M/M/1 queue and the exponential cohort solution
+  ([#8](https://github.com/pedroliman/heval/pull/8)).
 
 ## [0.3.0] - 2026-07-04
 
@@ -75,15 +78,16 @@ Each entry links to the pull request that introduced it. Add a line under
   competing time-to-event samplers between events. Both emit the standard
   `Outcomes` schema, seed each iteration from a `SeedManager` so results do not
   depend on `n_jobs`, and use common random numbers across strategies by
-  default.
+  default ([#7](https://github.com/pedroliman/heval/pull/7)).
 - `heval.models._accrual`: shared cost and utility accrual, discounting, and
   aggregation to `Outcomes`, used by both engines and reserved for the
-  discrete-event engine.
+  discrete-event engine ([#7](https://github.com/pedroliman/heval/pull/7)).
 - `SeedManager.child_sequence` returns a per-key seed sequence, so
   iteration-indexed streams stay identical however a run is chunked across
-  workers.
+  workers ([#7](https://github.com/pedroliman/heval/pull/7)).
 - Microsimulation example (`examples/microsim.py`) and website tutorial,
-  validated against the closed-form cohort solution it mirrors.
+  validated against the closed-form cohort solution it mirrors
+  ([#7](https://github.com/pedroliman/heval/pull/7)).
 
 ## [0.2.0] - 2026-07-04
 
@@ -96,12 +100,14 @@ Each entry links to the pull request that introduced it. Add a line under
 - `heval.params.mix_draws` combines draw matrices from different sources
   (a calibrated posterior and literature draws) into one PSA matrix,
   resampling whole rows so joint correlation survives and sources stay
-  independent.
+  independent ([#5](https://github.com/pedroliman/heval/pull/5)).
 - `capture_run` records a `draw_sources` map, so the run report shows where
-  each parameter's draws came from.
+  each parameter's draws came from
+  ([#5](https://github.com/pedroliman/heval/pull/5)).
 - Calibration workflow example (`examples/calibration_workflow.py`) and
   website tutorial: calibrate a natural-history model's rates, mix them with
-  literature parameters, and run CEA and VoI on the result.
+  literature parameters, and run CEA and VoI on the result
+  ([#5](https://github.com/pedroliman/heval/pull/5)).
 
 ### Changed
 
@@ -123,7 +129,8 @@ bring-your-own-outputs ingestion (`heval.run`), cost-effectiveness analysis
 (`heval.cea`), value-of-information analysis (`heval.voi`), optional ABC
 calibration (`heval.calibrate`), and reporting plots (`heval.report`).
 
-[Unreleased]: https://github.com/pedroliman/heval/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/pedroliman/heval/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/pedroliman/heval/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/pedroliman/heval/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/pedroliman/heval/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/pedroliman/heval/compare/v0.2.0...v0.3.0
