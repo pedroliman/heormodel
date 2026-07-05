@@ -10,6 +10,8 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-05
+
 ### Added
 
 - Cohort state-transition engine: `MarkovCohortEngine` sweeps a cohort trace
@@ -18,16 +20,18 @@ Each entry links to the pull request that introduced it. Add a line under
   per transition (a one-time cost of dying or disutility of onset). Supports
   Simpson's 1/3, half-cycle, or no within-cycle correction, reusing
   `heval.models._accrual` for discounting. `CohortSpec` carries one strategy's
-  matrices, and `gen_wcc` builds the correction weights.
+  matrices, and `gen_wcc` builds the correction weights
+  ([#9](https://github.com/pedroliman/heval/pull/9)).
 - `duration_groups` on `DiscreteTimeMicrosimEngine`: a per-individual counter of
   consecutive cycles spent in a set of states, so a sojourn that progresses
-  (Sick to Sicker) keeps counting where `time_in_state` would reset.
+  (Sick to Sicker) keeps counting where `time_in_state` would reset
+  ([#9](https://github.com/pedroliman/heval/pull/9)).
 - Three replications of published Sick-Sicker cost-effectiveness tutorials, each
   matching the source's deterministic results, with runnable scripts and website
   tutorials: cohort state-transition (`examples/mdm_cohort.py`), time-dependent
   cohort with age-varying mortality (`examples/mdm_cohort_timedep.py`), and
   microsimulation (`examples/mdm_microsim.py`). A replication gallery page
-  collects them with citations.
+  collects them with citations ([#9](https://github.com/pedroliman/heval/pull/9)).
 
 ## [0.4.0] - 2026-07-04
 
@@ -106,7 +110,8 @@ bring-your-own-outputs ingestion (`heval.run`), cost-effectiveness analysis
 (`heval.cea`), value-of-information analysis (`heval.voi`), optional ABC
 calibration (`heval.calibrate`), and reporting plots (`heval.report`).
 
-[Unreleased]: https://github.com/pedroliman/heval/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/pedroliman/heval/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/pedroliman/heval/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/pedroliman/heval/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/pedroliman/heval/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/pedroliman/heval/compare/v0.1.0...v0.2.0
