@@ -84,4 +84,4 @@ from heormodel.run import running_means
 running_means(outcomes).plot(xlabel="iterations", ylabel="mean cost");
 ```
 
-Next: [engines](../concepts/engines.qmd) explains the protocol this callable satisfied, and the [roadmap](../roadmap/index.md) lists the engines that will ship it built in.
+The [engines](../concepts/engines.qmd) concept page explains the protocol this callable satisfied. Next: the [calibration workflow](calibration-workflow.qmd) calibrates some parameters to data, takes the rest from the literature, and mixes both into one PSA.

@@ -53,17 +53,17 @@ round(evpi(outcomes, wtp=30_000), 1)
 
 [`examples/byoo_example.py`](examples/byoo_example.py) runs the same wedge end to end: an external table through CEA, VoI, plots, and a run report, plus the full pipeline (`ParameterSet` sampling, `SeedManager`, `run_psa`).
 
-[`examples/calibration_workflow.py`](examples/calibration_workflow.py) mixes parameter sources: a natural-history model's transition rates are calibrated to observed prevalence with `abc_calibrate`, utilities and costs come from the literature, and `mix_draws` joins the two into one PSA that flows through CEA and VoI. Run it with `uv run python examples/calibration_workflow.py` after installing the `calibration` extra.
-
-[`examples/parameter_inputs.py`](examples/parameter_inputs.py) shows the three ways parameters enter the run loop besides distribution sampling: `single_draw` (and `ParameterSet.at_means`) for a base-case run, `read_draws` for a draw matrix from a CSV or DataFrame, and `resample_posterior` for a weighted posterior resampled with replacement. Run it with `uv run python examples/parameter_inputs.py`.
+The `examples/mdm_*.py` scripts replicate three published Sick-Sicker cost-effectiveness tutorials and match their deterministic results: a cohort state-transition model (`mdm_cohort.py`), its time-dependent version with age-varying mortality (`mdm_cohort_timedep.py`), and a microsimulation (`mdm_microsim.py`). Each has a companion page in the [replication gallery](https://pedroliman.github.io/heormodel/tutorials/replication-gallery.html).
 
 [`examples/microsim.py`](examples/microsim.py) builds an individual-level model with `MicrosimModel`: frailty heterogeneity and a mortality risk that rises with time spent sick, two features a cohort average cannot carry, then runs it through CEA and VoI. Run it with `uv run python examples/microsim.py`.
 
+[`examples/markov_vs_microsim.py`](examples/markov_vs_microsim.py) builds one Sick-Sicker-style model as both a `MarkovModel` cohort trace and a `MicrosimModel` individual simulation from the same rates. The homogeneous microsimulation converges to the cohort trace (a cross-engine cross-validation), then a mean-1 frailty raises the microsimulation QALYs about 8% above the cohort on unchanged mean rates, the heterogeneity a cohort averages away. Run it with `uv run python examples/markov_vs_microsim.py`.
+
 [`examples/des.py`](examples/des.py) builds a resource-constrained clinic with `DESModel`, a thin SimPy wrapper: patients queue for a scarce specialist, so added capacity buys QALYs by cutting waiting time, a coupling a cohort model cannot carry. Run it with `uv run python examples/des.py` after installing the `des` extra.
 
-The `examples/mdm_*.py` scripts replicate three published Sick-Sicker cost-effectiveness tutorials and match their deterministic results: a cohort state-transition model (`mdm_cohort.py`), its time-dependent version with age-varying mortality (`mdm_cohort_timedep.py`), and a microsimulation (`mdm_microsim.py`). Each has a companion page in the [replication gallery](https://pedroliman.github.io/heormodel/tutorials/replication-gallery.html).
+[`examples/calibration_workflow.py`](examples/calibration_workflow.py) mixes parameter sources: a natural-history model's transition rates are calibrated to observed prevalence with `abc_calibrate`, utilities and costs come from the literature, and `mix_draws` joins the two into one PSA that flows through CEA and VoI. Run it with `uv run python examples/calibration_workflow.py` after installing the `calibration` extra.
 
-[`examples/markov_vs_microsim.py`](examples/markov_vs_microsim.py) builds one Sick-Sicker-style model as both a `MarkovModel` cohort trace and a `MicrosimModel` individual simulation from the same rates. The homogeneous microsimulation converges to the cohort trace (a cross-engine cross-validation), then a mean-1 frailty raises the microsimulation QALYs about 8% above the cohort on unchanged mean rates, the heterogeneity a cohort averages away. Run it with `uv run python examples/markov_vs_microsim.py`.
+[`examples/parameter_inputs.py`](examples/parameter_inputs.py) shows the three ways parameters enter the run loop besides distribution sampling: `single_draw` (and `ParameterSet.at_means`) for a base-case run, `read_draws` for a draw matrix from a CSV or DataFrame, and `resample_posterior` for a weighted posterior resampled with replacement. Run it with `uv run python examples/parameter_inputs.py`.
 
 ## Package layout
 

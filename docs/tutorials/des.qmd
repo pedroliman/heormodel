@@ -97,4 +97,6 @@ _, trace = engine.evaluate(draws.iloc[[0]], trace=True)
 (queue_waits(trace).groupby("strategy", sort=False)["wait"].mean() * 365).round(1)
 ```
 
-The single specialist leaves patients waiting weeks; the second clears the queue to about a day. See the [engines](../concepts/engines.qmd) concept page for where the engine sits in the contract, and the [microsimulation tutorial](microsim.qmd) for the individual-level engines it shares the accrual layer with.
+The single specialist leaves patients waiting weeks; the second clears the queue to about a day. See the [engines](../concepts/engines.qmd) concept page for where the engine sits in the contract.
+
+Next: the [full pipeline tutorial](full-pipeline.qmd) formalizes the run loop and the contract every engine plugs into, from `ParameterSet` sampling through `run_psa` to CEA and VoI.

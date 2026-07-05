@@ -74,4 +74,4 @@ run_psa(model, posterior).summary().round(2)
 
 The resampled mean of `p_response` sits above the unweighted grid mean, because the weights favour higher values, and the reweighting raises the new drug's expected QALYs.
 
-Next: the [calibration workflow](calibration-workflow.qmd) produces such a posterior with `abc_calibrate` and mixes it with literature draws through `mix_draws`.
+The [calibration workflow](calibration-workflow.qmd) produces such a posterior with `abc_calibrate` and mixes it with literature draws through `mix_draws`. Next: [deterministic sensitivity analysis](dsa.qmd) sweeps parameters one at a time through the same run loop.

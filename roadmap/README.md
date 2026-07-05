@@ -18,7 +18,7 @@ All prose follows [guidance/writing_style.md](../guidance/writing_style.md).
 
 ## Shipped features
 
-Design notes for completed items move to [`done/`](done/). Items 1 through 10 are shipped.
+Design notes for completed items move to [`done/`](done/). Items 1 through 11 are shipped.
 
 - Item 1, quartodoc documentation website ([done/01-quartodoc-site.md](done/01-quartodoc-site.md)): the site publishes to GitHub Pages with API reference, tutorials, and concept pages.
 - Item 2, full calibration workflow ([done/02-calibration-workflow.md](done/02-calibration-workflow.md)): `heormodel.params.mix_draws` combines calibrated and literature draw matrices; `capture_run` records `draw_sources`; `examples/calibration_workflow.py` and the calibration workflow tutorial run it end to end.
@@ -30,12 +30,12 @@ Design notes for completed items move to [`done/`](done/). Items 1 through 10 ar
 - Item 8, deterministic sensitivity analysis ([done/08-deterministic-sensitivity.md](done/08-deterministic-sensitivity.md)): `heormodel.dsa` builds `one_way`, `one_at_a_time`, and `grid` scenario designs that run through `run_psa` unchanged, each returning a `(design, descriptor)` pair. `heormodel.report.tornado_data` reads a one-way or one-at-a-time DSA result as well as a PSA, and `heatmap_data` reshapes a two-parameter grid. `examples/dsa.py` and the deterministic sensitivity tutorial run all three forms on the Sick-Sicker model.
 - Item 9, parallel runs by default with a time-remaining display ([done/09-parallel-and-progress.md](done/09-parallel-and-progress.md)): `run_psa` runs over all cores by default (`sequential=True` opts out, `n_jobs` sets an explicit worker count), with identical numbers whichever way the run is split. A `progress` readout reports completed experiments and an estimate of time remaining from finished work, on when `stderr` is a terminal and quiet otherwise.
 - Item 10, Markov vs microsimulation models ([done/10-markov-vs-microsim-tutorial.md](done/10-markov-vs-microsim-tutorial.md)): `examples/markov_vs_microsim.py` and a website tutorial build one Sick-Sicker-style model as both a `MarkovModel` cohort trace and a `MicrosimModel` individual simulation from the same rates. The homogeneous microsimulation converges to the cohort trace (the cross-validation), then a mean-1 frailty on the progression and mortality hazards raises the microsimulation QALYs about 8% above the cohort, the risk heterogeneity a cohort averages away. A test asserts both the convergence and the divergence.
+- Item 11, documentation narrative order ([done/11-docs-narrative-order.md](done/11-docs-narrative-order.md)): the Tutorials menu climbs from bring your own outputs to the Markov cohort model, the microsimulation engine, Markov vs microsimulation models, discrete-event simulation, the full pipeline, and the calibration workflow. The Markov cohort tutorial moves from Replications into Tutorials, each tutorial's forward link follows the new order, and `get-started.qmd` and the README present the same sequence. The time-dependent cohort and microsimulation replications stay under Replications as validation exhibits.
 
 ## Prioritized next steps
 
-The engine phases are complete for cohort state-transition, microsimulation, and discrete-event simulation, the public API reads in model-type names, and parameter inputs, deterministic sensitivity analysis, and parallel runs are in place. The remaining items fill gaps in the tutorials. Each ships with a website tutorial where it adds public API, as items 1 and 2 did.
+The engine phases are complete for cohort state-transition, microsimulation, and discrete-event simulation, the public API reads in model-type names, and parameter inputs, deterministic sensitivity analysis, parallel runs, and the tutorial narrative order are in place. The remaining item adds a tutorial where it introduces new prose, as items 1 and 2 did.
 
-- Item 11, documentation narrative order ([11-docs-narrative-order.md](11-docs-narrative-order.md)): reorder the tutorials so a reader sees bring-your-own-outputs, then a Markov cohort model, then the microsimulation.
 - Item 12, value-of-information tutorial ([12-voi-tutorial.md](12-voi-tutorial.md)): an EVPI, EVPPI, and EVSI walkthrough reproducing a published VoI analysis and checking the numbers against it.
 
 ## Backlog

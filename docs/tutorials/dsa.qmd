@@ -93,3 +93,5 @@ heatmap_data(gnb["Strategy AB"] - gnb["Standard of care"], gdesc,
 ```
 
 The grid center reproduces the one-way sweep's base value, since both hold the other parameters at base. Where PSA integrates over the joint distribution, DSA holds everything else fixed and reads one axis at a time.
+
+Next: the [replication gallery](replication-gallery.qmd) collects the published models these engines reproduce.

@@ -112,3 +112,5 @@ run_psa(hist, draws, sequential=True).summary().round(3)
 ```
 
 The trade is plain. The cohort model is faster and exact for its assumptions. The microsimulation costs iterations but represents heterogeneity and history the cohort averages away. Neither is more correct in general; they answer under different assumptions.
+
+Next: the [discrete-event simulation engine](des.qmd) adds a scarce, shared resource that couples entities together, a dependence neither the cohort nor the independent microsimulation carries.

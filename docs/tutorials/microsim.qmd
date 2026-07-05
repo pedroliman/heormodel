@@ -2,7 +2,7 @@
 title: Microsimulation engine
 ---
 
-This tutorial builds an individual-level model with `MicrosimModel` and runs it through CEA and VoI. It assumes the [full pipeline tutorial](full-pipeline.qmd), which covers `run_psa` and the analysis layer. The narrated version here is [`examples/microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/microsim.py). A microsimulation earns its cost when outcomes depend on individual history or heterogeneity, which a cohort average cannot carry.
+This tutorial builds an individual-level model with `MicrosimModel` and runs it through CEA and VoI. It assumes the [Markov cohort model](mdm-cohort.qmd), which runs a model through `run_psa` and the analysis layer. The narrated version here is [`examples/microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/microsim.py). A microsimulation earns its cost when outcomes depend on individual history or heterogeneity, which a cohort average cannot carry.
 
 ## The model
 
@@ -140,5 +140,7 @@ The two agree to under 1% at 60,000 individuals, and the gap shrinks with the po
 
 ## Continuous time
 
-`MicrosimModel(clock="continuous")` shares this constructor shape. Instead of per-cycle probabilities, `hazards` returns sampled times to each competing event; the engine races them, advances to the earliest, and accrues continuously between events. On constant hazards it reproduces the exponential cohort solution. See the [engines](../concepts/engines.qmd) concept page for where both fit in the contract, and the [discrete-event tutorial](des.qmd) for the SimPy-wrapping engine that reuses the same accrual layer.
+`MicrosimModel(clock="continuous")` shares this constructor shape. Instead of per-cycle probabilities, `hazards` returns sampled times to each competing event; the engine races them, advances to the earliest, and accrues continuously between events. On constant hazards it reproduces the exponential cohort solution. See the [engines](../concepts/engines.qmd) concept page for where both fit in the contract.
+
+Next: [Markov vs microsimulation models](markov-vs-microsim.qmd) builds this microsimulation and a cohort twin from the same rates, cross-validates them, and shows what the individual model carries that the cohort averages away.
 ```

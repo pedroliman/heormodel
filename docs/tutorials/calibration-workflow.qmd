@@ -166,4 +166,4 @@ record = capture_run(
 print(record.to_markdown("heormodel calibration workflow run report"))
 ```
 
-Next: the [microsimulation](microsim.qmd) and [discrete-event](des.qmd) engines replace this hand-written model while keeping the same analysis layer.
+Next: [parameter inputs from data](parameter-inputs.qmd) covers the base-case, imported, and posterior draw matrices that feed the same run loop.
