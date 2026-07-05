@@ -7,6 +7,47 @@ website:
   site-url: https://pedroliman.github.io/heormodel/
   repo-url: https://github.com/pedroliman/heormodel
   page-navigation: true
+  sidebar:
+    - id: main
+      contents:
+        - section: Tutorials
+          contents:
+            - href: tutorials/byo-outputs.qmd
+              text: Bring your own outputs
+            - href: tutorials/parameter-inputs.qmd
+              text: Parameter inputs from data
+            - href: tutorials/full-pipeline.qmd
+              text: Full pipeline
+            - href: tutorials/calibration-workflow.qmd
+              text: Calibration workflow
+            - href: tutorials/microsim.qmd
+              text: Microsimulation engine
+            - href: tutorials/des.qmd
+              text: Discrete-event simulation
+            - href: tutorials/dsa.qmd
+              text: Deterministic sensitivity analysis
+        - section: Model Types
+          contents:
+            - href: concepts/architecture.qmd
+              text: Architecture
+            - href: concepts/engines.qmd
+              text: Engines
+            - href: tutorials/replication-gallery.qmd
+              text: Replication gallery
+            - href: tutorials/mdm-cohort.qmd
+              text: Cohort state-transition
+            - href: tutorials/mdm-cohort-timedep.qmd
+              text: Time-dependent cohort
+            - href: tutorials/mdm-microsim.qmd
+              text: Microsimulation
+        - section: Reference & Info
+          contents:
+            - href: reference/index.qmd
+              text: API reference
+            - href: roadmap/index.md
+              text: Roadmap
+            - href: changelog.md
+              text: Changelog
   navbar:
     search: true
     left:
@@ -61,6 +102,8 @@ format:
       dark: darkly
     toc: true
     code-copy: true
+    footer: |
+      © 2026 [Pedro Nascimento de Lima](https://pedrodelima.com). All rights reserved.
 
 metadata-files:
   - reference/_sidebar.yml
