@@ -67,7 +67,7 @@ engine = DESModel(
                 "Expanded capacity": {"n_servers": 2}},
     horizon=HORIZON, seed_manager=seeds,
 )
-outcomes = run_psa(engine, draws)
+outcomes = run_psa(engine, draws, sequential=True)
 outcomes.summary().round(2)
 ```
 

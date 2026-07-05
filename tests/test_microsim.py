@@ -155,7 +155,7 @@ def _small_engine(**overrides):
 class TestReproducibility:
     def test_same_seed_identical_across_n_jobs(self):
         draws = _draws(6)
-        serial = run_psa(_small_engine(), draws)
+        serial = run_psa(_small_engine(), draws, sequential=True)
         parallel = run_psa(_small_engine(), draws, n_jobs=2)
         pd.testing.assert_frame_equal(serial.data, parallel.data)
 

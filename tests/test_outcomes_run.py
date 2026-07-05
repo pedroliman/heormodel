@@ -116,7 +116,7 @@ class TestRunPsa:
         assert out.strategies == ["A", "B"]
 
     def test_parallel_matches_serial(self):
-        serial = run_psa(dummy_model, self.draws)
+        serial = run_psa(dummy_model, self.draws, sequential=True)
         parallel = run_psa(dummy_model, self.draws, n_jobs=2)
         pd.testing.assert_frame_equal(serial.data, parallel.data)
 

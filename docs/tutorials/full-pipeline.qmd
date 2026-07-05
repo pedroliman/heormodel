@@ -49,12 +49,12 @@ def decision_tree(d: pd.DataFrame) -> Outcomes:
 
 ## Run the PSA
 
-`run_psa` evaluates the model and guarantees the outcomes carry exactly the draws' index, preserving the parameter/outcome linkage VoI needs. Set `n_jobs` to parallelise over batches via `joblib`.
+`run_psa` evaluates the model and guarantees the outcomes carry exactly the draws' index, preserving the parameter/outcome linkage VoI needs. It runs in parallel over all cores by default, printing a time-remaining readout when `stderr` is a terminal. This tutorial's run is tiny, so it passes `sequential=True` to run in-process and stay quiet.
 
 ```{python}
 from heval.run import run_psa
 
-outcomes = run_psa(decision_tree, draws)
+outcomes = run_psa(decision_tree, draws, sequential=True)
 outcomes.summary().round(3)
 ```
 

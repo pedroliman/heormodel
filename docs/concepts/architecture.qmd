@@ -44,7 +44,7 @@ def model(d: pd.DataFrame) -> Outcomes:
     return Outcomes.from_wide(costs, effects)
 
 draws = ParameterSet({"c": Normal(100, 5)}).sample(500, seed=1)
-outcomes = run_psa(model, draws)
+outcomes = run_psa(model, draws, sequential=True)
 outcomes.iterations.equals(draws.index)
 ```
 

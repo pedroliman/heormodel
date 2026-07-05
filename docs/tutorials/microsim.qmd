@@ -79,11 +79,11 @@ engine = MicrosimModel(
                 "Treatment": {"on_treatment": 1.0}},
     horizon=30, seed_manager=seeds,
 )
-outcomes = run_psa(engine, draws)
+outcomes = run_psa(engine, draws, sequential=True)
 outcomes.summary().round(3)
 ```
 
-`run_psa` runs the engine like any other model, and enforces the same contract: the outcome iteration index equals `draws.index`. Because each iteration draws a stream keyed by its index, the result is identical at any `n_jobs`.
+`run_psa` runs the engine like any other model, and enforces the same contract: the outcome iteration index equals `draws.index`. Because each iteration draws a stream keyed by its index, the result is identical whether the run is parallel or sequential. Runs are parallel by default; this small one passes `sequential=True` to stay in-process.
 
 ## CEA and VoI
 

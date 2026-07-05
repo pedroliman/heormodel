@@ -18,7 +18,7 @@ All prose follows [guidance/writing_style.md](../guidance/writing_style.md).
 
 ## Shipped features
 
-Design notes for completed items move to [`done/`](done/). Items 1 through 6 are shipped.
+Design notes for completed items move to [`done/`](done/). Items 1 through 6 and item 9 are shipped.
 
 - Item 1, quartodoc documentation website ([done/01-quartodoc-site.md](done/01-quartodoc-site.md)): the site publishes to GitHub Pages with API reference, tutorials, and concept pages.
 - Item 2, full calibration workflow ([done/02-calibration-workflow.md](done/02-calibration-workflow.md)): `heval.params.mix_draws` combines calibrated and literature draw matrices; `capture_run` records `draw_sources`; `examples/calibration_workflow.py` and the calibration workflow tutorial run it end to end.
@@ -26,6 +26,7 @@ Design notes for completed items move to [`done/`](done/). Items 1 through 6 are
 - Item 4, discrete-event simulation engine ([done/04-des-engine.md](done/04-des-engine.md)): `DESModel` wraps SimPy. The environment, processes, and resources stay the user's code; the engine adds a per-entity toolkit for discounted cost and utility accrual (reusing `heval.models._accrual`), per-iteration seeding, and an event log that `queue_waits` turns into queueing reports. `examples/des.py` and the discrete-event tutorial run it end to end, validated against an M/M/1 queue and the exponential cohort solution the continuous-time microsim also matches.
 - Item 5, Markov cohort engine ([done/05-markov-cohort-engine.md](done/05-markov-cohort-engine.md)): `MarkovModel` sweeps a cohort trace across iterations with constant or per-cycle (age-varying) transition arrays, per-state and per-transition rewards, discounting, and Simpson's 1/3, half-cycle, or no within-cycle correction, reusing `heval.models._accrual`. `MicrosimModel` gained `duration_groups` for time spent in a set of states. Three replications of published Sick-Sicker cost-effectiveness tutorials (cohort, time-dependent, and microsimulation) match their deterministic results and ship as `examples/mdm_*.py` with website tutorials and a replication gallery.
 - Item 6, resonant engine names and clearer parameters ([done/06-resonant-api.md](done/06-resonant-api.md)): the engines are `MarkovModel`, `MicrosimModel` (one class, `clock="discrete"` or `"continuous"`), and `DESModel`; the Markov structure callback is `model_fn`; and every engine takes one `discount_rate` (annual, default `0.03`) in place of `discount_cost` and `discount_effect`. The pre-0.6 names were removed outright, without deprecation aliases.
+- Item 9, parallel runs by default with a time-remaining display ([done/09-parallel-and-progress.md](done/09-parallel-and-progress.md)): `run_psa` runs over all cores by default (`sequential=True` opts out, `n_jobs` sets an explicit worker count), with identical numbers whichever way the run is split. A `progress` readout reports completed experiments and an estimate of time remaining from finished work, on when `stderr` is a terminal and quiet otherwise.
 
 ## Prioritized next steps
 
@@ -33,7 +34,6 @@ The engine phases are complete for cohort state-transition, microsimulation, and
 
 - Item 7, parameter inputs from data ([07-parameter-inputs.md](07-parameter-inputs.md)): `single_draw` for a base-case run, `read_draws` for a draw matrix from a CSV or DataFrame, and `resample_posterior` for a weighted posterior resampled with replacement.
 - Item 8, deterministic sensitivity analysis ([08-deterministic-sensitivity.md](08-deterministic-sensitivity.md)): a `heval.dsa` module with one-way, one-at-a-time, and full-factorial grid designs that run through the existing loop and feed tornado and heatmap reports.
-- Item 9, parallel runs by default with a time-remaining display ([09-parallel-and-progress.md](09-parallel-and-progress.md)): `run_psa` defaults to all cores (`sequential=True` opts out) and reports completed experiments with an estimate of time remaining from finished work.
 - Item 10, Markov vs microsimulation models ([10-markov-vs-microsim-tutorial.md](10-markov-vs-microsim-tutorial.md)): a cross-validation tutorial showing the two engines converge under shared assumptions and diverge under risk heterogeneity, emphasizing what a microsimulation represents that a cohort model averages away.
 - Item 11, documentation narrative order ([11-docs-narrative-order.md](11-docs-narrative-order.md)): reorder the tutorials so a reader sees bring-your-own-outputs, then a Markov cohort model, then the microsimulation.
 - Item 12, value-of-information tutorial ([12-voi-tutorial.md](12-voi-tutorial.md)): an EVPI, EVPPI, and EVSI walkthrough reproducing a published VoI analysis and checking the numbers against it.
