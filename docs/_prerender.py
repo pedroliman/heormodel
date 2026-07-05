@@ -43,6 +43,11 @@ def main() -> None:
     for src in sorted((ROOT / "roadmap").glob("*.md")):
         convert(src, out / ("index.md" if src.name == "README.md" else src.name))
 
+    done_out = out / "done"
+    done_out.mkdir(exist_ok=True)
+    for src in sorted((ROOT / "roadmap" / "done").glob("*.md")):
+        convert(src, done_out / src.name)
+
 
 if __name__ == "__main__":
     main()
