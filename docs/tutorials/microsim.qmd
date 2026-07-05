@@ -2,7 +2,7 @@
 title: Microsimulation engine
 ---
 
-This tutorial builds an individual-level model with `DiscreteTimeMicrosimEngine` and runs it through CEA and VoI. It assumes the [full pipeline tutorial](full-pipeline.qmd), which covers `run_psa` and the analysis layer. The narrated version here is [`examples/microsim.py`](https://github.com/pedroliman/heval/blob/main/examples/microsim.py). A microsimulation earns its cost when outcomes depend on individual history or heterogeneity, which a cohort average cannot carry.
+This tutorial builds an individual-level model with `MicrosimModel` and runs it through CEA and VoI. It assumes the [full pipeline tutorial](full-pipeline.qmd), which covers `run_psa` and the analysis layer. The narrated version here is [`examples/microsim.py`](https://github.com/pedroliman/heval/blob/main/examples/microsim.py). A microsimulation earns its cost when outcomes depend on individual history or heterogeneity, which a cohort average cannot carry.
 
 ## The model
 
@@ -56,7 +56,7 @@ def payoffs(params, state, attrs):
 The constructor takes the model structure; `evaluate` takes only the draw matrix. Strategies are parameter-override dicts merged into each iteration's draw, so the two arms differ by one flag the model reads. The two strategies share one population through common random numbers (the engine default), so the incremental result reflects the treatment effect rather than sampling noise.
 
 ```{python}
-from heval.models import DiscreteTimeMicrosimEngine
+from heval.models import MicrosimModel
 from heval.params import Beta, Fixed, Gamma, ParameterSet
 from heval.run import SeedManager, run_psa
 
@@ -72,7 +72,7 @@ parameters = ParameterSet({
 })
 draws = parameters.sample(256, seed=seeds.generator())
 
-engine = DiscreteTimeMicrosimEngine(
+engine = MicrosimModel(
     states=STATES, transition=transition, payoffs=payoffs,
     population=population, n_individuals=800,
     strategies={"Standard care": {"on_treatment": 0.0},
@@ -121,7 +121,7 @@ def cohort(horizon=40, rate=0.03):
         p = p @ P
     return total_c, total_e
 
-check = DiscreteTimeMicrosimEngine(
+check = MicrosimModel(
     states=STATES,
     transition=lambda params, state, attrs, rng: P[state],
     payoffs=lambda params, state, attrs: (cost_vec[state], eff_vec[state]),
@@ -140,5 +140,5 @@ The two agree to under 1% at 60,000 individuals, and the gap shrinks with the po
 
 ## Continuous time
 
-`ContinuousTimeMicrosimEngine` shares this constructor shape. Instead of per-cycle probabilities, `hazards` returns sampled times to each competing event; the engine races them, advances to the earliest, and accrues continuously between events. On constant hazards it reproduces the exponential cohort solution. See the [engines](../concepts/engines.qmd) concept page for where both fit in the contract, and the [discrete-event tutorial](des.qmd) for the SimPy-wrapping engine that reuses the same accrual layer.
+`MicrosimModel(clock="continuous")` shares this constructor shape. Instead of per-cycle probabilities, `hazards` returns sampled times to each competing event; the engine races them, advances to the earliest, and accrues continuously between events. On constant hazards it reproduces the exponential cohort solution. See the [engines](../concepts/engines.qmd) concept page for where both fit in the contract, and the [discrete-event tutorial](des.qmd) for the SimPy-wrapping engine that reuses the same accrual layer.
 ```

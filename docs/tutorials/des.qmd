@@ -2,11 +2,11 @@
 title: Discrete-event simulation engine
 ---
 
-This tutorial builds a resource-constrained model with `DESEngine` and runs it through CEA and VoI. It assumes the [microsimulation tutorial](microsim.qmd), which covers the shared ideas: configure once and evaluate on draws, per-iteration seeding, and the accrual layer. The narrated version here is [`examples/des.py`](https://github.com/pedroliman/heval/blob/main/examples/des.py). A discrete-event model earns its cost when a shared, scarce resource makes entities queue, so one patient's outcome depends on the others in the system, a coupling a cohort or independent-microsimulation model cannot carry.
+This tutorial builds a resource-constrained model with `DESModel` and runs it through CEA and VoI. It assumes the [microsimulation tutorial](microsim.qmd), which covers the shared ideas: configure once and evaluate on draws, per-iteration seeding, and the accrual layer. The narrated version here is [`examples/des.py`](https://github.com/pedroliman/heval/blob/main/examples/des.py). A discrete-event model earns its cost when a shared, scarce resource makes entities queue, so one patient's outcome depends on the others in the system, a coupling a cohort or independent-microsimulation model cannot carry.
 
 ## The model
 
-A specialist clinic over a four-year horizon. Patients arrive over time and wait for a specialist, a SimPy `Resource`. While waiting, untreated disease costs `c_wait_year` per year at utility `u_wait`. Once seen, a one-off treatment cost is incurred and the patient spends the rest of the horizon treated at the higher `u_treated`. `DESEngine` wraps SimPy: the environment, the process, and the resource stay your own code, and the `toolkit` adds discounted accrual, seeding, and an event log.
+A specialist clinic over a four-year horizon. Patients arrive over time and wait for a specialist, a SimPy `Resource`. While waiting, untreated disease costs `c_wait_year` per year at utility `u_wait`. Once seen, a one-off treatment cost is incurred and the patient spends the rest of the horizon treated at the higher `u_treated`. `DESModel` wraps SimPy: the environment, the process, and the resource stay your own code, and the `toolkit` adds discounted accrual, seeding, and an event log.
 
 ```{python}
 import numpy as np
@@ -45,7 +45,7 @@ def clinic(env, patient, params, strategy, toolkit):
 The constructor takes the model; `evaluate` takes only the draw matrix. The two strategies differ only in capacity, `n_servers`, and a per-patient overhead `c_capacity` for the expanded arm. They see the same patients and service draws through common random numbers, so the incremental result reflects the capacity change, not sampling noise.
 
 ```{python}
-from heval.models import DESEngine
+from heval.models import DESModel
 from heval.params import Beta, Gamma, ParameterSet
 from heval.run import SeedManager, run_psa
 
@@ -61,7 +61,7 @@ parameters = ParameterSet({
 })
 draws = parameters.sample(128, seed=seeds.generator())
 
-engine = DESEngine(
+engine = DESModel(
     process=clinic, entities=patients, n_entities=30, resources=resources,
     strategies={"Standard capacity": {"n_servers": 1, "c_capacity": 0.0},
                 "Expanded capacity": {"n_servers": 2}},

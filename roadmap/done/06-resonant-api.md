@@ -2,6 +2,8 @@
 
 Three API refinements that make the engine layer read the way health economists think. They are cosmetic but breaking, so they ship together in one release before the API stabilizes for PyPI. Nothing about the output contract, the draw matrix, or the analysis layer changes.
 
+Shipped note: the old names were removed outright, with no deprecation aliases. `heval` does not carry backward-compatibility shims unless explicitly asked, so the "thin subclasses that warn" and "raises a `TypeError`" provisions below were dropped; the rename is a clean break. The structure callback is named `model_fn`, and the callback functions in examples and tutorials are named `model`.
+
 ## Rename the engines
 
 The current class names carry an implementation word (`Engine`) that users do not reach for. Rename to the model type:

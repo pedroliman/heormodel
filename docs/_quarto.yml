@@ -102,11 +102,10 @@ quartodoc:
         - Outcomes
         - ModelEngine
         - ModelFn
-        - MarkovCohortEngine
+        - MarkovModel
         - CohortSpec
-        - DiscreteTimeMicrosimEngine
-        - ContinuousTimeMicrosimEngine
-        - DESEngine
+        - MicrosimModel
+        - DESModel
         - queue_waits
     - title: Run loop (`heval.run`)
       desc: Drive a model over parameter draws, or ingest external PSA tables.

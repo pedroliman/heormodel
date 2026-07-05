@@ -15,7 +15,7 @@ expanded staffing runs two at a per-patient overhead ``c_capacity``. More
 capacity cuts the queue, so patients spend less time at the low waiting utility.
 Both strategies see the same patients and the same service draws through common
 random numbers (the engine default), so the incremental result reflects the
-capacity change, not sampling noise. `DESEngine.evaluate` conforms to the model
+capacity change, not sampling noise. `DESModel.evaluate` conforms to the model
 contract, so `run_psa`, `heval.cea`, and `heval.voi` treat it like any engine.
 
 Run it with::
@@ -37,7 +37,7 @@ import pandas as pd
 import simpy
 
 from heval.cea import ceac, ceaf, icer_table
-from heval.models import DESEngine, queue_waits
+from heval.models import DESModel, queue_waits
 from heval.params import Beta, Gamma, ParameterSet
 from heval.report import capture_run, plot_ce_plane, plot_ceac, plot_frontier
 from heval.run import SeedManager, run_psa
@@ -119,7 +119,7 @@ def main() -> None:
     )
     draws = parameters.sample(N_PSA, seed=seeds.generator())
 
-    engine = DESEngine(
+    engine = DESModel(
         process=clinic,
         entities=patients,
         n_entities=N_PATIENTS,

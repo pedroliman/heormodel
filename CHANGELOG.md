@@ -10,6 +10,19 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ## [Unreleased]
 
+### Changed
+
+- Resonant engine names and clearer parameters (breaking, no aliases). The
+  engines are now `MarkovModel` (was `MarkovCohortEngine`), `MicrosimModel`
+  (folds `DiscreteTimeMicrosimEngine` and `ContinuousTimeMicrosimEngine` into
+  one class with a `clock` argument, `"discrete"` by default, `"continuous"`
+  for the competing-hazards path), and `DESModel` (was `DESEngine`). The Markov
+  structure callback is `model_fn` in place of `build`. Every engine takes one
+  `discount_rate` (annual, default `0.03`, applied to costs and effects) in
+  place of `discount_cost` and `discount_effect`; `cycle_length` scales the
+  annual clock. The pre-0.6 names are removed outright rather than deprecated
+  ([#11](https://github.com/pedroliman/heval/pull/11)).
+
 ## [0.5.0] - 2026-07-05
 
 ### Added

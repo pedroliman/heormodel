@@ -11,7 +11,7 @@ Background mortality now rises with age. The `build` callback returns a per-cycl
 ```{python}
 import numpy as np
 import pandas as pd
-from heval.models import CohortSpec, MarkovCohortEngine
+from heval.models import CohortSpec, MarkovModel
 
 STATES = ("H", "S1", "S2", "D")
 STRATEGIES = ("Standard of care", "Strategy A", "Strategy B", "Strategy AB")
@@ -32,7 +32,7 @@ MORT = np.array([
 def r2p(rate):
     return 1.0 - np.exp(-np.asarray(rate))
 
-def build(p, strategy):
+def model(p, strategy):
     p_HS1, p_S1H, p_S1S2 = r2p(p["r_HS1"]), r2p(p["r_S1H"]), r2p(p["r_S1S2"])
     vHD, vS1D, vS2D = r2p(MORT), r2p(MORT * p["hr_S1"]), r2p(MORT * p["hr_S2"])
     prog = r2p(p["r_S1S2"] * p["hr_S1S2_trtB"]) if "B" in strategy else p_S1S2
@@ -50,7 +50,7 @@ def build(p, strategy):
     te = np.zeros((4, 4)); te[0, 1] = -p["du_HS1"]
     return CohortSpec(P, cost, eff, transition_cost=tc, transition_effect=te)
 
-engine = MarkovCohortEngine(states=STATES, strategies=STRATEGIES, build=build,
+engine = MarkovModel(states=STATES, strategies=STRATEGIES, model_fn=model,
                             n_cycles=N, start="H", half_cycle_correction="simpson")
 ```
 

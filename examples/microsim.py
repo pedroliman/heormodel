@@ -14,7 +14,7 @@ The model is three states, Healthy, Sick, Dead, over a 30-year horizon:
 
 Two strategies share one population through common random numbers (the engine
 default), so the incremental result reflects the treatment effect rather than
-sampling noise. `DiscreteTimeMicrosimEngine.evaluate` conforms to the model
+sampling noise. `MicrosimModel.evaluate` conforms to the model
 contract, so `run_psa`, `heval.cea`, and `heval.voi` treat it like any engine.
 
 Run it with::
@@ -34,7 +34,7 @@ import numpy as np
 import pandas as pd
 
 from heval.cea import ceac, ceaf, icer_table
-from heval.models import DiscreteTimeMicrosimEngine
+from heval.models import MicrosimModel
 from heval.params import Beta, Fixed, Gamma, ParameterSet
 from heval.report import capture_run, plot_ce_plane, plot_ceac, plot_frontier
 from heval.run import SeedManager, run_psa
@@ -120,7 +120,7 @@ def main() -> None:
     )
     draws = parameters.sample(N, seed=seeds.generator())
 
-    engine = DiscreteTimeMicrosimEngine(
+    engine = MicrosimModel(
         states=STATES,
         transition=transition,
         payoffs=payoffs,

@@ -1,6 +1,6 @@
 """Discrete-event simulation engine, a thin wrapper around SimPy.
 
-`DESEngine` runs a SimPy model once per PSA iteration and strategy and emits the
+`DESModel` runs a SimPy model once per PSA iteration and strategy and emits the
 standard `Outcomes` schema. It is not a new discrete-event kernel: the SimPy
 ``Environment``, the process functions, and the ``Resource`` objects stay the
 user's own code. `heval` adds only what SimPy leaves out for a health economic
@@ -19,7 +19,7 @@ Configure once and evaluate on draws: the constructor takes the model, and
 `evaluate` takes only the parameter draw matrix, returning `Outcomes` indexed by
 ``draws.index``. Seed each iteration from an injected `SeedManager`. Accrue and
 discount through the shared `_accrual` module. Discounting is continuous
-(``exp(-rate * t)``), matching `ContinuousTimeMicrosimEngine`, because a DES runs
+(``exp(-rate * t)``), matching `MicrosimModel(clock="continuous")`, because a DES runs
 in continuous time.
 
 ``simpy`` is an optional dependency: install with ``uv pip install 'heval[des]'``.
@@ -91,8 +91,7 @@ class _DESToolkit:
         resources: Mapping[str, Any],
         entity_id: int,
         horizon: float,
-        discount_cost: float,
-        discount_effect: float,
+        discount_rate: float,
         log: list[dict[str, Any]] | None,
     ) -> None:
         self.env = env
@@ -100,8 +99,7 @@ class _DESToolkit:
         self._resources = resources
         self._entity_id = entity_id
         self._horizon = horizon
-        self._dc = discount_cost
-        self._de = discount_effect
+        self._rate = discount_rate
         self._log = log
         self.cost = 0.0
         self.effect = 0.0
@@ -116,7 +114,8 @@ class _DESToolkit:
             component: Optional label; the amount is also added to a
                 disaggregated component subtotal carried into `Outcomes`.
         """
-        discounted = float(amount) * float(discount_factor(self.env.now, self._dc, continuous=True))
+        factor = float(discount_factor(self.env.now, self._rate, continuous=True))
+        discounted = float(amount) * factor
         self.cost += discounted
         if component is not None:
             self.components[component] = self.components.get(component, 0.0) + discounted
@@ -148,8 +147,8 @@ class _DESToolkit:
         a = max(0.0, float(start))
         b = min(self._horizon, float(end))
         dur = max(0.0, b - a)
-        cost = float(cost_rate) * float(integrate_flow(a, dur, self._dc))
-        self.effect += float(effect_rate) * float(integrate_flow(a, dur, self._de))
+        cost = float(cost_rate) * float(integrate_flow(a, dur, self._rate))
+        self.effect += float(effect_rate) * float(integrate_flow(a, dur, self._rate))
         self.cost += cost
         if component is not None:
             self.components[component] = self.components.get(component, 0.0) + cost
@@ -238,7 +237,7 @@ class _RequestContext:
         self._tk._record("release", resource=self._name)
 
 
-class DESEngine:
+class DESModel:
     """Discrete-event simulation engine wrapping SimPy.
 
     Each process is the user's own SimPy code with signature
@@ -264,8 +263,9 @@ class DESEngine:
             built fresh for each run and shared by every entity in it. ``None``
             for a model with no constrained resources.
         horizon: Time horizon in the environment's unit; the run stops here.
-        discount_cost: Annual (per-unit-time) discount rate for costs.
-        discount_effect: Discount rate for effects.
+        discount_rate: Annual (per-unit-time) discount rate for costs and
+            effects (0.03 by default). Discounting is continuous
+            (``exp(-rate * t)``).
         n_entities: Population size when ``entities`` is a sampler or ``None``.
         effect: Name of the effect column (QALYs by default).
         independent_streams: Give each strategy its own entities and streams
@@ -273,13 +273,13 @@ class DESEngine:
 
     Example:
         >>> import numpy as np, pandas as pd
-        >>> from heval.models import DESEngine
+        >>> from heval.models import DESModel
         >>> from heval.run import SeedManager
         >>> def process(env, entity, params, strategy, toolkit):
         ...     wait = toolkit.rng.exponential(params["los"])
         ...     toolkit.accrue_rate(params["day_cost"], 1.0, wait)
         ...     yield env.timeout(wait)
-        >>> engine = DESEngine(
+        >>> engine = DESModel(
         ...     process=process, entities=200, strategies={"ward": {}},
         ...     horizon=30.0, seed_manager=SeedManager(0))
         >>> draws = pd.DataFrame({"los": [3.0], "day_cost": [500.0]},
@@ -297,8 +297,7 @@ class DESEngine:
         seed_manager: SeedManager,
         resources: ResourceFn | None = None,
         horizon: float,
-        discount_cost: float = 0.03,
-        discount_effect: float = 0.03,
+        discount_rate: float = 0.03,
         n_entities: int = 1_000,
         effect: str = "qaly",
         independent_streams: bool = False,
@@ -313,8 +312,7 @@ class DESEngine:
         self._strategies = {name: dict(overrides) for name, overrides in strategies.items()}
         self._seed_manager = seed_manager
         self._horizon = float(horizon)
-        self._discount_cost = float(discount_cost)
-        self._discount_effect = float(discount_effect)
+        self._discount_rate = float(discount_rate)
         self._effect = effect
         self._independent_streams = bool(independent_streams)
         if isinstance(entities, bool):  # bool is an int subclass; reject it explicitly
@@ -373,8 +371,7 @@ class DESEngine:
                 resources=resources,
                 entity_id=i,
                 horizon=self._horizon,
-                discount_cost=self._discount_cost,
-                discount_effect=self._discount_effect,
+                discount_rate=self._discount_rate,
                 log=log,
             )
             toolkits.append(toolkit)
@@ -405,12 +402,12 @@ class DESEngine:
 
         Example:
             >>> import pandas as pd
-            >>> from heval.models import DESEngine
+            >>> from heval.models import DESModel
             >>> from heval.run import SeedManager
             >>> def process(env, entity, params, strategy, toolkit):
             ...     toolkit.accrue_cost(params["visit"])
             ...     yield env.timeout(1.0)
-            >>> engine = DESEngine(
+            >>> engine = DESModel(
             ...     process=process, entities=50, strategies={"clinic": {}},
             ...     horizon=5.0, seed_manager=SeedManager(1))
             >>> draws = pd.DataFrame({"visit": [200.0, 210.0]},
@@ -466,7 +463,7 @@ class DESEngine:
 
 
 def queue_waits(trace: pd.DataFrame) -> pd.DataFrame:
-    """Per-request waiting times, derived from a `DESEngine` trace.
+    """Per-request waiting times, derived from a `DESModel` trace.
 
     Pairs each ``request`` event with its ``grant`` for the same entity, strategy,
     iteration, and resource, and reports the wait between them. This is the
@@ -474,7 +471,7 @@ def queue_waits(trace: pd.DataFrame) -> pd.DataFrame:
     analysis code never reaches into the engine.
 
     Args:
-        trace: The event log returned by ``DESEngine.evaluate(..., trace=True)``.
+        trace: The event log returned by ``DESModel.evaluate(..., trace=True)``.
 
     Returns:
         One row per served request with a ``wait`` column.
