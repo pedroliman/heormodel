@@ -2,13 +2,13 @@
 title: Deterministic sensitivity analysis
 ---
 
-Probabilistic sensitivity analysis answers how uncertain a decision is; deterministic sensitivity analysis (DSA) answers which parameters move the result and by how much. This tutorial runs the deterministic forms on the same Sick-Sicker cohort model the [cohort tutorial](mdm-cohort.qmd) uses for its PSA, so the two read as a pair. It assumes that tutorial. The full script is [`examples/dsa.py`](https://github.com/pedroliman/heormodel/blob/main/examples/dsa.py).
+Probabilistic sensitivity analysis answers how uncertain a decision is; deterministic sensitivity analysis (DSA) answers which parameters move the result and by how much. This tutorial runs the deterministic forms on the [Markov cohort model](markov-cohort.qmd), repeating its four-state Sick-Sicker definition below. It assumes that tutorial. The full script is [`examples/dsa.py`](https://github.com/pedroliman/heormodel/blob/main/examples/dsa.py).
 
 `heormodel.dsa` builds scenario designs that run through `run_psa` unchanged: a design is a draw matrix whose rows are scenarios instead of random draws, paired with a descriptor naming what each scenario varied. Nothing in the run loop or the `Outcomes` schema changes.
 
 ## The model and base case
 
-The model is the four-state Sick-Sicker cohort of the cohort tutorial. The base case is its Table 1 point estimates, held in a `pandas.Series` indexed by parameter name, the input every DSA builder takes.
+The model is the four-state Sick-Sicker cohort from the previous tutorial. The base case is its Table 1 point estimates, held in a `pandas.Series` indexed by parameter name, the input every DSA builder takes.
 
 ```{python}
 import numpy as np
@@ -94,4 +94,4 @@ heatmap_data(gnb["Strategy AB"] - gnb["Standard of care"], gdesc,
 
 The grid center reproduces the one-way sweep's base value, since both hold the other parameters at base. Where PSA integrates over the joint distribution, DSA holds everything else fixed and reads one axis at a time.
 
-Next: the [replication gallery](replication-gallery.qmd) collects the published models these engines reproduce.
+Next: [probabilistic sensitivity analysis](psa.qmd) propagates the joint parameter uncertainty through the same model.

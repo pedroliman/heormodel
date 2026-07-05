@@ -2,7 +2,7 @@
 title: Cohort state-transition model
 ---
 
-This tutorial reproduces a published cohort state-transition cost-effectiveness analysis with `MarkovModel`, then runs its probabilistic sensitivity analysis through the same pipeline. It assumes the [bring your own outputs tutorial](byo-outputs.qmd), which covers the CEA and VoI layer the outcomes flow into. The source is the introductory Sick-Sicker tutorial of Alarid-Escudero and others (2023); the full script is [`examples/mdm_cohort.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_cohort.py). See the [replication gallery](replication-gallery.qmd) for the companion time-dependent and microsimulation replications.
+This tutorial reproduces a published cohort state-transition cost-effectiveness analysis with `MarkovModel`, then runs its probabilistic sensitivity analysis through the same pipeline. It assumes the [Markov cohort model tutorial](markov-cohort.qmd). The source is the introductory Sick-Sicker tutorial of Alarid-Escudero and others (2023); the full script is [`examples/mdm_cohort.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_cohort.py). See the [replication gallery](replication-gallery.qmd) for the companion time-dependent and microsimulation replications.
 
 ## The model
 
@@ -78,7 +78,5 @@ print(f"EVPI at WTP 100,000: {evpi(outcomes, 100_000.0):,.0f}")
 ```
 
 The mean frontier matches the deterministic ranking, and EVPI is positive because Strategy AB clears the 100,000 threshold in some draws but not others.
-
-Next: the [microsimulation engine](microsim.qmd) steps up from the cohort average to an individual-level model that carries history and heterogeneity.
 
 Reference: Alarid-Escudero F, Krijkamp EM, Enns EA, Yang A, Hunink MGM, Pechlivanoglou P, Jalal H. An introductory tutorial on cohort state-transition models in R using a cost-effectiveness analysis example. Medical Decision Making. 2023;43(1):3-20.

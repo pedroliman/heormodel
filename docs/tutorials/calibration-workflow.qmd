@@ -2,7 +2,7 @@
 title: Calibration workflow
 ---
 
-This tutorial mixes two parameter sources in one analysis: some parameters are calibrated to observed data, the rest come from the literature. Both feed one PSA that flows through CEA and VoI. It builds on the [full pipeline tutorial](full-pipeline.qmd) and is the narrated version of [`examples/calibration_workflow.py`](https://github.com/pedroliman/heormodel/blob/main/examples/calibration_workflow.py). Calibration needs the `calibration` extra: `uv pip install 'heormodel[calibration]'`.
+This tutorial mixes two parameter sources in one analysis: some parameters are calibrated to observed data, the rest come from the literature. Both feed one PSA that flows through CEA and VoI. It builds on the [probabilistic sensitivity analysis tutorial](psa.qmd) and is the narrated version of [`examples/calibration_workflow.py`](https://github.com/pedroliman/heormodel/blob/main/examples/calibration_workflow.py). Calibration needs the `calibration` extra: `uv pip install 'heormodel[calibration]'`.
 
 ## The disease model
 

@@ -1,0 +1,90 @@
+---
+title: Value of information
+---
+
+Cost-effectiveness analysis reports which strategy is expected to be best; value of information (VoI) asks what the remaining uncertainty costs and which parameters drive it. This tutorial computes the expected value of perfect information (EVPI), the partial EVPI for each parameter (EVPPI), and the expected value of a proposed study (EVSI) on the Sick-Sicker model. It assumes the [cost-effectiveness analysis tutorial](cea.qmd). The model and its PSA are repeated here so the page stands alone.
+
+## The model and a PSA
+
+```{python}
+import numpy as np
+import pandas as pd
+from heormodel.models import CohortSpec, MarkovModel
+from heormodel.params import Beta, Gamma, LogNormal, ParameterSet
+from heormodel.run import SeedManager, run_psa
+
+STATES = ("H", "S1", "S2", "D")
+STRATEGIES = ("Standard of care", "Strategy A", "Strategy B", "Strategy AB")
+
+def r2p(rate):
+    return 1.0 - np.exp(-np.asarray(rate))
+
+def model(p, strategy):
+    p_HS1, p_S1H, p_S1S2 = r2p(p["r_HS1"]), r2p(p["r_S1H"]), r2p(p["r_S1S2"])
+    p_HD, p_S1D, p_S2D = r2p(p["r_HD"]), r2p(p["r_HD"] * p["hr_S1"]), r2p(p["r_HD"] * p["hr_S2"])
+    prog = r2p(p["r_S1S2"] * p["hr_S1S2_trtB"]) if "B" in strategy else p_S1S2
+    P = np.zeros((4, 4))
+    P[0, 0], P[0, 1], P[0, 3] = (1 - p_HD) * (1 - p_HS1), (1 - p_HD) * p_HS1, p_HD
+    P[1, 0], P[1, 2], P[1, 3] = (1 - p_S1D) * p_S1H, (1 - p_S1D) * prog, p_S1D
+    P[1, 1] = (1 - p_S1D) * (1 - p_S1H - prog)
+    P[2, 2], P[2, 3], P[3, 3] = 1 - p_S2D, p_S2D, 1.0
+    add = {"Standard of care": 0.0, "Strategy A": p["c_trtA"],
+           "Strategy B": p["c_trtB"], "Strategy AB": p["c_trtA"] + p["c_trtB"]}[strategy]
+    cost = np.array([p["c_H"], p["c_S1"] + add, p["c_S2"] + add, 0.0])
+    u_s1 = p["u_trtA"] if strategy in ("Strategy A", "Strategy AB") else p["u_S1"]
+    return CohortSpec(P, cost, np.array([p["u_H"], u_s1, p["u_S2"], 0.0]))
+
+engine = MarkovModel(states=STATES, strategies=STRATEGIES, model_fn=model,
+                     n_cycles=75, start="H", half_cycle_correction="simpson")
+params = ParameterSet({
+    "r_HD": Gamma(20, 1/10000), "r_HS1": Gamma(30, 1/200), "r_S1H": Gamma(60, 1/120),
+    "r_S1S2": Gamma(84, 1/800), "hr_S1": LogNormal(np.log(3), 0.01),
+    "hr_S2": LogNormal(np.log(10), 0.02), "hr_S1S2_trtB": LogNormal(np.log(0.6), 0.02),
+    "c_H": Gamma(100, 20.0), "c_S1": Gamma(177.8, 22.5), "c_S2": Gamma(225, 66.7),
+    "c_trtA": Gamma(73.5, 163.3), "c_trtB": Gamma(86.2, 150.8),
+    "u_H": Beta(200, 3), "u_S1": Beta(130, 45), "u_S2": Beta(230, 230), "u_trtA": Beta(300, 15),
+})
+draws = params.sample(4_000, seed=SeedManager(20260705).generator())
+outcomes = run_psa(engine, draws, sequential=True)
+WTP = 100_000.0
+```
+
+## Expected value of perfect information
+
+EVPI is the expected net-benefit gain from resolving all uncertainty before deciding. It is positive when the optimal strategy changes across draws, and it peaks near the thresholds where the decision is closest.
+
+```{python}
+from heormodel.voi import evpi
+
+print(f"EVPI per person at WTP {WTP:,.0f}: {evpi(outcomes, WTP):,.0f}")
+evpi(outcomes, [50_000.0, 100_000.0, 150_000.0]).round(0)
+```
+
+## Partial EVPI by parameter
+
+`evppi_ranking` estimates the EVPI that would remain if a single parameter were learned exactly, sorted so the top rows are the parameters worth studying.
+
+```{python}
+from heormodel.voi import evppi_ranking
+
+evppi_ranking(outcomes, draws, WTP).head(5).round(0)
+```
+
+## Expected value of a study
+
+EVSI values a specific study before running it. The ranking above puts the Sick-state utility (`u_S1`) first, so consider a study that measures it: each iteration observes the utility with a standard error set by the sample size. `simulate_summaries` draws one study result per iteration, and `evsi_regression` values the information it brings.
+
+```{python}
+from heormodel.voi import evsi_regression, simulate_summaries
+
+def utility_study(row, rng, se=0.02):
+    return {"u_S1_hat": rng.normal(row["u_S1"], se)}
+
+summaries = simulate_summaries(draws, utility_study, seed=1)
+evsi = evsi_regression(outcomes, summaries, WTP, seed=1)
+print(f"EVSI per person at WTP {WTP:,.0f}: {evsi:,.0f}")
+```
+
+The ordering EVSI (about 570) below EVPPI (about 880) below EVPI (about 2,900) holds by construction: a finite study on one parameter learns less than resolving that parameter, which learns less than resolving everything. Scaling any of them by the population the decision affects turns a per-person value into a research budget.
+
+Next: the [microsimulation engine](microsim.qmd) steps up from the cohort average to an individual-level model.

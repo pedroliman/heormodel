@@ -14,26 +14,32 @@ website:
           contents:
             - href: tutorials/byo-outputs.qmd
               text: Bring your own outputs
-            - href: tutorials/mdm-cohort.qmd
+            - href: tutorials/markov-cohort.qmd
               text: Markov cohort model
+            - href: tutorials/dsa.qmd
+              text: Deterministic sensitivity analysis
+            - href: tutorials/psa.qmd
+              text: Probabilistic sensitivity analysis
+            - href: tutorials/cea.qmd
+              text: Cost-effectiveness analysis
+            - href: tutorials/voi.qmd
+              text: Value of information
             - href: tutorials/microsim.qmd
               text: Microsimulation engine
             - href: tutorials/markov-vs-microsim.qmd
               text: Markov vs microsimulation models
             - href: tutorials/des.qmd
               text: Discrete-event simulation
-            - href: tutorials/full-pipeline.qmd
-              text: Full pipeline
             - href: tutorials/calibration-workflow.qmd
               text: Calibration workflow
             - href: tutorials/parameter-inputs.qmd
               text: Parameter inputs from data
-            - href: tutorials/dsa.qmd
-              text: Deterministic sensitivity analysis
         - section: Replications
           contents:
             - href: tutorials/replication-gallery.qmd
               text: Replication gallery
+            - href: tutorials/mdm-cohort.qmd
+              text: Cohort state-transition model
             - href: tutorials/mdm-cohort-timedep.qmd
               text: Time-dependent cohort model
             - href: tutorials/mdm-microsim.qmd
@@ -61,26 +67,32 @@ website:
         menu:
           - href: tutorials/byo-outputs.qmd
             text: Bring your own outputs
-          - href: tutorials/mdm-cohort.qmd
+          - href: tutorials/markov-cohort.qmd
             text: Markov cohort model
+          - href: tutorials/dsa.qmd
+            text: Deterministic sensitivity analysis
+          - href: tutorials/psa.qmd
+            text: Probabilistic sensitivity analysis
+          - href: tutorials/cea.qmd
+            text: Cost-effectiveness analysis
+          - href: tutorials/voi.qmd
+            text: Value of information
           - href: tutorials/microsim.qmd
             text: Microsimulation engine
           - href: tutorials/markov-vs-microsim.qmd
             text: Markov vs microsimulation models
           - href: tutorials/des.qmd
             text: Discrete-event simulation
-          - href: tutorials/full-pipeline.qmd
-            text: Full pipeline
           - href: tutorials/calibration-workflow.qmd
             text: Calibration workflow
           - href: tutorials/parameter-inputs.qmd
             text: Parameter inputs from data
-          - href: tutorials/dsa.qmd
-            text: Deterministic sensitivity analysis
       - text: Replications
         menu:
           - href: tutorials/replication-gallery.qmd
             text: Replication gallery
+          - href: tutorials/mdm-cohort.qmd
+            text: Cohort state-transition model
           - href: tutorials/mdm-cohort-timedep.qmd
             text: Time-dependent cohort model
           - href: tutorials/mdm-microsim.qmd

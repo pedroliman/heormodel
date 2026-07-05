@@ -108,4 +108,4 @@ record = capture_run(seed=seed_manager, params=params, outcomes=outcomes,
 print(record.to_markdown("heormodel example run report"))
 ```
 
-Next: the [Markov cohort model](mdm-cohort.qmd) builds the standard state-transition model and runs its PSA through the same analysis layer.
+Next: the [Markov cohort model](markov-cohort.qmd) builds the standard state-transition model and explores its behavior.

@@ -55,8 +55,7 @@ One parameter object flows through swappable model engines into a shared analysi
 
 - [Get started](get-started.qmd): install and run your first analysis.
 - [Bring your own outputs](tutorials/byo-outputs.qmd): an external PSA table through CEA, VoI, plots, and a run report.
-- [Markov cohort model](tutorials/mdm-cohort.qmd): the standard state-transition model, then the [microsimulation engine](tutorials/microsim.qmd) as the step up in detail.
-- [Full pipeline](tutorials/full-pipeline.qmd): parameters, `run_psa`, CEA, and VoI end to end.
+- [Markov cohort model](tutorials/markov-cohort.qmd): build a state-transition model, then [probabilistic sensitivity analysis](tutorials/psa.qmd), [cost-effectiveness analysis](tutorials/cea.qmd), and [value of information](tutorials/voi.qmd) on it.
 - [Calibration workflow](tutorials/calibration-workflow.qmd): calibrate some parameters, take the rest from the literature, mix both with `mix_draws`, then run CEA and VoI.
 - [API reference](reference/index.qmd): every public function, generated from docstrings.
 - [Roadmap](roadmap/index.md) and [changelog](changelog.md): what is planned and what has shipped.

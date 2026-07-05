@@ -61,5 +61,5 @@ print(f"EVPI at WTP 50,000: {evpi(outcomes, wtp=50_000):,.1f}")
 ## Next steps
 
 - [Bring your own outputs](tutorials/byo-outputs.qmd): the same wedge, expanded to plots, EVPPI ranking, and a run report.
-- [Markov cohort model](tutorials/mdm-cohort.qmd): the standard state-transition model, run through the same pipeline. The [microsimulation engine](tutorials/microsim.qmd) is the step up in detail after it.
+- [Markov cohort model](tutorials/markov-cohort.qmd): build a state-transition model and explore its behavior, then layer on sensitivity, cost-effectiveness, and value-of-information analysis.
 - [Architecture](concepts/architecture.qmd): the `Outcomes` schema and the shared iteration index.

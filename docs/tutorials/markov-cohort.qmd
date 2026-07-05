@@ -1,0 +1,76 @@
+---
+title: Markov cohort model
+---
+
+This tutorial builds a four-state Sick-Sicker cohort model with `MarkovModel` and explores its behavior: the transition structure, the cohort trace over time, and the costs and QALYs each strategy accrues at the base case. It assumes the [bring your own outputs tutorial](byo-outputs.qmd) for the analysis layer. Here the model runs deterministically; sensitivity analysis and cost-effectiveness ranking come in later tutorials.
+
+## The model
+
+Four states, Healthy (`H`), Sick (`S1`), Sicker (`S2`), and Dead (`D`), run over 75 annual cycles from age 25. Four strategies compare standard of care with treatment A, which raises the Sick-state utility, treatment B, which slows progression from Sick to Sicker, and their combination. The `model_fn` callback maps one parameter row and a strategy name to a `CohortSpec`: a transition matrix and per-state cost and utility. `r2p` turns an annual rate into a per-cycle probability.
+
+```{python}
+import numpy as np
+import pandas as pd
+from heormodel.models import CohortSpec, MarkovModel
+
+STATES = ("H", "S1", "S2", "D")
+STRATEGIES = ("Standard of care", "Strategy A", "Strategy B", "Strategy AB")
+
+def r2p(rate):  # annual rate to per-cycle probability
+    return 1.0 - np.exp(-np.asarray(rate))
+
+def model(p, strategy):
+    p_HS1, p_S1H, p_S1S2 = r2p(p["r_HS1"]), r2p(p["r_S1H"]), r2p(p["r_S1S2"])
+    p_HD, p_S1D, p_S2D = r2p(p["r_HD"]), r2p(p["r_HD"] * p["hr_S1"]), r2p(p["r_HD"] * p["hr_S2"])
+    prog = r2p(p["r_S1S2"] * p["hr_S1S2_trtB"]) if "B" in strategy else p_S1S2
+    P = np.zeros((4, 4))
+    P[0, 0], P[0, 1], P[0, 3] = (1 - p_HD) * (1 - p_HS1), (1 - p_HD) * p_HS1, p_HD
+    P[1, 0], P[1, 2], P[1, 3] = (1 - p_S1D) * p_S1H, (1 - p_S1D) * prog, p_S1D
+    P[1, 1] = (1 - p_S1D) * (1 - p_S1H - prog)
+    P[2, 2], P[2, 3], P[3, 3] = 1 - p_S2D, p_S2D, 1.0
+    add = {"Standard of care": 0.0, "Strategy A": p["c_trtA"],
+           "Strategy B": p["c_trtB"], "Strategy AB": p["c_trtA"] + p["c_trtB"]}[strategy]
+    cost = np.array([p["c_H"], p["c_S1"] + add, p["c_S2"] + add, 0.0])
+    u_s1 = p["u_trtA"] if strategy in ("Strategy A", "Strategy AB") else p["u_S1"]
+    return CohortSpec(P, cost, np.array([p["u_H"], u_s1, p["u_S2"], 0.0]))
+
+engine = MarkovModel(states=STATES, strategies=STRATEGIES, model_fn=model,
+                     n_cycles=75, start="H", half_cycle_correction="simpson")
+```
+
+## Base-case parameters
+
+The base case is the Table 1 point estimates, held in a `pandas.Series` indexed by parameter name.
+
+```{python}
+base = pd.Series(dict(
+    r_HD=0.002, r_HS1=0.15, r_S1H=0.5, r_S1S2=0.105, hr_S1=3.0, hr_S2=10.0,
+    hr_S1S2_trtB=0.6, c_H=2000.0, c_S1=4000.0, c_S2=15000.0, c_trtA=12000.0,
+    c_trtB=13000.0, u_H=1.0, u_S1=0.75, u_S2=0.5, u_trtA=0.95))
+```
+
+## The cohort trace
+
+The engine sweeps the starting cohort through the transition matrix one cycle at a time. Under standard of care the cohort leaves Healthy, passes through the Sick states, and accumulates in Dead. This occupancy trace is what the engine integrates for costs and effects.
+
+```{python}
+spec = model(base, "Standard of care")
+occ = np.empty((76, 4))
+occ[0] = (1.0, 0.0, 0.0, 0.0)
+for t in range(75):
+    occ[t + 1] = occ[t] @ spec.transition
+pd.DataFrame(occ, columns=STATES).plot(xlabel="cycle (year)", ylabel="share of cohort");
+```
+
+## Costs and effects per strategy
+
+Evaluating the base case returns each strategy's discounted lifetime cost and QALYs. Treatment B slows progression and treatment A raises the Sick-state utility, so both buy QALYs at added cost.
+
+```{python}
+draws0 = pd.DataFrame([base.to_dict()], index=pd.RangeIndex(1, name="iteration"))
+engine.evaluate(draws0).summary().round(3)
+```
+
+Which strategy is worth its cost depends on the willingness-to-pay threshold, and the point estimates hide the parameter uncertainty around them.
+
+Next: [deterministic sensitivity analysis](dsa.qmd) varies each parameter in turn to see which ones move the result most.

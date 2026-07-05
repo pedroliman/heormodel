@@ -1,0 +1,94 @@
+---
+title: Cost-effectiveness analysis
+---
+
+This tutorial ranks the four Sick-Sicker strategies by cost-effectiveness: the incremental table and efficiency frontier, the cost-effectiveness plane, net monetary benefit, and acceptability curves. It assumes the [probabilistic sensitivity analysis tutorial](psa.qmd), which produced the outcomes. The model and its PSA are repeated here so the page stands alone.
+
+## The model and a PSA
+
+```{python}
+import numpy as np
+import pandas as pd
+from heormodel.models import CohortSpec, MarkovModel
+from heormodel.params import Beta, Gamma, LogNormal, ParameterSet
+from heormodel.run import SeedManager, run_psa
+
+STATES = ("H", "S1", "S2", "D")
+STRATEGIES = ("Standard of care", "Strategy A", "Strategy B", "Strategy AB")
+
+def r2p(rate):
+    return 1.0 - np.exp(-np.asarray(rate))
+
+def model(p, strategy):
+    p_HS1, p_S1H, p_S1S2 = r2p(p["r_HS1"]), r2p(p["r_S1H"]), r2p(p["r_S1S2"])
+    p_HD, p_S1D, p_S2D = r2p(p["r_HD"]), r2p(p["r_HD"] * p["hr_S1"]), r2p(p["r_HD"] * p["hr_S2"])
+    prog = r2p(p["r_S1S2"] * p["hr_S1S2_trtB"]) if "B" in strategy else p_S1S2
+    P = np.zeros((4, 4))
+    P[0, 0], P[0, 1], P[0, 3] = (1 - p_HD) * (1 - p_HS1), (1 - p_HD) * p_HS1, p_HD
+    P[1, 0], P[1, 2], P[1, 3] = (1 - p_S1D) * p_S1H, (1 - p_S1D) * prog, p_S1D
+    P[1, 1] = (1 - p_S1D) * (1 - p_S1H - prog)
+    P[2, 2], P[2, 3], P[3, 3] = 1 - p_S2D, p_S2D, 1.0
+    add = {"Standard of care": 0.0, "Strategy A": p["c_trtA"],
+           "Strategy B": p["c_trtB"], "Strategy AB": p["c_trtA"] + p["c_trtB"]}[strategy]
+    cost = np.array([p["c_H"], p["c_S1"] + add, p["c_S2"] + add, 0.0])
+    u_s1 = p["u_trtA"] if strategy in ("Strategy A", "Strategy AB") else p["u_S1"]
+    return CohortSpec(P, cost, np.array([p["u_H"], u_s1, p["u_S2"], 0.0]))
+
+engine = MarkovModel(states=STATES, strategies=STRATEGIES, model_fn=model,
+                     n_cycles=75, start="H", half_cycle_correction="simpson")
+params = ParameterSet({
+    "r_HD": Gamma(20, 1/10000), "r_HS1": Gamma(30, 1/200), "r_S1H": Gamma(60, 1/120),
+    "r_S1S2": Gamma(84, 1/800), "hr_S1": LogNormal(np.log(3), 0.01),
+    "hr_S2": LogNormal(np.log(10), 0.02), "hr_S1S2_trtB": LogNormal(np.log(0.6), 0.02),
+    "c_H": Gamma(100, 20.0), "c_S1": Gamma(177.8, 22.5), "c_S2": Gamma(225, 66.7),
+    "c_trtA": Gamma(73.5, 163.3), "c_trtB": Gamma(86.2, 150.8),
+    "u_H": Beta(200, 3), "u_S1": Beta(130, 45), "u_S2": Beta(230, 230), "u_trtA": Beta(300, 15),
+})
+draws = params.sample(2_000, seed=SeedManager(20260705).generator())
+outcomes = run_psa(engine, draws, sequential=True)
+WTP = 100_000.0
+```
+
+## Incremental analysis
+
+`icer_table` orders strategies by mean cost and reports the ICER along the efficiency frontier. The `status` column marks dominated (`D`) and extended-dominated (`ED`) strategies; the survivors define the frontier.
+
+```{python}
+from heormodel.cea import frontier, icer_table
+
+icer_table(outcomes).round(2)
+```
+
+```{python}
+frontier(outcomes)
+```
+
+## The cost-effectiveness plane
+
+Each PSA iteration is one point of incremental cost against incremental effect versus standard of care. The willingness-to-pay line marks where a point turns cost-effective.
+
+```{python}
+from heormodel.report import plot_ce_plane
+
+plot_ce_plane(outcomes, comparator="Standard of care", wtp=WTP);
+```
+
+## Net benefit and acceptability
+
+Net monetary benefit collapses cost and effect at a threshold into one number per strategy; `expected_nmb` ranks them. The cost-effectiveness acceptability curve (CEAC) reports the probability each strategy has the highest net benefit across thresholds, and the acceptability frontier (CEAF) traces the strategy with the highest expected net benefit.
+
+```{python}
+from heormodel.cea import expected_nmb
+
+expected_nmb(outcomes, WTP).round(0)
+```
+
+```{python}
+from heormodel.cea import ceac, ceaf
+from heormodel.report import plot_ceac
+
+grid = np.linspace(0, 200_000, 41)
+plot_ceac(ceac(outcomes, grid), ceaf_df=ceaf(outcomes, grid));
+```
+
+Next: [value of information](voi.qmd) asks what resolving the remaining uncertainty is worth.

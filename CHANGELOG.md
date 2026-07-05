@@ -46,14 +46,17 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Changed
 
-- Documentation narrative order: the tutorials now climb from the analysis
-  layer to the most detailed engine. The sequence is bring your own outputs,
-  the Markov cohort model, the microsimulation engine, Markov vs
-  microsimulation models, discrete-event simulation, the full pipeline, and the
-  calibration workflow. The Markov cohort tutorial moves from Replications into
-  Tutorials; the time-dependent cohort and microsimulation replications stay
-  under Replications as validation exhibits. Each tutorial's forward link,
-  `get-started.qmd`, and the README follow the same order
+- Tutorials rebuilt around one Sick-Sicker model. The Tutorials menu now climbs
+  bring your own outputs, Markov cohort model, deterministic sensitivity
+  analysis, probabilistic sensitivity analysis, cost-effectiveness analysis,
+  value of information, then the microsimulation, Markov vs microsimulation,
+  discrete-event, calibration, and parameter-input tutorials. New self-contained
+  pages build and explore a Markov cohort model and carry it through PSA, CEA,
+  and VoI, each repeating the model definition so it stands alone. The former
+  full-pipeline tutorial is retired and its content redistributed. The three
+  paper replications (cohort, time-dependent cohort, microsimulation) stay
+  unchanged under Replications. Each tutorial's forward link, `get-started.qmd`,
+  and the site index follow the new order
   ([#19](https://github.com/pedroliman/heormodel/pull/19)).
 - `run_psa` runs in parallel over all cores by default (`n_jobs=-1`). Pass
   `sequential=True` for an in-process run (the readable off switch for

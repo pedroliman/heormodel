@@ -99,4 +99,4 @@ _, trace = engine.evaluate(draws.iloc[[0]], trace=True)
 
 The single specialist leaves patients waiting weeks; the second clears the queue to about a day. See the [engines](../concepts/engines.qmd) concept page for where the engine sits in the contract.
 
-Next: the [full pipeline tutorial](full-pipeline.qmd) formalizes the run loop and the contract every engine plugs into, from `ParameterSet` sampling through `run_psa` to CEA and VoI.
+Next: the [calibration workflow](calibration-workflow.qmd) mixes calibrated and literature parameters into one PSA while keeping the same analysis layer.
