@@ -21,7 +21,7 @@ Each entry links to the pull request that introduced it. Add a line under
   `heval.report.tornado_data` now reads a one-way or one-at-a-time DSA result as
   well as a PSA, and `heatmap_data` reshapes a two-parameter grid into a matrix.
   `examples/dsa.py` and a website tutorial run all three forms on the
-  Sick-Sicker model ([#13](https://github.com/pedroliman/heval/pull/13)).
+  Sick-Sicker model ([#14](https://github.com/pedroliman/heval/pull/14)).
 
 ## [0.6.0] - 2026-07-05
 
