@@ -16,6 +16,7 @@ from heval.params.distributions import (
     Normal,
     Uniform,
 )
+from heval.params.inputs import read_draws, resample_posterior, single_draw
 from heval.params.mix import mix_draws
 from heval.params.sampling import ParameterSet
 
@@ -30,4 +31,7 @@ __all__ = [
     "ParameterSet",
     "Uniform",
     "mix_draws",
+    "read_draws",
+    "resample_posterior",
+    "single_draw",
 ]

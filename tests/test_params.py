@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 from scipy import stats
 
+from heval.models import Outcomes
 from heval.params import (
     Beta,
     Dirichlet,
@@ -15,7 +16,17 @@ from heval.params import (
     ParameterSet,
     Uniform,
     mix_draws,
+    read_draws,
+    resample_posterior,
+    single_draw,
 )
+from heval.run import run_psa
+
+
+def _two_strategy_model(draws: pd.DataFrame) -> Outcomes:
+    costs = pd.DataFrame({"A": draws["c"], "B": draws["c"] + 10.0}, index=draws.index)
+    effects = pd.DataFrame({"A": draws["c"] * 0.0, "B": draws["c"] * 0.0 + 0.1}, index=draws.index)
+    return Outcomes.from_wide(costs, effects)
 
 
 class TestMethodOfMoments:
@@ -189,3 +200,127 @@ class TestMixDraws:
     def test_no_sources_rejected(self):
         with pytest.raises(ValueError, match="at least one"):
             mix_draws()
+
+
+class TestSingleDraw:
+    def test_shape_and_index(self):
+        m = single_draw({"p_die": 0.1, "cost": 1000.0})
+        assert m.shape == (1, 2)
+        assert m.index.name == "iteration"
+        assert list(m.index) == [0]
+
+    def test_run_psa_accepts_it(self):
+        m = single_draw({"c": 100.0})
+        out = run_psa(_two_strategy_model, m)
+        assert out.n_iterations == 1
+
+    def test_at_means_matches_single_draw(self):
+        ps = ParameterSet({"c": Fixed(2.0), "d": Normal(5.0, 1.0)})
+        base = ps.at_means()
+        assert base.shape == (1, 2)
+        assert float(base.loc[0, "c"]) == pytest.approx(2.0)
+        assert float(base.loc[0, "d"]) == pytest.approx(5.0)
+
+    def test_empty_rejected(self):
+        with pytest.raises(ValueError, match="at least one"):
+            single_draw({})
+
+
+class TestReadDraws:
+    def test_dataframe_gets_iteration_index(self):
+        df = pd.DataFrame({"c": [100.0, 110.0], "u": [0.5, 0.6]})
+        m = read_draws(df)
+        assert m.index.name == "iteration"
+        assert list(m.index) == [0, 1]
+
+    def test_run_psa_accepts_it(self):
+        df = pd.DataFrame({"c": [100.0, 110.0, 120.0]})
+        out = run_psa(_two_strategy_model, read_draws(df))
+        assert out.n_iterations == 3
+
+    def test_reads_csv_path(self, tmp_path):
+        path = tmp_path / "draws.csv"
+        pd.DataFrame({"c": [1.0, 2.0]}).to_csv(path, index=False)
+        m = read_draws(path)
+        assert list(m["c"]) == [1.0, 2.0]
+
+    def test_honours_explicit_iteration_column(self):
+        df = pd.DataFrame({"iteration": [10, 20, 30], "c": [1.0, 2.0, 3.0]})
+        m = read_draws(df, iteration="iteration")
+        assert list(m.index) == [10, 20, 30]
+        assert m.index.name == "iteration"
+        assert list(m.columns) == ["c"]
+
+    def test_rejects_non_numeric_column(self):
+        df = pd.DataFrame({"c": [1.0, 2.0], "label": ["a", "b"]})
+        with pytest.raises(ValueError, match="must be numeric"):
+            read_draws(df)
+
+    def test_missing_iteration_column_message(self):
+        df = pd.DataFrame({"c": [1.0, 2.0]})
+        with pytest.raises(ValueError, match="not in the table"):
+            read_draws(df, iteration="iter")
+
+    def test_empty_rejected(self):
+        with pytest.raises(ValueError, match="empty"):
+            read_draws(pd.DataFrame({"c": []}))
+
+
+class TestResamplePosterior:
+    def test_shape_and_index(self):
+        post = pd.DataFrame({"beta": [0.1, 0.2, 0.3], "weight": [1.0, 2.0, 1.0]})
+        m = resample_posterior(post, n=500, seed=0)
+        assert m.shape == (500, 1)
+        assert m.index.name == "iteration"
+        assert "weight" not in m.columns
+
+    def test_run_psa_accepts_it(self):
+        post = pd.DataFrame({"c": [100.0, 110.0], "weight": [1.0, 1.0]})
+        out = run_psa(_two_strategy_model, resample_posterior(post, n=50, seed=1))
+        assert out.n_iterations == 50
+
+    def test_recovers_weighted_means(self):
+        rng = np.random.default_rng(0)
+        grid = pd.DataFrame(
+            {
+                "x": rng.normal(0.0, 1.0, 400),
+                "y": rng.normal(5.0, 2.0, 400),
+                "weight": rng.uniform(0.1, 1.0, 400),
+            }
+        )
+        w = grid["weight"].to_numpy()
+        expected_x = np.average(grid["x"], weights=w)
+        expected_y = np.average(grid["y"], weights=w)
+        resampled = resample_posterior(grid, n=200_000, seed=7)
+        assert resampled["x"].mean() == pytest.approx(expected_x, abs=0.02)
+        assert resampled["y"].mean() == pytest.approx(expected_y, abs=0.04)
+
+    def test_preserves_column_correlation(self):
+        rng = np.random.default_rng(1)
+        x = rng.normal(0.0, 1.0, 3_000)
+        y = 0.8 * x + rng.normal(0.0, 0.6, 3_000)  # strong rank dependence
+        grid = pd.DataFrame({"x": x, "y": y, "weight": rng.uniform(0.2, 1.0, 3_000)})
+        rho_before = stats.spearmanr(grid["x"], grid["y"]).statistic
+        resampled = resample_posterior(grid, n=50_000, seed=3)
+        rho_after = stats.spearmanr(resampled["x"], resampled["y"]).statistic
+        assert rho_after == pytest.approx(rho_before, abs=0.03)
+
+    def test_rejects_negative_weight(self):
+        post = pd.DataFrame({"c": [1.0, 2.0], "weight": [-1.0, 1.0]})
+        with pytest.raises(ValueError, match="non-negative"):
+            resample_posterior(post, n=10)
+
+    def test_rejects_zero_weight_sum(self):
+        post = pd.DataFrame({"c": [1.0, 2.0], "weight": [0.0, 0.0]})
+        with pytest.raises(ValueError, match="positive value"):
+            resample_posterior(post, n=10)
+
+    def test_missing_weight_column_message(self):
+        post = pd.DataFrame({"c": [1.0, 2.0]})
+        with pytest.raises(ValueError, match="not in the table"):
+            resample_posterior(post, n=10)
+
+    def test_rejects_nonpositive_n(self):
+        post = pd.DataFrame({"c": [1.0, 2.0], "weight": [1.0, 1.0]})
+        with pytest.raises(ValueError, match="positive integer"):
+            resample_posterior(post, n=0)

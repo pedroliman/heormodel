@@ -12,6 +12,7 @@ Subpackages:
     - `heval.models`: engines behind the output contract
     - `heval.run`: seeds, run loop, bring-your-own-outputs ingestion
     - `heval.cea`: incremental analysis, frontier, NMB/NHB, CEAC/CEAF
+    - `heval.dsa`: one-way, one-at-a-time, and grid deterministic sensitivity designs
     - `heval.voi`: EVPI, EVPPI, EVSI
     - `heval.calibrate`: ABC calibration (optional ``pyabc`` extra)
     - `heval.report`: plots and reproducibility scaffolding

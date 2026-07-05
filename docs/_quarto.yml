@@ -16,6 +16,8 @@ website:
         menu:
           - href: tutorials/byo-outputs.qmd
             text: Bring your own outputs
+          - href: tutorials/parameter-inputs.qmd
+            text: Parameter inputs from data
           - href: tutorials/full-pipeline.qmd
             text: Full pipeline
           - href: tutorials/calibration-workflow.qmd
@@ -24,6 +26,8 @@ website:
             text: Microsimulation engine
           - href: tutorials/des.qmd
             text: Discrete-event simulation
+          - href: tutorials/dsa.qmd
+            text: Deterministic sensitivity analysis
       - text: Replications
         menu:
           - href: tutorials/replication-gallery.qmd
@@ -94,6 +98,9 @@ quartodoc:
         - Fixed
         - Dirichlet
         - ParameterSet
+        - single_draw
+        - read_draws
+        - resample_posterior
         - mix_draws
     - title: Models (`heval.models`)
       desc: The `Outcomes` schema every engine targets, the `ModelEngine` protocol, and the cohort state-transition, microsimulation, and discrete-event engines.
@@ -130,6 +137,14 @@ quartodoc:
         - STATUS_D
         - STATUS_ED
         - STATUS_ND
+    - title: Deterministic sensitivity analysis (`heval.dsa`)
+      desc: One-way, one-at-a-time, and full-factorial grid scenario designs that run through the standard loop and feed tornado and heatmap reports.
+      package: heval.dsa
+      contents:
+        - one_way
+        - one_at_a_time
+        - grid
+        - Design
     - title: Value of information (`heval.voi`)
       desc: EVPI, EVPPI via metamodels, and EVSI estimators.
       package: heval.voi
@@ -158,6 +173,7 @@ quartodoc:
         - plot_frontier
         - tornado_data
         - plot_tornado
+        - heatmap_data
         - strategy_colors
         - PALETTE
         - capture_run

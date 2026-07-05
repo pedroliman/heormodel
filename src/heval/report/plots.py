@@ -16,6 +16,7 @@ from matplotlib.axes import Axes
 from heval.cea.ceac import ce_plane as _ce_plane_data
 from heval.cea.frontier import STATUS_ND, icer_table
 from heval.cea.nb import nmb
+from heval.dsa.design import BASE_LABEL, PARAMETER_COL, SCENARIO_COL, VALUE_COL, Design
 from heval.models.outcomes import Outcomes
 
 #: Fixed-order categorical palette (colorblind-validated, light surface).
@@ -212,9 +213,57 @@ def plot_frontier(
     return ax
 
 
+def _target_nmb(
+    outcomes: Outcomes,
+    wtp: float,
+    *,
+    strategy: str | None,
+    comparator: str | None,
+    effect: str | None,
+) -> pd.Series:
+    """NMB of the target strategy (incremental if a comparator is given)."""
+    nb = nmb(outcomes, wtp, effect=effect)
+    target = strategy or outcomes.strategies[-1]
+    y = nb[target]
+    if comparator is not None:
+        y = y - nb[comparator]
+    return y
+
+
+def _tornado_from_dsa(
+    outcomes: Outcomes,
+    descriptor: pd.DataFrame,
+    wtp: float,
+    *,
+    strategy: str | None,
+    comparator: str | None,
+    effect: str | None,
+) -> pd.DataFrame:
+    """Tornado table from a one-way or one-at-a-time DSA descriptor."""
+    if PARAMETER_COL not in descriptor.columns or VALUE_COL not in descriptor.columns:
+        raise ValueError(
+            "DSA descriptor must carry 'parameter' and 'value' columns; pass a one-way "
+            "or one-at-a-time design, not a grid."
+        )
+    if not pd.Index(descriptor.index).equals(pd.Index(outcomes.iterations)):
+        raise ValueError("descriptor index must equal the outcomes iteration index.")
+    y = _target_nmb(outcomes, wtp, strategy=strategy, comparator=comparator, effect=effect)
+    d = descriptor.copy()
+    d["_nmb"] = y.reindex(d.index).to_numpy(dtype=np.float64)
+    swept = d[d[PARAMETER_COL] != BASE_LABEL]
+    rows = {}
+    for p, grp in swept.groupby(PARAMETER_COL, sort=False):
+        ordered = grp.sort_values(VALUE_COL)
+        rows[str(p)] = (float(ordered["_nmb"].iloc[0]), float(ordered["_nmb"].iloc[-1]))
+    td = pd.DataFrame(rows, index=["low", "high"]).T
+    td.index.name = "parameter"
+    td["span"] = (td["high"] - td["low"]).abs()
+    return td.sort_values("span", ascending=False)
+
+
 def tornado_data(
     outcomes: Outcomes,
-    draws: pd.DataFrame,
+    draws: pd.DataFrame | Design,
     wtp: float,
     *,
     strategy: str | None = None,
@@ -222,12 +271,16 @@ def tornado_data(
     effect: str | None = None,
     quantiles: tuple[float, float] = (0.025, 0.975),
 ) -> pd.DataFrame:
-    """One-way sensitivity of NMB to each parameter, estimated from the PSA.
+    """One-way sensitivity of NMB to each parameter, from a PSA or a DSA.
 
-    For each parameter, fits a univariate linear regression of the
-    strategy's NMB (or incremental NMB versus ``comparator``) on that
-    parameter and evaluates it at the parameter's outer quantiles. This is
-    a PSA-based analogue of a deterministic one-way analysis.
+    With a parameter draw matrix (the PSA path), fits a univariate linear
+    regression of the strategy's NMB (or incremental NMB versus
+    ``comparator``) on each parameter and evaluates it at the parameter's
+    outer ``quantiles``. This estimates a one-way analysis from the PSA.
+
+    With a `heval.dsa` ``(design, descriptor)`` pair from `one_way` or
+    `one_at_a_time` (the DSA path), reads the NMB at each parameter's lowest
+    and highest swept value directly, ignoring ``quantiles``.
 
     Returns:
         DataFrame indexed by parameter with columns ``low``, ``high`` and
@@ -246,14 +299,16 @@ def tornado_data(
         >>> td.index[0]
         'x'
     """
+    if isinstance(draws, tuple):
+        _, descriptor = draws
+        return _tornado_from_dsa(
+            outcomes, descriptor, wtp, strategy=strategy, comparator=comparator, effect=effect
+        )
     if not pd.Index(draws.index).equals(pd.Index(outcomes.iterations)):
         raise ValueError("draws index must equal the outcomes iteration index.")
-    nb = nmb(outcomes, wtp, effect=effect)
-    target = strategy or outcomes.strategies[-1]
-    y = nb[target]
-    if comparator is not None:
-        y = y - nb[comparator]
-    yv = y.to_numpy(dtype=np.float64)
+    yv = _target_nmb(
+        outcomes, wtp, strategy=strategy, comparator=comparator, effect=effect
+    ).to_numpy(dtype=np.float64)
     rows = {}
     for p in draws.columns:
         x = draws[p].to_numpy(dtype=np.float64)
@@ -295,3 +350,54 @@ def plot_tornado(td: pd.DataFrame, *, ax: Axes | None = None) -> Axes:
     _style(ax)
     ax.grid(axis="y", visible=False)
     return ax
+
+
+def heatmap_data(
+    values: pd.Series,
+    descriptor: pd.DataFrame,
+    *,
+    x: str,
+    y: str,
+) -> pd.DataFrame:
+    """Reshape a two-parameter grid result into a matrix for a heatmap.
+
+    Joins a per-scenario value (one number per iteration, e.g. an ICER or
+    incremental NMB) to a `heval.dsa.grid` descriptor and pivots it into a
+    matrix over two gridded parameters. The base-case scenario is dropped.
+
+    Args:
+        values: One value per scenario, indexed by the shared iteration index.
+        descriptor: The grid descriptor, carrying a column per gridded
+            parameter.
+        x: Parameter to lay along the columns.
+        y: Parameter to lay along the index.
+
+    Returns:
+        DataFrame with ``y`` values as the index and ``x`` values as the
+        columns.
+
+    Example:
+        >>> import pandas as pd
+        >>> from heval.dsa import grid
+        >>> from heval.report import heatmap_data
+        >>> base = pd.Series({"a": 1.0, "b": 2.0})
+        >>> design, descriptor = grid(base, {"a": [0.0, 1.0], "b": [10.0, 20.0]})
+        >>> values = design["a"] + design["b"]
+        >>> hm = heatmap_data(values, descriptor, x="a", y="b")
+        >>> hm.shape
+        (2, 2)
+        >>> float(hm.loc[20.0, 1.0])
+        21.0
+    """
+    for col in (x, y):
+        if col not in descriptor.columns:
+            raise ValueError(f"Grid parameter {col!r} not in the descriptor.")
+    scenarios = descriptor[descriptor[SCENARIO_COL] != BASE_LABEL]
+    table = pd.DataFrame(
+        {
+            x: scenarios[x].to_numpy(),
+            y: scenarios[y].to_numpy(),
+            "value": values.reindex(scenarios.index).to_numpy(dtype=np.float64),
+        }
+    )
+    return table.pivot(index=y, columns=x, values="value")

@@ -7,6 +7,7 @@ parameter provenance, run reports).
 
 from heval.report.plots import (
     PALETTE,
+    heatmap_data,
     plot_ce_plane,
     plot_ceac,
     plot_frontier,
@@ -20,6 +21,7 @@ __all__ = [
     "PALETTE",
     "RunRecord",
     "capture_run",
+    "heatmap_data",
     "plot_ce_plane",
     "plot_ceac",
     "plot_frontier",
