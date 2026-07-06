@@ -72,7 +72,7 @@ def main() -> None:
 
     # --- EVPI: the ceiling on research value --------------------------------
     s_total = np.hypot(WTP * SD_Q, SD_C)
-    print("EVPI (value of resolving all uncertainty), per decision:")
+    print("EVPI (value of resolving all uncertainty), per person:")
     print(f"  estimate {evpi(outcomes, WTP):>10,.0f}   closed form {analytic_voi(s_total):>10,.0f}")
 
     # --- EVPPI: which parameters that value attaches to ---------------------
@@ -86,7 +86,7 @@ def main() -> None:
     # --- EVSI: the value of a proposed effect study, by sample size ---------
     sizes = (25, 50, 100, 200, 400, 800)
     est_by_size = {}
-    print("\nEVSI of a two-arm effect study, per decision:")
+    print("\nEVSI of a two-arm effect study, per person:")
     print(f"  {'n/arm':>6}  {'estimate':>10}  {'closed form':>12}")
     for n_trial in sizes:
         tau = SIGMA / np.sqrt(n_trial)
@@ -99,17 +99,16 @@ def main() -> None:
         s_evsi = WTP * SD_Q**2 / np.hypot(SD_Q, tau)
         print(f"  {n_trial:>6}  {est:>10,.0f}  {analytic_voi(s_evsi):>12,.0f}")
 
-    # --- the study against its cost, with the sample size to fund -----------
+    # --- expected net benefit of sampling, with the sample size to fund -----
     evsi = pd.Series(est_by_size)
     years = np.arange(10)
     beneficiaries = 2_000 * (1.035**-years).sum()  # discounted future patients
     cost = 300_000 + 6_000 * 2 * evsi.index  # 2n participants over two arms
-    net_benefit = beneficiaries * evsi - cost
-    best = net_benefit.idxmax()
+    enbs = beneficiaries * evsi - cost  # population EVSI minus study cost
+    best = enbs.idxmax()
     print(
-        "\nStudy against its cost: 2,000 patients a year over 10 years, "
-        "300,000 + 6,000 per participant."
-        f"\nBest size {best} per arm, net benefit of sampling {net_benefit[best]:,.0f}."
+        "\nENBS: 2,000 patients a year over 10 years, 300,000 + 6,000 per participant."
+        f"\nBest size {best} per arm, ENBS {enbs[best]:,.0f}."
     )
 
 
