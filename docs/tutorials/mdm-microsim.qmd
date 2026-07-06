@@ -2,11 +2,11 @@
 title: Microsimulation replication
 ---
 
-This tutorial reproduces a published individual-level cost-effectiveness analysis with `MicrosimModel`, the Sick-Sicker microsimulation of Krijkamp and others (2018). It assumes the [microsimulation engine tutorial](microsim.qmd). The full script is [`examples/mdm_microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_microsim.py).
+This page reproduces the Sick-Sicker microsimulation of Krijkamp and others (2018) with `MicrosimModel`. It assumes the [microsimulation engine tutorial](microsim.qmd). Full script: [`examples/mdm_microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_microsim.py).
 
 ## Why an individual-level model
 
-Two features rule out a cohort average. Mortality in the Sick and Sicker states rises with the number of consecutive years already spent sick, and a per-individual effect modifier scales the treatment utility. The duration spans the Sick and Sicker states together: progressing from Sick to Sicker keeps the clock running. The engine tracks this through `duration_groups`, a counter over a set of states that `time_in_state` (one exact state) cannot express. The counter is 0 on the first sick cycle, so mortality reads it as `dur + 1` and utility reads it directly.
+Two features rule out a cohort average: mortality rises with the number of consecutive years spent in the Sick and Sicker states, and a per-individual effect modifier scales the treatment utility. The duration clock keeps running across the Sick to Sicker progression, so the engine tracks it with `duration_groups`, a counter over a set of states that `time_in_state` (one exact state) cannot express. The counter is 0 on the first sick cycle; mortality reads it as `dur + 1` and utility reads it directly.
 
 ```{python}
 import numpy as np
@@ -50,7 +50,7 @@ def payoffs(p, state, attrs):
 
 ## Run and compare
 
-The base-case parameters drive both arms through common random numbers. At 50,000 individuals the incremental result and ICER agree with the published Table 3 (which used 100,000) within Monte Carlo error.
+The base-case parameters drive both arms through common random numbers with 50,000 individuals (the source used 100,000).
 
 ```{python}
 from heormodel.cea import icer_table
@@ -69,6 +69,6 @@ outcomes = run_psa(
 icer_table(outcomes).round(2)
 ```
 
-The published Table 3 reports no-treatment 62,667 dollars and 15.28 QALYs, treatment 117,455 dollars and 15.79 QALYs, and an ICER of 107,986 dollars per QALY. Because the sampler differs from the source, the totals land within Monte Carlo error rather than to the dollar, and they converge as the population grows.
+The published Table 3 reports no-treatment 62,667 dollars and 15.28 QALYs, treatment 117,455 dollars and 15.79 QALYs, and an ICER of 107,986 dollars per QALY. The sampler differs from the source, so the totals agree within Monte Carlo error rather than to the dollar and converge as the population grows.
 
 Reference: Krijkamp EM, Alarid-Escudero F, Enns EA, Jalal HJ, Hunink MGM, Pechlivanoglou P. Microsimulation modeling for health decision sciences using R: a tutorial. Medical Decision Making. 2018;38(3):400-422.

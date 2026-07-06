@@ -2,11 +2,11 @@
 title: Cohort state-transition model
 ---
 
-This tutorial reproduces a published cohort state-transition cost-effectiveness analysis with `MarkovModel`, then runs its probabilistic sensitivity analysis through the same pipeline. It assumes the [bring your own outputs tutorial](byo-outputs.qmd), which covers the CEA and VoI layer the outcomes flow into. The source is the introductory Sick-Sicker tutorial of Alarid-Escudero and others (2023); the full script is [`examples/mdm_cohort.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_cohort.py). See the [replication gallery](replication-gallery.qmd) for the companion time-dependent and microsimulation replications.
+This page reproduces the introductory Sick-Sicker cohort state-transition analysis of Alarid-Escudero and others (2023) with `MarkovModel`, then runs its probabilistic sensitivity analysis through the same pipeline. It assumes the [bring your own outputs tutorial](byo-outputs.qmd). Full script: [`examples/mdm_cohort.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_cohort.py); companion replications: [replication gallery](replication-gallery.qmd).
 
 ## The model
 
-Four states, Healthy, Sick, Sicker, Dead, over 75 annual cycles from age 25. Four strategies compare standard of care with treatment A (improves the Sick-state utility), treatment B (slows progression from Sick to Sicker), and their combination AB. The engine takes a `build` callback returning each strategy's transition matrix and per-state cost and utility payoffs from a parameter row.
+Four states (Healthy, Sick, Sicker, Dead) over 75 annual cycles from age 25. Four strategies compare standard of care with treatment A (improves the Sick-state utility), treatment B (slows progression), and their combination AB. The `model_fn` callback returns each strategy's transition matrix and per-state payoffs from a parameter row.
 
 ```{python}
 import numpy as np
@@ -40,7 +40,7 @@ engine = MarkovModel(states=STATES, strategies=STRATEGIES, model_fn=model,
 
 ## Deterministic replication
 
-Evaluating one parameter set reproduces the published cost-effectiveness table exactly. Strategy A is dominated; the frontier runs standard of care, Strategy B (ICER about 73,000 per QALY), Strategy AB (ICER about 126,000 per QALY).
+One parameter set reproduces the published table exactly: Strategy A is dominated; the frontier runs standard of care, Strategy B (ICER about 73,000 per QALY), Strategy AB (about 126,000 per QALY).
 
 ```{python}
 from heormodel.cea import icer_table
@@ -53,7 +53,7 @@ icer_table(engine.evaluate(draws0)).round(2)
 
 ## Probabilistic analysis
 
-The same model runs a probabilistic sensitivity analysis: the tutorial's distributions become a `ParameterSet`, and the engine, `run_psa`, and the analysis layer treat it like any other model. Within-cycle correction and discounting are unchanged.
+The tutorial's distributions become a `ParameterSet`; `run_psa` and the analysis layer treat the model like any other.
 
 ```{python}
 from heormodel.params import Beta, Gamma, LogNormal, ParameterSet
@@ -77,8 +77,6 @@ icer_table(outcomes).round(2)
 print(f"EVPI at WTP 100,000: {evpi(outcomes, 100_000.0):,.0f}")
 ```
 
-The mean frontier matches the deterministic ranking, and EVPI is positive because Strategy AB clears the 100,000 threshold in some draws but not others.
-
-Next: the [microsimulation engine](microsim.qmd) steps up from the cohort average to an individual-level model that carries history and heterogeneity.
+The mean frontier matches the deterministic ranking. EVPI is positive because Strategy AB clears the 100,000 threshold in some draws but not others.
 
 Reference: Alarid-Escudero F, Krijkamp EM, Enns EA, Yang A, Hunink MGM, Pechlivanoglou P, Jalal H. An introductory tutorial on cohort state-transition models in R using a cost-effectiveness analysis example. Medical Decision Making. 2023;43(1):3-20.

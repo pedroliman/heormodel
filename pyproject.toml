@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "heormodel"
 version = "0.6.0"
-description = "Health economic evaluation in Python: PSA parameters, swappable model engines, cost-effectiveness analysis, and value of information"
+description = "Decision-analytic modeling for health economic evaluation and HTA: probabilistic parameters, cohort and individual-level simulation engines, cost-effectiveness analysis, and value of information"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }

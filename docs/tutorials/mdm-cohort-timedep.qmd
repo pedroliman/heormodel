@@ -2,11 +2,11 @@
 title: Time-dependent cohort model
 ---
 
-This tutorial extends the [cohort state-transition tutorial](mdm-cohort.qmd) with age-varying mortality and transition rewards, reproducing the time-dependent Sick-Sicker tutorial of Alarid-Escudero and others (2023). The full script is [`examples/mdm_cohort_timedep.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_cohort_timedep.py).
+This page extends the [cohort replication](mdm-cohort.qmd) with age-varying mortality and transition rewards, reproducing the time-dependent Sick-Sicker tutorial of Alarid-Escudero and others (2023). Full script: [`examples/mdm_cohort_timedep.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_cohort_timedep.py).
 
 ## Two kinds of time dependence
 
-Background mortality now rises with age. The `build` callback returns a per-cycle transition array of shape `(n_cycles, n_states, n_states)` instead of one matrix: the Healthy-to-Dead rate follows a US life table, and the Sick and Sicker states scale it by their hazard ratios. Transition rewards attach a one-time cost of dying, a cost of onset, and a disutility of onset to the flows between states, passed as `transition_cost` and `transition_effect`. The engine accrues state rewards on the occupancy trace and transition rewards on the flow, then discounts both with the same weights.
+The callback returns a per-cycle transition array of shape `(n_cycles, n_states, n_states)`: the Healthy-to-Dead rate follows a US life table, scaled by hazard ratios in the Sick and Sicker states. `transition_cost` and `transition_effect` attach a one-time cost of dying, a cost of onset, and a disutility of onset to the flows between states; the engine accrues them on the flow and discounts them with the state rewards.
 
 ```{python}
 import numpy as np
@@ -56,7 +56,7 @@ engine = MarkovModel(states=STATES, strategies=STRATEGIES, model_fn=model,
 
 ## Deterministic replication
 
-The base case reproduces the published table. Age-varying mortality lowers life expectancy relative to the constant-rate model, so all strategies accrue fewer QALYs than in the introductory tutorial. Strategy A is dominated; Strategy B and Strategy AB stay on the frontier.
+The base case reproduces the published table. Age-varying mortality lowers life expectancy, so every strategy accrues fewer QALYs than in the time-independent model. Strategy A is dominated; Strategy B and Strategy AB stay on the frontier.
 
 ```{python}
 from heormodel.cea import icer_table
@@ -68,6 +68,6 @@ draws0 = pd.DataFrame([base], index=pd.RangeIndex(1, name="iteration"))
 icer_table(engine.evaluate(draws0)).round(2)
 ```
 
-Strategy B has an ICER near 65,000 per QALY and Strategy AB near 104,000 per QALY, matching the published results. A per-cycle transition array is all the model structure this needs; the analysis layer is identical to the time-independent case.
+Strategy B has an ICER near 65,000 per QALY and Strategy AB near 104,000, matching the published results. The analysis layer is identical to the time-independent case.
 
 Reference: Alarid-Escudero F, Krijkamp EM, Enns EA, Yang A, Hunink MGM, Pechlivanoglou P, Jalal H. A tutorial on time-dependent cohort state-transition models in R using a cost-effectiveness analysis example. Medical Decision Making. 2023;43(1):21-41.

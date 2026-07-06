@@ -13,10 +13,24 @@ Guidance for Claude Code when working in this repository.
 
 - `src/` layout; the package lives in `src/heormodel`.
 - Do not keep backward compatibility unless explicitly asked. The API is pre-1.0 and stabilizing; when a change renames or removes public names, make a clean break (update every call site) rather than adding deprecation aliases, shims, or compatibility keyword arguments.
-- Follow `guidance/writing_style.md` for all prose: README, roadmap, docstrings, comments, commit messages, and website pages. In short: concise, no em-dashes, HEOR vocabulary.
+- All prose follows the writing style below and the full guide in `guidance/writing_style.md`.
 - Do not mention external existing R packages in code or documentation.
 - Lint/format with `ruff`, type-check the public API with `mypy`, test with `pytest`.
 - Every public function carries a docstring with a short worked example.
+
+## Writing style
+
+Applies to everything: README, docs, docstrings, comments, commit messages. Full guide: `guidance/writing_style.md`.
+
+- Excellent technical documentation is short. Every sentence earns its place; if deleting it loses nothing, delete it. Cut warm-up sentences, transitions, and closing summaries.
+- Lead with the point. One idea per sentence. Doc pages stay under 500 words.
+- Show, do not describe: a worked example, a number, or a table beats an adjective. "Matches the published ICER exactly" beats "highly accurate".
+- Write formally, as in the methods appendix of a clinical journal: precise, plain, no marketing tone, no rhetorical questions.
+- Use HEOR vocabulary: strategy, comparator, ICER, QALY, NMB, willingness-to-pay threshold, PSA, EVPI, cohort state-transition model, microsimulation, discounting, half-cycle correction.
+- Never use filler that pattern-matches to generated text: leverage, delve, seamless, comprehensive, robust, crucial, streamline.
+- No em-dashes, no exclamation marks. Sentence case headings. Backticks for code identifiers.
+- Link to the page that covers a topic instead of restating it.
+- Run every executable doc and confirm the prose matches the output before committing.
 
 ## Implementing a roadmap item
 

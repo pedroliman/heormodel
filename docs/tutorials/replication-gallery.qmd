@@ -2,21 +2,13 @@
 title: Replication gallery
 ---
 
-Published cost-effectiveness tutorials reproduced with `heormodel`, one per model type. Each replicates a peer-reviewed decision model with public code, matching its deterministic results, then flows the same model through `heormodel.cea` and `heormodel.voi`. All three use the Sick-Sicker example, so they share a structure and differ only in the engine and the time dependence.
+Three published Sick-Sicker cost-effectiveness tutorials reproduced with `heormodel`, one per model type. Each replication matches the source's deterministic results, then runs the same model through `heormodel.cea` and `heormodel.voi`.
 
 | Replication | Engine | Deterministic result |
 |---|---|---|
 | [Cohort state-transition model](mdm-cohort.qmd) | `MarkovModel` | Matches the published ICERs exactly |
 | [Time-dependent cohort model](mdm-cohort-timedep.qmd) | `MarkovModel`, per-cycle transitions | Matches the published ICERs exactly |
 | [Microsimulation](mdm-microsim.qmd) | `MicrosimModel`, `duration_groups` | Matches within Monte Carlo error |
-
-## What each one shows
-
-The [cohort tutorial](mdm-cohort.qmd) builds the time-independent Sick-Sicker model: one transition matrix per strategy, Simpson's 1/3 within-cycle correction, and a probabilistic sensitivity analysis on the tutorial's own distributions.
-
-The [time-dependent tutorial](mdm-cohort-timedep.qmd) adds age-varying mortality from a life table (a per-cycle transition array) and transition rewards for the cost of dying and the disutility of onset.
-
-The [microsimulation tutorial](mdm-microsim.qmd) needs an individual-level model: mortality rises with time spent in the sick states, and a per-person effect modifier scales the treatment utility. The `duration_groups` counter carries duration across the Sick to Sicker progression.
 
 ## Sources
 
