@@ -7,6 +7,7 @@ website:
   site-url: https://pedroliman.github.io/heormodel/
   repo-url: https://github.com/pedroliman/heormodel
   page-navigation: true
+  google-analytics: "G-J6M5ECXYJC"
   sidebar:
     - id: main
       contents:
