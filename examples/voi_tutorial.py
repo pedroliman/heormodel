@@ -83,32 +83,33 @@ def main() -> None:
         print(f"  {p:>3}  estimate {ranking[p]:>10,.0f}   closed form {closed[p]:>10,.0f}")
     print(f"  ranking: {' > '.join(ranking.index)}")
 
-    # --- EVSI: whether a proposed effect study clears its cost --------------
+    # --- EVSI: the value of a proposed effect study, by sample size ---------
+    sizes = (25, 50, 100, 200, 400, 800)
+    est_by_size = {}
     print("\nEVSI of a two-arm effect study, per decision:")
     print(f"  {'n/arm':>6}  {'estimate':>10}  {'closed form':>12}")
-    for n_trial in (50, 200, 800):
+    for n_trial in sizes:
         tau = SIGMA / np.sqrt(n_trial)
         rng = np.random.default_rng(n_trial)
         summaries = simulate_summaries(
             draws, lambda row, r, t=tau: {"xbar": row["dq"] + r.normal(0.0, t)}, seed=rng
         )
         est = evsi_regression(outcomes, summaries, WTP)
+        est_by_size[n_trial] = est
         s_evsi = WTP * SD_Q**2 / np.hypot(SD_Q, tau)
         print(f"  {n_trial:>6}  {est:>10,.0f}  {analytic_voi(s_evsi):>12,.0f}")
 
-    # --- study against its cost ---------------------------------------------
-    pop = 20_000  # future patients the decision applies to
-    tau = SIGMA / np.sqrt(200)
-    rng = np.random.default_rng(200)
-    summaries = simulate_summaries(
-        draws, lambda row, r, t=tau: {"xbar": row["dq"] + r.normal(0.0, t)}, seed=rng
-    )
-    evsi200 = evsi_regression(outcomes, summaries, WTP)
-    trial_cost = 3_000_000.0  # a 200-per-arm trial
+    # --- the study against its cost, with the sample size to fund -----------
+    evsi = pd.Series(est_by_size)
+    years = np.arange(10)
+    beneficiaries = 2_000 * (1.035**-years).sum()  # discounted future patients
+    cost = 300_000 + 6_000 * 2 * evsi.index  # 2n participants over two arms
+    net_benefit = beneficiaries * evsi - cost
+    best = net_benefit.idxmax()
     print(
-        f"\nA 200-per-arm study is worth {evsi200 * pop:,.0f} over {pop:,} patients,"
-        f"\nagainst a {trial_cost:,.0f} trial cost: "
-        f"{'fund it' if evsi200 * pop > trial_cost else 'not worth funding'}."
+        "\nStudy against its cost: 2,000 patients a year over 10 years, "
+        "300,000 + 6,000 per participant."
+        f"\nBest size {best} per arm, net benefit of sampling {net_benefit[best]:,.0f}."
     )
 
 

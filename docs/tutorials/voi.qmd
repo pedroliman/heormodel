@@ -2,11 +2,11 @@
 title: Value of information
 ---
 
-This tutorial runs the value-of-information workflow end to end and checks every number against a closed form. It assumes the [full pipeline tutorial](full-pipeline.qmd), which covers `run_psa` and the analysis layer. The model here is the Gaussian linear decision model that anchors the regression value-of-information literature (Strong, Oakley & Brennan, 2014, Medical Decision Making 34:311-326; Strong, Oakley, Brennan & Breeze, 2015, Medical Decision Making 35:570-583). Its incremental net benefit is Normal, so EVPI, per-parameter EVPPI, and the EVSI of a proposed study all have closed forms via the unit normal loss integral, the exact targets the metamodel estimates should land on. The full script is [`examples/voi_tutorial.py`](https://github.com/pedroliman/heormodel/blob/main/examples/voi_tutorial.py).
+This tutorial runs the value-of-information workflow end to end and checks every number against a closed form. It assumes the [full pipeline tutorial](full-pipeline.qmd), which covers `run_psa` and the analysis layer. The model is the Gaussian linear decision model that anchors the regression value-of-information literature (Strong, Oakley & Brennan, 2014, Medical Decision Making 34:311-326; Strong, Oakley, Brennan & Breeze, 2015, Medical Decision Making 35:570-583): its incremental net benefit is Normal, so EVPI, EVPPI, and EVSI all have closed forms via the unit normal loss integral. The full script is [`examples/voi_tutorial.py`](https://github.com/pedroliman/heormodel/blob/main/examples/voi_tutorial.py).
 
 ## The decision
 
-Two strategies, standard care and a new drug, differ by an uncertain incremental effect `dq` (QALYs) and an uncertain incremental cost `dc`, both Normal. At a 30,000-per-QALY threshold the drug is cost-effective on the means, so the question value of information answers is not which strategy to pick but how much the residual uncertainty is worth resolving.
+Two strategies, standard care and a new drug, differ by an uncertain incremental effect `dq` (QALYs) and an uncertain incremental cost `dc`, both Normal. At a 30,000-per-QALY threshold the drug is cost-effective on the means, so value of information asks not which strategy to pick but how much the residual uncertainty is worth resolving.
 
 ```{python}
 import numpy as np
@@ -31,7 +31,7 @@ draws = params.sample(100_000, seed=2026)
 outcomes = run_psa(new_drug, draws, sequential=True)
 ```
 
-The closed forms use the unit normal loss integral. For a Normal conditional mean incremental NB, the value of resolving uncertainty to that conditional variance is the expected upside minus the current decision's value.
+The closed forms use the unit normal loss integral: for a Normal conditional mean incremental NB, the value of resolving uncertainty is the expected upside minus the current decision's value.
 
 ```{python}
 def emax0(m, s):  # E[max(0, X)] for X ~ Normal(m, s**2)
@@ -44,7 +44,7 @@ def analytic_voi(s_conditional):
 
 ## EVPI: the ceiling on research value
 
-EVPI values resolving all uncertainty at once. It is the most any research could be worth per decision. For this model the incremental NB has standard deviation `hypot(WTP * SD_Q, SD_C)`, and `evpi` recovers the closed form within Monte Carlo error.
+EVPI values resolving all uncertainty at once, the most any research could be worth per decision. The incremental NB has standard deviation `hypot(WTP * SD_Q, SD_C)`, and `evpi` recovers the closed form within Monte Carlo error.
 
 ```{python}
 from heormodel.voi import evpi
@@ -53,7 +53,7 @@ s_total = np.hypot(WTP * SD_Q, SD_C)
 pd.Series({"estimate": evpi(outcomes, WTP), "closed form": analytic_voi(s_total)}).round(0)
 ```
 
-Across a threshold grid EVPI rises with willingness to pay: a higher threshold scales up the monetary value of the uncertain effect, so more rides on getting the decision right.
+EVPI rises with the threshold: a higher willingness to pay scales up the monetary value of the uncertain effect.
 
 ```{python}
 grid = np.linspace(10_000, 60_000, 26)
@@ -62,7 +62,7 @@ evpi(outcomes, grid).plot(xlabel="willingness to pay", ylabel="EVPI per decision
 
 ## EVPPI: which parameters carry that value
 
-EVPPI splits the EVPI across parameters: the value of resolving one parameter (or group) while the rest stay uncertain. `evppi_ranking` sweeps each parameter and sorts them, the priority list for research. Here the effect `dq` carries more value than the cost `dc` because its scaled uncertainty `WTP * SD_Q` exceeds `SD_C`.
+EVPPI splits the EVPI across parameters: the value of resolving one while the rest stay uncertain. `evppi_ranking` sweeps each parameter and sorts them, the priority list for research. Here the effect `dq` beats the cost `dc` because its scaled uncertainty `WTP * SD_Q` exceeds `SD_C`.
 
 ```{python}
 from heormodel.voi import evppi_ranking
@@ -72,11 +72,11 @@ closed = pd.Series({"dq": analytic_voi(WTP * SD_Q), "dc": analytic_voi(SD_C)})
 pd.DataFrame({"estimate": ranking, "closed form": closed}).round(0)
 ```
 
-The default `spline` metamodel fits one- or two-parameter EVPPI well and is the right choice here. For groups of many parameters the `method="gp"` Gaussian-process metamodel scales better; both estimate the same conditional expectation.
+The default `spline` metamodel suits one or two parameters, as here; for many-parameter groups `method="gp"` scales better. Both estimate the same conditional expectation.
 
 ## EVSI: whether a specific study clears its cost
 
-EVSI values a particular study, not perfect resolution. Consider a two-arm trial that measures the incremental effect: each arm reports a mean QALY difference with sampling standard deviation `tau = 1 / sqrt(n)` per arm. `simulate_summaries` draws one trial summary per PSA iteration from that iteration's true `dq`, and `evsi_regression` reads the value off the fitted conditional means. Larger trials shrink `tau`, so EVSI climbs toward the effect EVPPI, its ceiling.
+EVSI values a particular study, not perfect resolution. Consider a two-arm trial measuring the incremental effect, each arm reporting a mean QALY difference with sampling standard deviation `tau = 1 / sqrt(n)`. `simulate_summaries` draws one trial summary per PSA iteration from that iteration's true `dq`, and `evsi_regression` reads the value off the fitted conditional means. Larger trials shrink `tau`, so EVSI climbs toward the effect EVPPI, its ceiling.
 
 ```{python}
 from heormodel.voi import evsi_regression, simulate_summaries
@@ -101,8 +101,25 @@ ax.axhline(ranking["dq"], ls="--", color="gray");
 ax.legend(["EVSI", "effect EVPPI (ceiling)"]);
 ```
 
-A study is worth funding when its value over the affected population beats its cost. Per-decision EVSI scales by the number of future patients the decision covers. A 200-per-arm trial here is worth its per-decision EVSI times that population; over 20,000 patients that clears a few-million trial cost with room to spare, so the study is funded.
+## The study against its cost
 
-## What the three numbers say
+Per-decision EVSI becomes a funding decision once weighed against study cost across the population the decision informs. Scale each EVSI by the beneficiary population, `2,000` patients a year over `10` years discounted at 3.5%, and subtract a `300,000` setup plus `6,000` per participant (two arms, so `2n`). The net benefit of sampling peaks at an interior size: below it the study is underpowered, above it each participant buys less EVSI than it costs.
 
-EVPI is the ceiling: no research beats it. EVPPI names where that value sits, the effect before the cost in this model, so it ranks research targets. EVSI prices a concrete design against its cost, the step from "this parameter matters" to "this trial is worth running." Every estimate above lands within about one percent of its closed form, the tolerance the regression estimator holds at 100,000 iterations. Next: the [calibration workflow](calibration-workflow.qmd) feeds a calibrated posterior into the same pipeline.
+```{python}
+years = np.arange(10)
+beneficiaries = 2_000 * (1.035 ** -years).sum()  # discounted future patients
+cost = 300_000 + 6_000 * 2 * evsi.index  # 2n participants
+net_benefit = beneficiaries * evsi["estimate"] - cost
+best = net_benefit.idxmax()
+print(f"optimal size: {best} per arm, net benefit of sampling {net_benefit[best]:,.0f}")
+net_benefit.round(0)
+```
+
+```{python}
+ax = net_benefit.plot(marker="o", xlabel="trial size (n per arm)", ylabel="net benefit of sampling")
+ax.axhline(0, color="gray", lw=0.8);
+```
+
+## What these numbers say
+
+EVPI is the ceiling: no research beats it. EVPPI ranks research targets, the effect before the cost here. EVSI prices a concrete design, and weighing it against cost turns that price into a fund-or-not decision with a best sample size. Every estimate above lands within about one percent of its closed form at 100,000 iterations. Next: the [calibration workflow](calibration-workflow.qmd) feeds a calibrated posterior into the same pipeline.
