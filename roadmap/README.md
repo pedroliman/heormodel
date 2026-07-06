@@ -18,7 +18,7 @@ All prose follows [guidance/writing_style.md](../guidance/writing_style.md).
 
 ## Shipped features
 
-Design notes for completed items move to [`done/`](done/). Items 1 through 11 are shipped.
+Design notes for completed items move to [`done/`](done/). Items 1 through 12 are shipped.
 
 - Item 1, quartodoc documentation website ([done/01-quartodoc-site.md](done/01-quartodoc-site.md)): the site publishes to GitHub Pages with API reference, tutorials, and concept pages.
 - Item 2, full calibration workflow ([done/02-calibration-workflow.md](done/02-calibration-workflow.md)): `heormodel.params.mix_draws` combines calibrated and literature draw matrices; `capture_run` records `draw_sources`; `examples/calibration_workflow.py` and the calibration workflow tutorial run it end to end.
@@ -31,12 +31,11 @@ Design notes for completed items move to [`done/`](done/). Items 1 through 11 ar
 - Item 9, parallel runs by default with a time-remaining display ([done/09-parallel-and-progress.md](done/09-parallel-and-progress.md)): `run_psa` runs over all cores by default (`sequential=True` opts out, `n_jobs` sets an explicit worker count), with identical numbers whichever way the run is split. A `progress` readout reports completed experiments and an estimate of time remaining from finished work, on when `stderr` is a terminal and quiet otherwise.
 - Item 10, Markov vs microsimulation models ([done/10-markov-vs-microsim-tutorial.md](done/10-markov-vs-microsim-tutorial.md)): `examples/markov_vs_microsim.py` and a website tutorial build one Sick-Sicker-style model as both a `MarkovModel` cohort trace and a `MicrosimModel` individual simulation from the same rates. The homogeneous microsimulation converges to the cohort trace (the cross-validation), then a mean-1 frailty on the progression and mortality hazards raises the microsimulation QALYs about 8% above the cohort, the risk heterogeneity a cohort averages away. A test asserts both the convergence and the divergence.
 - Item 11, documentation narrative order ([done/11-docs-narrative-order.md](done/11-docs-narrative-order.md)): the Tutorials menu climbs from bring your own outputs to the Markov cohort model, the microsimulation engine, Markov vs microsimulation models, discrete-event simulation, the full pipeline, and the calibration workflow. The Markov cohort tutorial moves from Replications into Tutorials, each tutorial's forward link follows the new order, and `get-started.qmd` and the README present the same sequence. The time-dependent cohort and microsimulation replications stay under Replications as validation exhibits.
+- Item 12, value-of-information tutorial ([done/12-voi-tutorial.md](done/12-voi-tutorial.md)): `examples/voi_tutorial.py` and a website tutorial run EVPI, EVPPI, and EVSI on the Gaussian linear decision model that anchors the regression VoI literature, framed as a two-strategy cost-effectiveness decision. Its incremental net benefit is Normal, so all three have closed forms via the unit normal loss integral, and every estimate lands within about one percent at 100,000 iterations. A test asserts the EVPI, the EVPPI ranking, and the EVSI against those closed forms, a second published reference point alongside the phase-1 check.
 
 ## Prioritized next steps
 
-The engine phases are complete for cohort state-transition, microsimulation, and discrete-event simulation, the public API reads in model-type names, and parameter inputs, deterministic sensitivity analysis, parallel runs, and the tutorial narrative order are in place. The remaining item adds a tutorial where it introduces new prose, as items 1 and 2 did.
-
-- Item 12, value-of-information tutorial ([12-voi-tutorial.md](12-voi-tutorial.md)): an EVPI, EVPPI, and EVSI walkthrough reproducing a published VoI analysis and checking the numbers against it.
+The engine phases are complete for cohort state-transition, microsimulation, and discrete-event simulation, the public API reads in model-type names, and parameter inputs, deterministic sensitivity analysis, parallel runs, the tutorial narrative order, and the value-of-information tutorial are in place. The scheduled items are shipped; the backlog below holds unscheduled work with no design note yet.
 
 ## Backlog
 

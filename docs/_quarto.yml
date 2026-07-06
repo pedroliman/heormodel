@@ -24,6 +24,8 @@ website:
               text: Discrete-event simulation
             - href: tutorials/full-pipeline.qmd
               text: Full pipeline
+            - href: tutorials/voi.qmd
+              text: Value of information
             - href: tutorials/calibration-workflow.qmd
               text: Calibration workflow
             - href: tutorials/parameter-inputs.qmd
@@ -71,6 +73,8 @@ website:
             text: Discrete-event simulation
           - href: tutorials/full-pipeline.qmd
             text: Full pipeline
+          - href: tutorials/voi.qmd
+            text: Value of information
           - href: tutorials/calibration-workflow.qmd
             text: Calibration workflow
           - href: tutorials/parameter-inputs.qmd

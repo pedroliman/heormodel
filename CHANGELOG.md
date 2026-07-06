@@ -12,6 +12,17 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Added
 
+- Value-of-information tutorial: `examples/voi_tutorial.py` and a website tutorial
+  run EVPI, EVPPI, and EVSI end to end on the Gaussian linear decision model that
+  anchors the regression VoI literature (Strong, Oakley & Brennan, 2014; Strong,
+  Oakley, Brennan & Breeze, 2015), framed as a two-strategy cost-effectiveness
+  decision at 30,000 per QALY. Its incremental net benefit is Normal, so EVPI,
+  per-parameter EVPPI, and the EVSI of a proposed effect study have closed forms
+  via the unit normal loss integral. Every estimate lands within about one percent
+  of its closed form at 100,000 iterations, and a test asserts the EVPI, the EVPPI
+  ranking, and the EVSI against those closed forms as a second published reference
+  point ([#20](https://github.com/pedroliman/heormodel/pull/20)).
+
 - Markov vs microsimulation cross-validation: `examples/markov_vs_microsim.py` and
   a website tutorial build one Sick-Sicker-style model twice, as a `MarkovModel`
   cohort trace and a `MicrosimModel` individual simulation from the same rates.

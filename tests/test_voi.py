@@ -120,6 +120,63 @@ class TestCalibrationWorkflowVoi:
         assert joint == pytest.approx(evpi(outcomes, WTP), rel=0.10)
 
 
+# Second published reference point, the examples/voi_tutorial.py model: the
+# Gaussian linear decision model of Strong, Oakley & Brennan (2014) framed as a
+# two-strategy cost-effectiveness decision at a 30,000-per-QALY threshold.
+T_WTP = 30_000.0
+T_MU_Q, T_SD_Q = 0.20, 0.30
+T_MU_C, T_SD_C = 4_000.0, 8_000.0
+T_SIGMA = 1.0
+T_N = 60_000
+
+
+def tutorial_voi(s_conditional: float) -> float:
+    """Closed-form VoI for the tutorial model's incremental NB."""
+    m = T_WTP * T_MU_Q - T_MU_C
+    return emax0(m, s_conditional) - max(0.0, m)
+
+
+@pytest.fixture(scope="module")
+def tutorial_model():
+    rng = np.random.default_rng(2026)
+    dq = rng.normal(T_MU_Q, T_SD_Q, T_N)
+    dc = rng.normal(T_MU_C, T_SD_C, T_N)
+    idx = pd.RangeIndex(T_N, name="iteration")
+    draws = pd.DataFrame({"dq": dq, "dc": dc}, index=idx)
+    zero = np.zeros(T_N)
+    costs = pd.DataFrame({"Standard care": zero, "New drug": dc}, index=idx)
+    effects = pd.DataFrame({"Standard care": zero, "New drug": dq}, index=idx)
+    return Outcomes.from_wide(costs, effects), draws
+
+
+class TestVoiTutorialBenchmark:
+    """EVPI, EVPPI ranking, and EVSI of the tutorial model vs closed forms."""
+
+    def test_evpi_matches_closed_form(self, tutorial_model):
+        outcomes, _ = tutorial_model
+        s_total = np.hypot(T_WTP * T_SD_Q, T_SD_C)
+        assert evpi(outcomes, T_WTP) == pytest.approx(tutorial_voi(s_total), rel=0.05)
+
+    def test_evppi_ranking_effect_over_cost(self, tutorial_model):
+        outcomes, draws = tutorial_model
+        ranking = evppi_ranking(outcomes, draws, T_WTP)
+        assert list(ranking.index) == ["dq", "dc"]
+        assert ranking["dq"] == pytest.approx(tutorial_voi(T_WTP * T_SD_Q), rel=0.05)
+        assert ranking["dc"] == pytest.approx(tutorial_voi(T_SD_C), rel=0.05)
+
+    def test_evsi_effect_study_matches_closed_form(self, tutorial_model):
+        outcomes, draws = tutorial_model
+        tau = T_SIGMA / np.sqrt(200)
+        rng = np.random.default_rng(200)
+        summaries = pd.DataFrame(
+            {"xbar": draws["dq"] + rng.normal(0.0, tau, T_N)}, index=draws.index
+        )
+        s_evsi = T_WTP * T_SD_Q**2 / np.hypot(T_SD_Q, tau)
+        assert evsi_regression(outcomes, summaries, T_WTP) == pytest.approx(
+            tutorial_voi(s_evsi), rel=0.05
+        )
+
+
 class TestVoiProperties:
     def test_information_ordering(self, gaussian_model):
         """EVSI <= EVPPI(param) <= EVPI, up to estimator noise."""

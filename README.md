@@ -65,6 +65,8 @@ The `examples/mdm_*.py` scripts replicate three published Sick-Sicker cost-effec
 
 [`examples/parameter_inputs.py`](examples/parameter_inputs.py) shows the three ways parameters enter the run loop besides distribution sampling: `single_draw` (and `ParameterSet.at_means`) for a base-case run, `read_draws` for a draw matrix from a CSV or DataFrame, and `resample_posterior` for a weighted posterior resampled with replacement. Run it with `uv run python examples/parameter_inputs.py`.
 
+[`examples/voi_tutorial.py`](examples/voi_tutorial.py) runs value of information end to end, EVPI, EVPPI, and EVSI, on the Gaussian linear decision model whose incremental net benefit is Normal, so every estimate has a closed form via the unit normal loss integral. Each lands within about one percent of its closed form, and the [value of information tutorial](https://pedroliman.github.io/heormodel/tutorials/voi.html) narrates it. Run it with `uv run python examples/voi_tutorial.py`.
+
 ## Package layout
 
 | Subpackage | Status | Contents |
