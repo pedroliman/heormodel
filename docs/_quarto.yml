@@ -104,6 +104,8 @@ website:
     right:
       - icon: github
         href: https://github.com/pedroliman/heormodel
+  footer: |
+    © 2026 [Pedro Nascimento de Lima](https://pedrodelima.com)
 
 format:
   html:
@@ -112,8 +114,6 @@ format:
       dark: darkly
     toc: true
     code-copy: true
-    footer: |
-      © 2026 [Pedro Nascimento de Lima](https://pedrodelima.com)
 
 metadata-files:
   - reference/_sidebar.yml
