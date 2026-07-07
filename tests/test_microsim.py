@@ -112,6 +112,65 @@ class TestContinuousValidation:
         assert got["cost"] == pytest.approx(cost_year * disc_ly, rel=0.01)
         assert got["qaly"] == pytest.approx(disc_ly, rel=0.01)
 
+    def test_transition_payoffs_match_closed_form(self):
+        # One-time cost ic and utility decrement du paid at an exponential death
+        # time T with rate lam: E[e^{-dT} 1{T<=H}] = lam/(lam+d) * (1-e^{-(lam+d)H}).
+        lam, d, ic, du, horizon = 0.1, 0.03, 5_000.0, 0.2, 400.0
+
+        def hazards(params, state, attrs, rng):
+            times = np.full((len(state), 2), np.inf)
+            alive = state == 0
+            times[alive, 1] = rng.exponential(1.0 / lam, int(alive.sum()))
+            return times
+
+        def payoffs(params, state, attrs):
+            return np.zeros(len(state)), np.zeros(len(state))
+
+        def transition_payoffs(params, state_from, state_to, attrs):
+            dying = state_to == 1
+            return np.where(dying, ic, 0.0), np.where(dying, -du, 0.0)
+
+        engine = MicrosimModel(
+            states=("alive", "dead"),
+            clock="continuous",
+            hazards=hazards,
+            payoffs=payoffs,
+            transition_payoffs=transition_payoffs,
+            population=100_000,
+            strategies={"care": {}},
+            horizon=horizon,
+            discount_rate=d,
+            seed_manager=SeedManager(11),
+        )
+        got = engine.evaluate(_draws()).summary().loc["care"]
+        factor = lam / (lam + d) * (1 - np.exp(-(lam + d) * horizon))
+        assert got["cost"] == pytest.approx(ic * factor, rel=0.01)
+        assert got["qaly"] == pytest.approx(-du * factor, rel=0.01)
+
+    def test_transition_payoffs_bad_shape_rejected(self):
+        def hazards(params, state, attrs, rng):
+            times = np.full((len(state), 2), np.inf)
+            alive = state == 0
+            times[alive, 1] = rng.exponential(1.0, int(alive.sum()))
+            return times
+
+        def payoffs(params, state, attrs):
+            return np.zeros(len(state)), np.zeros(len(state))
+
+        engine = MicrosimModel(
+            states=("alive", "dead"),
+            clock="continuous",
+            hazards=hazards,
+            payoffs=payoffs,
+            transition_payoffs=lambda p, s_from, s_to, attrs: (np.zeros(1), np.zeros(1)),
+            population=10,
+            strategies={"care": {}},
+            horizon=50.0,
+            seed_manager=SeedManager(3),
+        )
+        with pytest.raises(ValueError, match="transition_payoffs"):
+            engine.evaluate(_draws())
+
     def test_max_events_guard(self):
         def hazards(params, state, attrs, rng):
             # Ping-pong between the two states, never absorbing: events pile up.
@@ -293,5 +352,13 @@ class TestClockValidation:
         with pytest.raises(TypeError, match="hazards"):
             MicrosimModel(
                 states=("H", "S", "D"), clock="continuous", payoffs=_payoffs,
+                population=10, strategies={"care": {}}, seed_manager=SeedManager(0),
+            )
+
+    def test_transition_payoffs_rejected_on_discrete_clock(self):
+        with pytest.raises(TypeError, match="transition_payoffs"):
+            MicrosimModel(
+                states=("H", "S", "D"), transition=_transition, payoffs=_payoffs,
+                transition_payoffs=lambda p, a, b, attrs: (np.zeros(10), np.zeros(10)),
                 population=10, strategies={"care": {}}, seed_manager=SeedManager(0),
             )

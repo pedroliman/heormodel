@@ -9,6 +9,7 @@ SimPy).
 """
 
 from heormodel.models.des import DESModel, queue_waits
+from heormodel.models.lifetable import LifeTable
 from heormodel.models.markov import CohortSpec, MarkovModel
 from heormodel.models.microsim import MicrosimModel
 from heormodel.models.outcomes import Outcomes
@@ -17,6 +18,7 @@ from heormodel.models.protocol import ModelEngine, ModelFn
 __all__ = [
     "CohortSpec",
     "DESModel",
+    "LifeTable",
     "MarkovModel",
     "MicrosimModel",
     "ModelEngine",

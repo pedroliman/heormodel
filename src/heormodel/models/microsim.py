@@ -126,24 +126,32 @@ class _MicrosimBase:
         return merged
 
     def _simulate(
-        self, params: pd.Series, attrs: pd.DataFrame, rng: np.random.Generator
-    ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+        self, params: pd.Series, attrs: pd.DataFrame, rng: np.random.Generator, *,
+        collect_events: bool = False,
+    ) -> tuple[NDArray[np.float64], NDArray[np.float64], pd.DataFrame | None]:
         raise NotImplementedError
 
     def evaluate(
-        self, draws: pd.DataFrame, *, trace: bool = False
+        self, draws: pd.DataFrame, *, trace: bool | str = False
     ) -> Outcomes | tuple[Outcomes, pd.DataFrame]:
         """Simulate the population for every draw and average to `Outcomes`.
 
         Args:
             draws: Parameter draw matrix (rows = iterations). Its index becomes
                 the outcome iteration index.
-            trace: Also return per-individual cost and effect as a long
-                ``DataFrame``, the optional individual-level side channel.
+            trace: ``True`` also returns per-individual cost and effect as a
+                long ``DataFrame``, the individual-level side channel.
+                ``"events"`` returns the event history instead: one row per
+                state change with columns ``strategy``, ``iteration``,
+                ``individual``, ``time``, ``from_state``, and ``to_state``,
+                the input to `heormodel.epi.state_occupancy`.
 
         Returns:
             `Outcomes`, or ``(Outcomes, trace)`` when ``trace`` is set.
         """
+        if isinstance(trace, str) and trace != "events":
+            raise ValueError(f"trace must be False, True, or 'events', got {trace!r}.")
+        collect_events = trace == "events"
         if draws.empty:
             raise ValueError("draws is empty.")
         strategy_names = list(self._strategies)
@@ -167,9 +175,16 @@ class _MicrosimBase:
                     assert shared_attrs is not None and shared_txn is not None
                     attrs = shared_attrs.copy()
                     rng = np.random.default_rng(shared_txn)  # common random numbers
-                cost, eff = self._simulate(params, attrs, rng)
+                cost, eff, events = self._simulate(
+                    params, attrs, rng, collect_events=collect_events
+                )
                 rows.append(aggregate({"cost": cost, self._effect: eff}, name, label))
-                if trace:
+                if collect_events:
+                    assert events is not None
+                    events.insert(0, ITERATION_LEVEL, label)
+                    events.insert(0, STRATEGY_LEVEL, name)
+                    traces.append(events)
+                elif trace:
                     traces.append(
                         pd.DataFrame(
                             {
@@ -232,6 +247,13 @@ class MicrosimModel(_MicrosimBase):
             destination state. Use ``inf`` where a transition cannot occur,
             including a state's own column and every column of an absorbing
             state.
+        transition_payoffs: Continuous clock only. Optional
+            ``fn(params, state_from, state_to, attrs) -> (cost, effect)``,
+            each shape ``(n,)``: one-time amounts paid when an individual
+            moves from ``state_from`` to ``state_to``, discounted at the event
+            time. Transition costs of onset or death and one-time utility
+            decrements live here rather than in the per-year ``payoffs``
+            flows. Rows for individuals with no event are ignored.
         population: Attribute sampler ``fn(rng, n) -> DataFrame`` for
             heterogeneity, or an ``int`` count for a featureless population.
             ``None`` uses ``n_individuals`` with no attributes.
@@ -290,6 +312,8 @@ class MicrosimModel(_MicrosimBase):
         clock: str = "discrete",
         transition: Callable[..., NDArray[np.float64]] | None = None,
         hazards: Callable[..., NDArray[np.float64]] | None = None,
+        transition_payoffs: Callable[..., tuple[NDArray[np.float64], NDArray[np.float64]]]
+        | None = None,
         population: PopulationSpec = None,
         cycle_length: float = 1.0,
         horizon: float = 60,
@@ -322,6 +346,8 @@ class MicrosimModel(_MicrosimBase):
                 raise TypeError("clock='discrete' requires a transition function.")
             if hazards is not None:
                 raise TypeError("hazards is only valid with clock='continuous'.")
+            if transition_payoffs is not None:
+                raise TypeError("transition_payoffs is only valid with clock='continuous'.")
             if horizon < 1:
                 raise ValueError("horizon must be at least one cycle.")
             self._transition = transition
@@ -340,19 +366,49 @@ class MicrosimModel(_MicrosimBase):
             if horizon <= 0:
                 raise ValueError("horizon must be positive.")
             self._hazards = hazards
+            self._transition_payoffs = transition_payoffs
             self._horizon = float(horizon)
             self._max_events = int(max_events)
 
     def _simulate(
-        self, params: pd.Series, attrs: pd.DataFrame, rng: np.random.Generator
-    ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+        self, params: pd.Series, attrs: pd.DataFrame, rng: np.random.Generator, *,
+        collect_events: bool = False,
+    ) -> tuple[NDArray[np.float64], NDArray[np.float64], pd.DataFrame | None]:
         if self._clock == "discrete":
-            return self._simulate_discrete(params, attrs, rng)
-        return self._simulate_continuous(params, attrs, rng)
+            return self._simulate_discrete(params, attrs, rng, collect_events=collect_events)
+        return self._simulate_continuous(params, attrs, rng, collect_events=collect_events)
+
+    def _assemble_events(
+        self,
+        individual: list[NDArray[np.int64]],
+        time: list[NDArray[np.float64]],
+        from_state: list[NDArray[np.int64]],
+        to_state: list[NDArray[np.int64]],
+    ) -> pd.DataFrame:
+        labels = np.asarray(self._states, dtype=object)
+        if individual:
+            events = pd.DataFrame(
+                {
+                    "individual": np.concatenate(individual),
+                    "time": np.concatenate(time),
+                    "from_state": labels[np.concatenate(from_state)],
+                    "to_state": labels[np.concatenate(to_state)],
+                }
+            )
+            return events.sort_values(["individual", "time"], ignore_index=True)
+        return pd.DataFrame(
+            {
+                "individual": np.array([], dtype=np.int64),
+                "time": np.array([], dtype=np.float64),
+                "from_state": np.array([], dtype=object),
+                "to_state": np.array([], dtype=object),
+            }
+        )
 
     def _simulate_discrete(
-        self, params: pd.Series, attrs: pd.DataFrame, rng: np.random.Generator
-    ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+        self, params: pd.Series, attrs: pd.DataFrame, rng: np.random.Generator, *,
+        collect_events: bool = False,
+    ) -> tuple[NDArray[np.float64], NDArray[np.float64], pd.DataFrame | None]:
         n = len(attrs)
         n_states = len(self._states)
         horizon = int(self._horizon)
@@ -362,6 +418,10 @@ class MicrosimModel(_MicrosimBase):
         n_points = horizon + 1
         cost_grid = np.empty((n, n_points), dtype=np.float64)
         eff_grid = np.empty((n, n_points), dtype=np.float64)
+        ev_individual: list[NDArray[np.int64]] = []
+        ev_time: list[NDArray[np.float64]] = []
+        ev_from: list[NDArray[np.int64]] = []
+        ev_to: list[NDArray[np.int64]] = []
         for c in range(n_points):
             view = attrs.assign(cycle=c, time_in_state=time_in_state, **durations)
             cost, eff = self._payoffs(params, state, view)
@@ -377,6 +437,12 @@ class MicrosimModel(_MicrosimBase):
                     raise ValueError("transition rows must each sum to 1.")
                 new_state = self._sample_next(probs, rng)
                 moved = new_state != state
+                if collect_events and moved.any():
+                    idx = np.nonzero(moved)[0]
+                    ev_individual.append(idx)
+                    ev_time.append(np.full(idx.size, (c + 1) * self._cycle_length))
+                    ev_from.append(state[idx])
+                    ev_to.append(new_state[idx])
                 time_in_state = np.where(moved, 0, time_in_state + 1)
                 for name, members in self._duration_groups.items():
                     was_in = np.isin(state, members)
@@ -389,7 +455,12 @@ class MicrosimModel(_MicrosimBase):
             weights[0] = weights[-1] = 0.5
         cost_total = accrue(cost_grid, times, self._discount_rate, weights=weights)
         eff_total = accrue(eff_grid, times, self._discount_rate, weights=weights)
-        return cost_total, eff_total
+        events = (
+            self._assemble_events(ev_individual, ev_time, ev_from, ev_to)
+            if collect_events
+            else None
+        )
+        return cost_total, eff_total, events
 
     @staticmethod
     def _sample_next(
@@ -401,8 +472,9 @@ class MicrosimModel(_MicrosimBase):
         return (u[:, None] < cdf).argmax(axis=1).astype(np.int64)
 
     def _simulate_continuous(
-        self, params: pd.Series, attrs: pd.DataFrame, rng: np.random.Generator
-    ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+        self, params: pd.Series, attrs: pd.DataFrame, rng: np.random.Generator, *,
+        collect_events: bool = False,
+    ) -> tuple[NDArray[np.float64], NDArray[np.float64], pd.DataFrame | None]:
         n = len(attrs)
         n_states = len(self._states)
         horizon = float(self._horizon)
@@ -411,6 +483,10 @@ class MicrosimModel(_MicrosimBase):
         cost_total = np.zeros(n, dtype=np.float64)
         eff_total = np.zeros(n, dtype=np.float64)
         active = np.ones(n, dtype=bool)
+        ev_individual: list[NDArray[np.int64]] = []
+        ev_time: list[NDArray[np.float64]] = []
+        ev_from: list[NDArray[np.int64]] = []
+        ev_to: list[NDArray[np.int64]] = []
         for _ in range(self._max_events):
             if not active.any():
                 break
@@ -430,6 +506,21 @@ class MicrosimModel(_MicrosimBase):
             cost_total += np.where(active, cost_rate * disc_cost, 0.0)
             eff_total += np.where(active, eff_rate * disc_eff, 0.0)
             event = active & np.isfinite(dt) & (dt <= remaining)
+            if collect_events and event.any():
+                idx = np.nonzero(event)[0]
+                ev_individual.append(idx)
+                ev_time.append((clock + segment)[idx])
+                ev_from.append(state[idx])
+                ev_to.append(dest[idx])
+            if self._transition_payoffs is not None and event.any():
+                one_cost, one_eff = self._transition_payoffs(params, state, dest, view)
+                one_cost = np.asarray(one_cost, dtype=np.float64)
+                one_eff = np.asarray(one_eff, dtype=np.float64)
+                if one_cost.shape != (n,) or one_eff.shape != (n,):
+                    raise ValueError(f"transition_payoffs must return two arrays of shape {(n,)}.")
+                at_event = np.exp(-self._discount_rate * (clock + segment))
+                cost_total += np.where(event, one_cost * at_event, 0.0)
+                eff_total += np.where(event, one_eff * at_event, 0.0)
             clock = np.where(active, clock + segment, clock)
             state = np.where(event, dest, state)
             active = event
@@ -439,4 +530,9 @@ class MicrosimModel(_MicrosimBase):
                     "max_events exceeded before every individual reached the horizon or an "
                     "absorbing state; raise max_events or check the hazards."
                 )
-        return cost_total, eff_total
+        events = (
+            self._assemble_events(ev_individual, ev_time, ev_from, ev_to)
+            if collect_events
+            else None
+        )
+        return cost_total, eff_total, events

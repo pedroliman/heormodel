@@ -35,7 +35,9 @@ Design notes for completed items move to [`done/`](done/). Items 1 through 12 ar
 
 ## Prioritized next steps
 
-The engine phases are complete for cohort state-transition, microsimulation, and discrete-event simulation, the public API reads in model-type names, and parameter inputs, deterministic sensitivity analysis, parallel runs, the tutorial narrative order, and the value-of-information tutorial are in place. The scheduled items are shipped; the backlog below holds unscheduled work with no design note yet.
+The engine phases are complete for cohort state-transition, microsimulation, and discrete-event simulation, the public API reads in model-type names, and parameter inputs, deterministic sensitivity analysis, parallel runs, the tutorial narrative order, and the value-of-information tutorial are in place. One item is scheduled; the backlog below holds unscheduled work with no design note yet.
+
+- Item 13, continuous-time Sick-Sicker replication ([13-des-sicksicker-replication.md](13-des-sicksicker-replication.md)): reproduce the 2026 Medical Decision Making discrete-event simulation tutorial on the continuous microsimulation clock, adding `LifeTable` age-dependent mortality sampling, one-time transition payoffs, an event-history trace with `heormodel.epi` epidemiological outcomes, and expected loss curves in `heormodel.cea`.
 
 ## Backlog
 

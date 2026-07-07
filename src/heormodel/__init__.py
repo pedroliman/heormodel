@@ -11,7 +11,8 @@ Subpackages:
     - `heval.params`: distributions and correlated probabilistic sampling
     - `heval.models`: engines behind the output contract
     - `heval.run`: seeds, run loop, bring-your-own-outputs ingestion
-    - `heval.cea`: incremental analysis, frontier, NMB/NHB, CEAC/CEAF
+    - `heval.cea`: incremental analysis, frontier, NMB/NHB, CEAC/CEAF, expected loss
+    - `heval.epi`: state occupancy, survival, and prevalence from an event history
     - `heval.dsa`: one-way, one-at-a-time, and grid deterministic sensitivity designs
     - `heval.voi`: EVPI, EVPPI, EVSI
     - `heval.calibrate`: ABC calibration (optional ``pyabc`` extra)

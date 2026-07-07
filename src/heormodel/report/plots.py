@@ -160,6 +160,45 @@ def plot_ceac(
     return ax
 
 
+def plot_expected_loss(
+    loss_df: pd.DataFrame,
+    *,
+    ax: Axes | None = None,
+) -> Axes:
+    """Expected loss curves, one per strategy over the willingness-to-pay grid.
+
+    The lower envelope of the curves is the expected value of perfect
+    information, so the plot shows the optimal strategy (lowest curve) and the
+    cost of decision uncertainty at each threshold together.
+
+    Args:
+        loss_df: Output of `heval.cea.expected_loss`.
+        ax: Existing axes to draw on.
+
+    Example:
+        >>> import pandas as pd
+        >>> from heormodel.cea import expected_loss
+        >>> from heormodel.models import Outcomes
+        >>> from heormodel.report import plot_expected_loss
+        >>> c = pd.DataFrame({"A": [0.0, 0.0], "B": [5.0, 5.0]})
+        >>> e = pd.DataFrame({"A": [0.0, 0.0], "B": [1.0, -1.0]})
+        >>> curves = expected_loss(Outcomes.from_wide(c, e), wtp=[0.0, 10.0, 20.0])
+        >>> ax = plot_expected_loss(curves)
+        >>> ax.get_ylabel()
+        'Expected loss'
+    """
+    ax = ax or plt.subplots()[1]
+    colors = strategy_colors([str(c) for c in loss_df.columns])
+    for s in loss_df.columns:
+        ax.plot(loss_df.index, loss_df[s], lw=1.8, color=colors[str(s)], label=str(s))
+    ax.set_xlabel("Willingness to pay")
+    ax.set_ylabel("Expected loss")
+    ax.set_title("Expected loss curves")
+    ax.legend(frameon=False)
+    _style(ax)
+    return ax
+
+
 def plot_frontier(
     source: Outcomes | pd.DataFrame,
     *,
