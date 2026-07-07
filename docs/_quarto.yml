@@ -15,8 +15,6 @@ website:
       contents:
         - href: index.qmd
           text: Overview
-        - href: get-started.qmd
-          text: Get started
         - section: Tutorials
           contents:
             - href: tutorials/mdm-cohort.qmd
