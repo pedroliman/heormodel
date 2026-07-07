@@ -15,7 +15,7 @@ The `calibration` extra adds Bayesian calibration: `pip install "heormodel[calib
 
 ## Quickstart
 
-A three-state Markov cohort state-transition model comparing standard care with two treatments of different efficacy and cost, evaluated by probabilistic sensitivity analysis:
+This example builds a three-state Markov cohort state-transition model comparing standard care with two treatments of different efficacy and cost, then evaluates it by probabilistic sensitivity analysis:
 
 ```{python}
 import matplotlib.pyplot as plt

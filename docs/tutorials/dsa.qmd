@@ -2,11 +2,11 @@
 title: Deterministic sensitivity analysis
 ---
 
-Probabilistic sensitivity analysis answers how uncertain a decision is; deterministic sensitivity analysis (DSA) answers which parameters move the result and by how much. This tutorial runs the deterministic forms on the same Sick-Sicker cohort model the [cohort tutorial](mdm-cohort.qmd) uses for its probabilistic analysis, so the two read as a pair. The full script is [`examples/dsa.py`](https://github.com/pedroliman/heormodel/blob/main/examples/dsa.py).
+Probabilistic sensitivity analysis answers how uncertain a decision is; deterministic sensitivity analysis (DSA) instead answers which parameters move the result, and by how much. This tutorial shows how to run the three standard DSA designs, one-way, one-at-a-time, and grid, on the same Sick-Sicker cohort model the [cohort tutorial](mdm-cohort.qmd) uses for its probabilistic analysis, so the two are worth reading as a pair. The full script is [`examples/dsa.py`](https://github.com/pedroliman/heormodel/blob/main/examples/dsa.py).
 
-`heormodel.dsa` builds scenario designs that run through `run_psa` unchanged: a design is a draw matrix whose rows are scenarios instead of random draws, paired with a descriptor naming what each scenario varied. Nothing in the run loop or the `Outcomes` structure changes.
+`heormodel.dsa` builds scenario designs that run through `run_psa` unchanged: a design is a draw matrix whose rows are scenarios instead of random draws, paired with a descriptor naming what each scenario varied. Reusing `run_psa` this way means nothing in the run loop or the `Outcomes` structure needs to change between a probabilistic and a deterministic analysis.
 
-## The model and base case
+## Specifying the model and base case
 
 The model is the four-state Sick-Sicker cohort of the cohort tutorial. The base case is its Table 1 point estimates, held in a `pandas.Series` indexed by parameter name, the input every DSA builder takes.
 
@@ -46,7 +46,7 @@ base = pd.Series(dict(
 WTP = 100_000.0
 ```
 
-## One-way sweep
+## Running a one-way sweep
 
 `one_way` varies a single parameter across the listed values, holding the rest at base. The result runs through `run_psa` like any draw matrix. Here the incremental net monetary benefit of Strategy AB over standard of care falls as the treatment-B cost rises, crossing zero near its base value.
 
@@ -60,7 +60,7 @@ nb = nmb(run_psa(engine, design), WTP)
 (nb["Strategy AB"] - nb["Standard of care"]).round(0)
 ```
 
-## One-at-a-time tornado
+## Building a one-at-a-time tornado
 
 `one_at_a_time` sweeps each parameter between its low and high in turn, the union of one-way sweeps with the base case included once. `tornado_data` reads the `(design, descriptor)` pair directly, taking the net monetary benefit at each parameter's low and high value. It returns the same table its probabilistic form does, so `plot_tornado` is unchanged.
 
@@ -77,7 +77,7 @@ plot_tornado(td.head(6))
 
 The utility of the treated Sick state (`u_trtA`) and the progression hazard ratio under treatment B (`hr_S1S2_trtB`) move the result most; the state costs barely register.
 
-## Two-way grid
+## Sweeping a two-way grid
 
 `grid` takes the full factorial of two or more parameters. `heatmap_data` reshapes a per-scenario outcome into a matrix over two of them. Here the incremental net monetary benefit of Strategy AB spans positive to negative across the two treatment costs.
 

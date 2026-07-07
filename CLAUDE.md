@@ -23,9 +23,10 @@ Guidance for Claude Code when working in this repository.
 
 Applies to everything: README, docs, docstrings, comments, commit messages. Full guide: `devdocs/guidance/writing_style.md`.
 
-- Excellent technical documentation is short. Every sentence earns its place; if deleting it loses nothing, delete it. Cut warm-up sentences, transitions, and closing summaries.
-- Lead with the point. One idea per sentence. Doc pages stay under 500 words.
+- Excellent technical documentation is short, but concise means every sentence earns its place, not that sentences lose their verbs. Cut warm-up sentences, transitions, and closing summaries; never cut down to a label or a clipped noun phrase standing in for a sentence.
+- Lead with the point. One idea per sentence. 500 words per doc page is a guide for trimming bloat, not a ceiling to hit by deleting explanation: a page that runs longer because it explains a genuinely non-obvious choice is fine.
 - Show, do not describe: a worked example, a number, or a table beats an adjective. "Matches the published ICER exactly" beats "highly accurate".
+- A tutorial teaches by explaining reasoning, not just by running code. Open with a sentence stating what it teaches ("This tutorial shows how to...", "This tutorial introduces..."), not an inventory of function calls ("this page installs X and runs Y"); naming the goal is not a warm-up sentence to cut. Name headings after what the section does ("Reading external results"), not the artifact it produces ("An external results table"). Before every code block, write at least one full sentence stating what it does and, when it is not obvious, why this approach over the naive alternative (this distribution, this sample size, this comparator). After the output, add a sentence interpreting what it means, not restating what was computed.
 - Write formally, as in the methods appendix of a clinical journal: precise, plain, no marketing tone, no rhetorical questions.
 - Use health economics vocabulary: strategy, comparator, willingness-to-pay threshold, cohort state-transition model, microsimulation, discounting, half-cycle correction.
 - Spell out every acronym on first use per page, with the acronym in parentheses only if the page uses it again. Do not assume readers know PSA, CEA, or VoI; prefer the spelled-out term when it appears once or twice.

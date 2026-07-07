@@ -2,11 +2,11 @@
 title: Microsimulation engine
 ---
 
-This tutorial builds an individual-level model with `MicrosimModel` and runs it through cost-effectiveness and value-of-information analysis. The [Markov cohort model tutorial](mdm-cohort.qmd) runs a model through `run_psa` and the analysis layer. The narrated version here is [`examples/microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/microsim.py). A microsimulation earns its cost when outcomes depend on individual history or heterogeneity, which a cohort average cannot carry.
+This tutorial shows how to build an individual-level model with `MicrosimModel`, the model type to use when outcomes depend on a patient's history or on heterogeneity between patients, neither of which a cohort average can carry. It runs the same `run_psa`, cost-effectiveness, and value-of-information calls as the [Markov cohort model tutorial](mdm-cohort.qmd), so the two are worth reading as a pair. This page walks through [`examples/microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/microsim.py) step by step.
 
-## The model
+## Specifying individual-level transitions and payoffs
 
-Three states, Healthy, Sick, Dead, over a 30-year horizon. Two features rule out a single cohort transition matrix: each individual carries a `frailty` attribute that scales their sick-state cost and mortality, and the Sick to Dead risk rises with time already spent sick. The engine maintains `time_in_state` and passes it, alongside the sampled attributes, to the `transition` and `payoffs` functions.
+The model has three states, Healthy, Sick, and Dead, over a 30-year horizon. Two features rule out a single cohort transition matrix: each individual carries a `frailty` attribute that scales their sick-state cost and mortality, and the Sick to Dead risk rises with time already spent sick. The engine maintains `time_in_state` and passes it, alongside the sampled attributes, to the `transition` and `payoffs` functions.
 
 ```{python}
 import numpy as np
@@ -85,9 +85,9 @@ outcomes.summary().round(3)
 
 `run_psa` runs the engine like any other model, and enforces the same contract: the outcome iteration index equals `draws.index`. Because each iteration draws a stream keyed by its index, the result is identical whether the run is parallel or sequential. Runs are parallel by default; this small one passes `sequential=True` to stay in-process.
 
-## Cost-effectiveness and value of information
+## Analyzing cost-effectiveness and value of information
 
-From here nothing is engine-specific. At a willingness-to-pay threshold near the base-case incremental cost-effectiveness ratio the decision is genuinely uncertain, so the expected value of perfect information is positive and the per-parameter ranking is informative.
+From here nothing is engine-specific: the same `icer_table`, `evpi`, and `evppi_ranking` calls used for a cohort model apply to this simulation's `Outcomes`. At a willingness-to-pay threshold near the base-case incremental cost-effectiveness ratio, the decision is genuinely uncertain, so the expected value of perfect information is positive and the per-parameter ranking below is informative.
 
 ```{python}
 from heormodel.cea import icer_table
@@ -102,11 +102,11 @@ print(f"EVPI at WTP {WTP:,.0f}: {evpi(outcomes, WTP):,.1f}")
 evppi_ranking(outcomes, draws, WTP).round(1)
 ```
 
-The treatment cost and its effect `rr_tx` lead the ranking: they drive whether treatment clears the threshold.
+The treatment cost and its effect `rr_tx` lead the ranking: they determine whether treatment's incremental cost-effectiveness ratio stays below the threshold.
 
-## It matches a cohort closed form
+## Validating against the cohort closed form
 
-Confidence rests on a check: with constant transitions and no heterogeneity, a microsimulation must converge to the exact cohort calculation as the population grows. The engine and the cohort share the same discounting and half-cycle convention, so the only gap is Monte Carlo error.
+With constant transitions and no heterogeneity, a microsimulation must converge to the exact cohort calculation as the population grows; this section checks that it does, since a mismatch here would point to a bug rather than sampling noise. The engine and the cohort share the same discounting and half-cycle convention, so the only expected gap is Monte Carlo error.
 
 ```{python}
 P = np.array([[0.80, 0.15, 0.05], [0.0, 0.90, 0.10], [0.0, 0.0, 1.0]])
@@ -138,7 +138,7 @@ pd.DataFrame({
 
 The two agree to under 1% at 60,000 individuals, and the gap shrinks with the population.
 
-## Continuous time
+## Switching to a continuous-time clock
 
 `MicrosimModel(clock="continuous")` is set up the same way. Instead of per-cycle probabilities, `hazards` returns sampled times to each competing event; the engine races them, advances to the earliest, and accrues continuously between events. On constant hazards it reproduces the exponential cohort solution. See the [engines](../concepts/engines.qmd) concept page for where both fit in the contract.
 

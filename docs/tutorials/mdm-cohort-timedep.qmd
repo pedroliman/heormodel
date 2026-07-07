@@ -2,9 +2,9 @@
 title: Time-dependent cohort model
 ---
 
-This page extends the [cohort replication](mdm-cohort.qmd) with age-varying mortality and transition rewards, reproducing the time-dependent Sick-Sicker tutorial of Alarid-Escudero and others (2023). Full script: [`examples/mdm_cohort_timedep.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_cohort_timedep.py).
+This tutorial shows how to extend the [cohort replication](mdm-cohort.qmd) with age-varying mortality and one-time transition rewards, reproducing the time-dependent Sick-Sicker tutorial of Alarid-Escudero and others (2023). Full script: [`examples/mdm_cohort_timedep.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_cohort_timedep.py).
 
-## Two kinds of time dependence
+## Specifying age-varying transitions and rewards
 
 The model function returns a per-cycle transition array of shape `(n_cycles, n_states, n_states)`: the Healthy-to-Dead rate follows a US life table, scaled by hazard ratios in the Sick and Sicker states. `transition_cost` and `transition_effect` attach a one-time cost of dying, a cost of onset, and a disutility of onset to the flows between states; the engine accrues them on the flow and discounts them with the state rewards.
 
@@ -54,9 +54,9 @@ engine = MarkovModel(states=STATES, strategies=STRATEGIES, model_fn=model,
                             n_cycles=N, start="H", half_cycle_correction="simpson")
 ```
 
-## Deterministic replication
+## Reproducing the published base case
 
-The base case reproduces the published table. Age-varying mortality lowers life expectancy, so every strategy accrues fewer quality-adjusted life-years than in the time-independent model. Strategy A is dominated; Strategy B and Strategy AB stay on the frontier.
+Running the model once at the article's point estimates should reproduce its published table exactly, the same check used in the time-independent replication. Age-varying mortality lowers life expectancy, so every strategy accrues fewer quality-adjusted life-years than in the time-independent model. Strategy A is dominated; Strategy B and Strategy AB stay on the frontier.
 
 ```{python}
 from heormodel.cea import icer_table

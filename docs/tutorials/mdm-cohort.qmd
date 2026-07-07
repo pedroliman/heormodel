@@ -2,11 +2,11 @@
 title: Cohort state-transition model
 ---
 
-This page reproduces the introductory Sick-Sicker cohort state-transition analysis of Alarid-Escudero and others (2023) with `MarkovModel`, then runs its probabilistic sensitivity analysis through the same analysis layer. Full script: [`examples/mdm_cohort.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_cohort.py); companion replications: [replication gallery](replication-gallery.qmd).
+This tutorial shows how to build a cohort state-transition model with `MarkovModel` and validate it against a published result, using the introductory Sick-Sicker analysis of Alarid-Escudero and others (2023). Reproducing a known answer first, before trusting the model on a new question, is the standard check for any cost-effectiveness model. Full script: [`examples/mdm_cohort.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_cohort.py); companion replications: [replication gallery](replication-gallery.qmd).
 
-## The model
+## Specifying the four-state model
 
-Four states (Healthy, Sick, Sicker, Dead) over 75 annual cycles from age 25. Four strategies compare standard of care with treatment A (improves the Sick-state utility), treatment B (slows progression), and their combination AB. The `model_fn` function returns each strategy's transition matrix and per-state payoffs from a parameter row.
+The model tracks four states, Healthy, Sick, Sicker, and Dead, over 75 annual cycles starting at age 25. Four strategies compare standard of care with treatment A (improves the Sick-state utility), treatment B (slows progression from Sick to Sicker), and their combination AB. The `model_fn` function below returns each strategy's transition matrix and per-state payoffs from a single parameter row. Transition rates, not probabilities, are the quantities sampled and adjusted by hazard ratios: a hazard ratio scales a rate multiplicatively, so `hr_S1` and `hr_S2` multiply the death rate before `r2p` converts it to a per-cycle probability, matching how the source article specifies uncertainty.
 
 ```{python}
 import numpy as np
@@ -38,9 +38,9 @@ engine = MarkovModel(states=STATES, strategies=STRATEGIES, model_fn=model,
                             n_cycles=75, start="H", half_cycle_correction="simpson")
 ```
 
-## Deterministic replication
+## Reproducing the published base case
 
-One parameter set reproduces the published table exactly: Strategy A is dominated; the frontier runs standard of care, Strategy B (incremental cost-effectiveness ratio about 73,000 per quality-adjusted life-year), Strategy AB (about 126,000).
+Before sampling any uncertainty, running the model once at the article's point estimates checks that the transition math and rewards are wired correctly: the result should match the published table exactly. It does. Strategy A is dominated; the frontier runs standard of care, then Strategy B (incremental cost-effectiveness ratio about 73,000 per quality-adjusted life-year), then Strategy AB (about 126,000).
 
 ```{python}
 from heormodel.cea import icer_table
@@ -51,9 +51,9 @@ draws0 = pd.DataFrame([base], index=pd.RangeIndex(1, name="iteration"))
 icer_table(engine.evaluate(draws0)).round(2)
 ```
 
-## Probabilistic analysis
+## Running the probabilistic sensitivity analysis
 
-The tutorial's distributions become a `ParameterSet`; `run_psa` and the analysis layer treat the model like any other.
+The article's uncertainty distributions for each parameter become a `ParameterSet`; gamma distributions bound rates and costs at zero, beta distributions bound utilities to the unit interval, and log-normal distributions keep hazard ratios positive. From there, `run_psa` and the analysis layer treat this cohort model like any other engine. The run below passes `sequential=True` because 1,000 iterations finish quickly in-process; larger runs default to parallel batches across cores.
 
 ```{python}
 from heormodel.params import Beta, Gamma, LogNormal, ParameterSet
@@ -73,10 +73,12 @@ outcomes = run_psa(engine, draws, sequential=True)
 icer_table(outcomes).round(2)
 ```
 
+The mean frontier matches the deterministic ranking above. Whether that ranking holds at a given threshold in every draw, rather than only on average, is what the expected value of perfect information (EVPI) measures next:
+
 ```{python}
 print(f"EVPI at WTP 100,000: {evpi(outcomes, 100_000.0):,.0f}")
 ```
 
-The mean frontier matches the deterministic ranking. The expected value of perfect information is positive because Strategy AB clears the 100,000 threshold in some draws but not others.
+EVPI is positive at a threshold of 100,000 because Strategy AB, the most expensive option, is the best choice in some draws but not others: the uncertainty in whether it is worth adopting has a real cost, and resolving it would be worth exactly this much per person.
 
 Reference: Alarid-Escudero F, Krijkamp EM, Enns EA, Yang A, Hunink MGM, Pechlivanoglou P, Jalal H. An introductory tutorial on cohort state-transition models in R using a cost-effectiveness analysis example. Medical Decision Making. 2023;43(1):3-20.
