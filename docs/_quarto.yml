@@ -45,6 +45,8 @@ website:
               text: Time-dependent cohort model
             - href: tutorials/mdm-microsim.qmd
               text: Microsimulation replication
+            - href: tutorials/mdm-des.qmd
+              text: Discrete-event simulation replication
         - section: Concepts
           contents:
             - href: concepts/engines.qmd
@@ -122,6 +124,7 @@ quartodoc:
         - MicrosimModel
         - DESModel
         - queue_waits
+        - LifeTable
     - title: Run loop (`heormodel.run`)
       desc: Drive a model over parameter draws, or ingest external results tables.
       package: heormodel.run
@@ -141,10 +144,18 @@ quartodoc:
         - expected_nmb
         - ceac
         - ceaf
+        - expected_loss
         - ce_plane
         - STATUS_D
         - STATUS_ED
         - STATUS_ND
+    - title: Epidemiological outcomes (`heormodel.epi`)
+      desc: State occupancy, survival, and prevalence computed from an engine's event history.
+      package: heormodel.epi
+      contents:
+        - state_occupancy
+        - survival
+        - prevalence
     - title: Deterministic sensitivity analysis (`heormodel.dsa`)
       desc: One-way, one-at-a-time, and full-factorial grid scenario designs that run through the standard loop and feed tornado and heatmap reports.
       package: heormodel.dsa
@@ -178,6 +189,7 @@ quartodoc:
       contents:
         - plot_ce_plane
         - plot_ceac
+        - plot_expected_loss
         - plot_frontier
         - tornado_data
         - plot_tornado

@@ -1,0 +1,224 @@
+---
+title: Discrete-event simulation replication
+---
+
+This tutorial shows how to reproduce the continuous-time Sick-Sicker discrete-event simulation of Lopez-Mendez and others (2026): competing time-to-event transitions with age-dependent mortality from a life table, a Weibull hazard on time spent Sick, one-time transition rewards, epidemiological outcomes read from the event history, and a probabilistic analysis with expected loss curves. Full script: [`examples/mdm_des.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_des.py).
+
+## Choosing the engine
+
+The article's simulation kernel samples a latent arrival time for every permitted transition out of the current state, takes the earliest, moves the individual, and repeats until death or the horizon. That is the continuous clock of `MicrosimModel`: a discrete-event simulation without resource constraints is a continuous-time individual state-transition model, and the [engines page](../concepts/engines.qmd) places it among the other model types. `DESModel` (the [discrete-event tutorial](des.qmd)) is the engine for processes with queues and capacity limits, which the article treats as an extension beyond this example.
+
+## Specifying competing time-to-event transitions
+
+The model runs from age 25 to 100 over four states: Healthy (H), Sick (S1), Sicker (S2), and Dead (D). Background mortality comes from a US 2015 life table as a `LifeTable`, which samples the years until death conditional on current age by inverting the cumulative hazard, under a hazard ratio of 3 in S1 and 10 in S2. Because the engine redraws every competing time at each state entry, the death time always reflects the age and state the individual is in, and the Weibull progression draw needs no truncation: time in state is zero at the moment it is drawn.
+
+```{python}
+import numpy as np
+import pandas as pd
+from heormodel.models import LifeTable, MicrosimModel
+
+STATES = ("H", "S1", "S2", "D")
+AGE_START = 25.0
+HORIZON = 75.0
+
+# US all-cause mortality rate, ages 25 to 99 (period life table, total population)
+MORT = np.array([
+    0.001014, 0.000999, 0.00107, 0.001087, 0.001162, 0.001167, 0.001213, 0.001289, 0.001331,
+    0.001375, 0.00142, 0.00149, 0.00155, 0.001616, 0.001657, 0.001747, 0.001902, 0.002052,
+    0.002173, 0.002395, 0.002559, 0.002807, 0.003023, 0.003349, 0.003712, 0.004085, 0.00449,
+    0.004905, 0.005364, 0.005806, 0.006253, 0.006775, 0.007395, 0.007895, 0.008418, 0.008974,
+    0.009666, 0.010456, 0.011384, 0.011838, 0.012667, 0.013593, 0.0147, 0.015732, 0.01734,
+    0.018758, 0.020967, 0.022917, 0.024913, 0.026767, 0.029707, 0.032412, 0.035982, 0.039238,
+    0.043595, 0.048727, 0.053735, 0.059911, 0.066618, 0.074051, 0.08219, 0.090754, 0.103968,
+    0.115093, 0.124341, 0.137872, 0.154177, 0.172393, 0.1941, 0.212654, 0.243752, 0.259087,
+    0.287781, 0.316429, 0.339149])
+MORTALITY = LifeTable(ages=np.arange(25, 100, dtype=float), rates=MORT)
+```
+
+The `hazards` function returns the sampled time to each destination, with `inf` where a transition cannot occur. The article parameterizes the Weibull progression hazard in proportional-hazards form, so treatment B scales it by multiplying the scale parameter by its hazard ratio; sampling converts to the equivalent accelerated-failure-time scale, `scale ** (-1 / shape)`.
+
+```{python}
+def hazards(p, state, attrs, rng):
+    n = len(state)
+    times = np.full((n, 4), np.inf)
+    age = AGE_START + attrs["time"].to_numpy()
+    h = state == 0
+    if h.any():
+        times[h, 1] = rng.exponential(1.0 / p["r_HS1"], int(h.sum()))
+        times[h, 3] = MORTALITY.sample_time_to_death(rng, age[h])
+    s1 = state == 1
+    if s1.any():
+        times[s1, 0] = rng.exponential(1.0 / p["r_S1H"], int(s1.sum()))
+        scale_ph = p["r_S1S2_scale"] * (p["hr_S1S2_trtB"] if p["trtB"] else 1.0)
+        aft_scale = scale_ph ** (-1.0 / p["r_S1S2_shape"])
+        times[s1, 2] = aft_scale * rng.weibull(p["r_S1S2_shape"], int(s1.sum()))
+        times[s1, 3] = MORTALITY.sample_time_to_death(rng, age[s1], hazard_ratio=p["hr_S1"])
+    s2 = state == 2
+    if s2.any():
+        times[s2, 3] = MORTALITY.sample_time_to_death(rng, age[s2], hazard_ratio=p["hr_S2"])
+    return times
+```
+
+## Attaching flows and one-time transition rewards
+
+State costs and utilities accrue as annual flows between events, discounted continuously. Sick and Sicker patients cannot be told apart in practice, so a strategy's treatment cost applies in both disease states; treatment A improves the utility only in S1, and treatment B only slows progression. The transition rewards are one-time amounts paid at the event and discounted at the event time: a cost and a utility decrement at disease onset, and a cost of dying.
+
+```{python}
+def payoffs(p, state, attrs):
+    n = len(state)
+    cost, util = np.zeros(n), np.zeros(n)
+    on_a, on_b = bool(p["trtA"]), bool(p["trtB"])
+    tx = on_a * p["c_trtA"] + on_b * p["c_trtB"]
+    h = state == 0
+    cost[h], util[h] = p["c_H"], p["u_H"]
+    s1 = state == 1
+    cost[s1] = p["c_S1"] + tx
+    util[s1] = p["u_trtA"] if on_a else p["u_S1"]
+    s2 = state == 2
+    cost[s2] = p["c_S2"] + tx
+    util[s2] = p["u_S2"]
+    return cost, util
+
+def transition_payoffs(p, state_from, state_to, attrs):
+    n = len(state_from)
+    cost, eff = np.zeros(n), np.zeros(n)
+    onset = (state_from == 0) & (state_to == 1)
+    cost[onset] = p["ic_HS1"]
+    eff[onset] = -p["du_HS1"]
+    cost[state_to == 3] += p["ic_D"]
+    return cost, eff
+```
+
+## Reproducing the base case
+
+One run at the article's Table 1 point estimates gives the deterministic cost-effectiveness analysis. The article publishes its results as figures rather than a table, so the check is structural: strategy A must be dominated (treatment A buys quality of life in S1 but no survival, at almost treatment B's cost), and the frontier must run standard of care, then B, then AB. 25,000 individuals keep this page fast; the full script uses 100,000.
+
+```{python}
+from heormodel.cea import icer_table
+from heormodel.params import single_draw
+from heormodel.run import SeedManager
+
+BASE = dict(
+    r_HS1=0.15, r_S1H=0.5, r_S1S2_scale=0.08, r_S1S2_shape=1.1,
+    hr_S1=3.0, hr_S2=10.0, hr_S1S2_trtB=0.6,
+    c_H=2000.0, c_S1=4000.0, c_S2=15000.0, c_trtA=12000.0, c_trtB=13000.0,
+    u_H=1.0, u_S1=0.75, u_S2=0.5, u_trtA=0.95,
+    du_HS1=0.01, ic_HS1=1000.0, ic_D=2000.0,
+)
+STRATEGIES = {
+    "Standard of care": {"trtA": 0.0, "trtB": 0.0},
+    "Strategy A": {"trtA": 1.0, "trtB": 0.0},
+    "Strategy B": {"trtA": 0.0, "trtB": 1.0},
+    "Strategy AB": {"trtA": 1.0, "trtB": 1.0},
+}
+
+def build_engine(seed_manager, population):
+    return MicrosimModel(
+        states=STATES, clock="continuous", hazards=hazards, payoffs=payoffs,
+        transition_payoffs=transition_payoffs, population=population,
+        strategies=STRATEGIES, horizon=HORIZON, discount_rate=0.03,
+        seed_manager=seed_manager)
+
+seeds = SeedManager(2)
+engine = build_engine(seeds, 25_000)
+outcomes, events = engine.evaluate(single_draw(BASE), trace="events")
+icer_table(outcomes).round(2)
+```
+
+The frontier runs standard of care, then B at about 61,000 dollars per quality-adjusted life-year (QALY), then AB at about 99,000; A is dominated. The article's figure 4A shows the same QALY positions but costs about 20,000 dollars higher for every strategy, because its companion code accrues the transition rewards as annual rates over the whole sojourn that precedes each transition rather than as the one-time amounts Table 1 describes; this replication pays them once, the convention of the [time-dependent cohort replication](mdm-cohort-timedep.qmd).
+
+## Reading epidemiological outcomes from the event history
+
+`evaluate` with `trace="events"` returns the event history, one row per transition, and `heormodel.epi` turns it into the article's figure 3: survival probabilities and the prevalence of disease among the alive. Strategies A and standard of care share transition dynamics, as do B and AB, so their curves coincide (the engine's common random numbers make them identical, not merely close).
+
+```{python}
+from matplotlib import pyplot as plt
+from heormodel.epi import prevalence, state_occupancy, survival
+from heormodel.report import strategy_colors
+
+grid = np.linspace(0.0, HORIZON, 151)
+occ = state_occupancy(events, states=STATES, initial_state="H",
+                      n_individuals=25_000, times=grid).droplevel("iteration")
+surv = survival(occ, dead_state="D").unstack("strategy")[list(STRATEGIES)]
+prev = prevalence(occ, states=("S1", "S2"), dead_state="D").unstack("strategy")[list(STRATEGIES)]
+
+colors = strategy_colors(list(STRATEGIES))
+dashes = {"Strategy A": (4, 2), "Strategy AB": (4, 2)}
+fig, axes = plt.subplots(1, 2, figsize=(9, 3.4))
+for ax, curves, title in ((axes[0], surv, "Survival"), (axes[1], prev, "Prevalence of S1 and S2")):
+    for s in curves.columns:
+        ax.plot(AGE_START + curves.index, curves[s], lw=1.8, color=colors[s],
+                label=s, dashes=dashes.get(s, (None, None)))
+    ax.set_xlabel("Age (years)"); ax.set_ylabel("Proportion"); ax.set_title(title)
+axes[0].legend(frameon=False, fontsize=8)
+plt.show()
+```
+
+Treatment B raises survival by slowing progression into the high-mortality Sicker state, and its prevalence curve peaks near 0.38 against 0.46 under standard of care, both matching the article's figure 3. Dwell times need no new machinery: each completed sojourn is the gap between consecutive event times within an individual.
+
+```{python}
+ev = events.sort_values(["strategy", "individual", "time"])
+entered = ev.groupby(["strategy", "individual"])["time"].shift(fill_value=0.0)
+ev = ev.assign(dwell=ev["time"] - entered)
+ev.groupby(["strategy", "from_state"])["dwell"].mean().unstack("from_state").round(2)
+```
+
+Individuals spend about 6 years per stay in Healthy, under 2 in Sick, and about 14 in Sicker; B and AB delay entry into Sicker, so those sojourns start older and end sooner, as in the article's figure 3C.
+
+## Running the probabilistic analysis
+
+The probabilistic analysis draws every Table 1 distribution: gamma for rates and costs, beta for utilities, lognormal for the hazard ratios. The article specifies the Weibull scale and shape as a bivariate lognormal with correlation 0.5; two lognormal marginals with a Spearman correlation of 0.5 through the copula sampler reproduce it. The article runs 1,000 parameter sets of 100,000 individuals each; 400 sets of 2,500 individuals keep this page fast (the full script runs all 1,000), and common random numbers absorb most of the extra Monte Carlo noise in the strategy comparisons.
+
+```{python}
+from heormodel.params import Beta, Gamma, LogNormal, ParameterSet
+from heormodel.run import run_psa
+
+params = ParameterSet(
+    {
+        "r_HS1": Gamma(30.0, 1.0 / 200.0),
+        "r_S1H": Gamma(60.0, 1.0 / 120.0),
+        "r_S1S2_scale": LogNormal.from_mean_se(0.08, 0.02),
+        "r_S1S2_shape": LogNormal.from_mean_se(1.10, 0.05),
+        "hr_S1": LogNormal(np.log(3.0), 0.01),
+        "hr_S2": LogNormal(np.log(10.0), 0.02),
+        "hr_S1S2_trtB": LogNormal(np.log(0.6), 0.02),
+        "c_H": Gamma(100.0, 20.0), "c_S1": Gamma(177.8, 22.5), "c_S2": Gamma(225.0, 66.7),
+        "c_trtA": Gamma(73.5, 163.3), "c_trtB": Gamma(86.2, 150.8),
+        "u_H": Beta(200.0, 3.0), "u_S1": Beta(130.0, 45.0), "u_S2": Beta(230.0, 230.0),
+        "u_trtA": Beta(300.0, 15.0),
+        "du_HS1": Beta(11.0, 1088.0), "ic_HS1": Gamma(25.0, 40.0), "ic_D": Gamma(100.0, 20.0),
+    },
+    correlation={("r_S1S2_scale", "r_S1S2_shape"): 0.5},
+)
+draws = params.sample(400, seed=seeds.generator())
+psa = run_psa(build_engine(seeds, 2_500), draws)
+icer_table(psa).round(2)
+```
+
+The probabilistic means keep the base-case ordering. The acceptability curves, the frontier, and the expected loss curves then summarize decision uncertainty over a willingness-to-pay grid at the article's 1,000-dollar steps.
+
+```{python}
+from heormodel.cea import ceac, ceaf, expected_loss
+from heormodel.report import plot_ceac, plot_expected_loss
+from heormodel.voi import evpi
+
+wtp = np.arange(0.0, 200_001.0, 1_000.0)
+fig, axes = plt.subplots(1, 2, figsize=(9.5, 3.6))
+plot_ceac(ceac(psa, wtp), ceaf_df=ceaf(psa, wtp), ax=axes[0])
+plot_expected_loss(expected_loss(psa, wtp), ax=axes[1])
+axes[0].legend(frameon=False, fontsize=7); axes[1].legend(frameon=False, fontsize=7)
+plt.show()
+```
+
+At a willingness-to-pay of zero, each strategy's expected loss is its mean extra cost over standard of care, about 157,000 dollars for AB, 90,000 for A, and 75,000 for B, the same anchors as the article's figure 4C. The frontier switches strategy where the lowest curve changes, and the expected value of perfect information (EVPI) equals that lower envelope.
+
+```{python}
+evpi_curve = evpi(psa, wtp)
+front = ceaf(psa, wtp)
+switches = front["strategy"].ne(front["strategy"].shift()) & front.index.to_series().gt(0)
+[(float(w), round(float(evpi_curve.loc[w]))) for w in front.index[switches]]
+```
+
+The frontier switches from standard of care to B near 63,000 dollars per QALY and from B to AB near 93,000, the two thresholds where the article's figure 4 also places its EVPI peaks. The peak values here are several times the published ones. The difference is traceable: the article's companion analysis holds the treatment costs, the transition rewards, and the treatment-A utility increment at their base-case values throughout the probabilistic analysis (its parameter update matches on names the drawn set does not use), so the comparisons that hinge on those parameters carry almost no uncertainty there. With every Table 1 distribution active, more iterations flip their preferred strategy near the thresholds, and resolving that uncertainty is worth correspondingly more.
+
+Reference: Lopez-Mendez M, Goldhaber-Fiebert JD, Alarid-Escudero F. A tutorial on discrete event simulation models using a cost-effectiveness analysis example in R. Medical Decision Making. 2026;46(5):533-548.
