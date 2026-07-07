@@ -2,9 +2,9 @@
 title: Calibration workflow
 ---
 
-This tutorial mixes two parameter sources in one analysis: some parameters are calibrated to observed data, the rest come from the literature. Both feed one probabilistic sensitivity analysis that flows through cost-effectiveness and value-of-information analysis. It builds on the [full pipeline tutorial](full-pipeline.qmd) and is the narrated version of [`examples/calibration_workflow.py`](https://github.com/pedroliman/heormodel/blob/main/examples/calibration_workflow.py). Calibration needs the `calibration` extra: `uv pip install 'heormodel[calibration]'`.
+This tutorial shows how to mix two parameter sources in one analysis: some parameters are calibrated to observed data, and the rest come from the literature. Both feed one probabilistic sensitivity analysis that flows through cost-effectiveness and value-of-information analysis exactly as a single-source analysis would. It builds on the [full pipeline tutorial](full-pipeline.qmd) and walks through [`examples/calibration_workflow.py`](https://github.com/pedroliman/heormodel/blob/main/examples/calibration_workflow.py) step by step. Calibration needs the `calibration` extra: `uv pip install 'heormodel[calibration]'`.
 
-## The disease model
+## Specifying the disease model
 
 A three-state continuous-time Markov chain runs over Healthy, Sick, and Dead from age 40. Two rates are unknown and will be calibrated: the Healthy to Sick onset hazard and the excess Sick to Dead progression hazard. Treatment scales the progression hazard by `rr_progression`, a literature parameter, buying time in the Sick state. Discounted state occupancy is the closed-form integral of the transition matrix, `e0 @ inv(r I - Q)`, so no cycle loop is needed.
 
@@ -32,7 +32,7 @@ def natural_history(params):
     return out
 
 def occupancy(onset, progression):
-    """Discounted years in Healthy and Sick, vectorised over iterations."""
+    """Discounted years in Healthy and Sick, vectorized over iterations."""
     n = len(onset)
     q = np.zeros((n, 3, 3))
     q[:, 0, 0] = -(onset + MORTALITY)
@@ -44,7 +44,7 @@ def occupancy(onset, progression):
     return m[:, 0, 0], m[:, 0, 1]
 ```
 
-## Calibrate the rates
+## Calibrating the rates
 
 `abc_calibrate` runs approximate Bayesian computation (sequential Monte Carlo) against the registry targets and returns an iteration-indexed posterior draw matrix. The targets here were generated from onset 0.02 and progression 0.05, so calibration has a known answer to recover.
 
@@ -79,9 +79,9 @@ The onset and progression posteriors are strongly correlated: both raise prevale
 round(posterior["onset"].corr(posterior["progression"]), 3)
 ```
 
-## Literature parameters
+## Sampling literature parameters
 
-Utilities and costs come from the literature as mean/SE distributions, with a negative correlation between the sick-state utility and its cost.
+Utilities and costs come from the literature as mean and standard-error distributions instead, with a negative correlation between the sick-state utility and its cost.
 
 ```{python}
 from heormodel.params import Beta, Gamma, ParameterSet
@@ -98,7 +98,7 @@ literature = ParameterSet(
 lit_draws = literature.sample(N, seed=rng_lit)
 ```
 
-## Mix the two sources
+## Mixing the two sources
 
 `mix_draws` joins the sources into one matrix. It resamples whole rows within each source, so the posterior's joint correlation survives, and resamples sources independently, so no correlation is invented across them.
 
@@ -109,9 +109,9 @@ draws = mix_draws(posterior, lit_draws, n=N, seed=rng_mix)
 list(draws.columns)
 ```
 
-## Run, then analyse
+## Running the model and analyzing the outcomes
 
-From here the workflow does not depend on the source: the decision model runs over the mixed draws, and the analyses treat every column alike.
+From here the workflow does not depend on where a column came from: the decision model runs over the mixed draws exactly as it would over a single-source draw matrix, and the cost-effectiveness and value-of-information analyses that follow treat every column alike.
 
 ```{python}
 from heormodel.models import Outcomes
@@ -147,9 +147,9 @@ evppi_ranking(outcomes, draws, WTP).round(1)
 
 The treatment effect `rr_progression` leads the ranking. The calibrated rates rank at the bottom: tight calibration left them little residual uncertainty, so learning them further would barely change the decision.
 
-## Provenance across sources
+## Recording provenance across sources
 
-`capture_run` takes a `draw_sources` map so the run report records where each parameter came from.
+`capture_run` takes a `draw_sources` map so the run report records where each parameter came from, calibration or literature, which matters here since the two sources carry different kinds of uncertainty and a reviewer will want to tell them apart.
 
 ```{python}
 from heormodel.report import capture_run

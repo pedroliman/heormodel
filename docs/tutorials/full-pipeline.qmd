@@ -2,9 +2,9 @@
 title: Full pipeline
 ---
 
-This tutorial runs the workflow the engines plug into: specify parameters, sample draws, evaluate a model with `run_psa`, then feed the outcomes to cost-effectiveness and value-of-information analysis. It assumes the [bring your own outputs tutorial](byo-outputs.qmd), which covers the analysis functions in more detail. Here the focus is the run loop and its contract.
+This tutorial shows how to run the workflow every engine plugs into: specify parameters, sample draws, evaluate a model with `run_psa`, then feed the outcomes to cost-effectiveness and value-of-information analysis. [Bring your own outputs](byo-outputs.qmd) covers the analysis functions in more detail; here the focus is the run loop and its contract.
 
-## Specify and sample parameters
+## Specifying and sampling parameters
 
 Distributions are specified directly or from published mean and standard error. `ParameterSet.sample` returns a draw matrix whose index is the canonical iteration index; a Spearman rank correlation can be requested per parameter pair.
 
@@ -26,9 +26,9 @@ draws = params.sample(4_000, seed=seeds.generator())
 draws.head(3).round(3)
 ```
 
-## A model as a plain function
+## Writing a model as a plain function
 
-An engine is anything that maps draws to `Outcomes`. A plain function satisfying `ModelFn` is enough: here, a two-strategy decision tree over one year. `Outcomes.from_wide` assembles the structure from per-strategy cost and effect columns.
+An engine is anything that maps draws to `Outcomes`. A plain function satisfying `ModelFn` is enough; the one below is a two-strategy decision tree evaluated over one year. `Outcomes.from_wide` assembles the structure from per-strategy cost and effect columns.
 
 ```{python}
 import pandas as pd
@@ -47,7 +47,7 @@ def decision_tree(d: pd.DataFrame) -> Outcomes:
     return Outcomes.from_wide(costs, effects)
 ```
 
-## Run the probabilistic sensitivity analysis
+## Running the probabilistic sensitivity analysis
 
 `run_psa` evaluates the model and guarantees the outcomes carry exactly the draws' index, preserving the parameter/outcome linkage that value of information needs. It runs in parallel over all cores by default, printing a time-remaining readout when `stderr` is a terminal. This tutorial's run is tiny, so it passes `sequential=True` to run in-process and stay quiet.
 
@@ -58,7 +58,9 @@ outcomes = run_psa(decision_tree, draws, sequential=True)
 outcomes.summary().round(3)
 ```
 
-## Cost-effectiveness and value of information
+## Analyzing cost-effectiveness and value of information
+
+Nothing from here on is specific to a decision tree: the same `icer_table`, `evpi`, and `evppi_ranking` calls apply to any engine's `Outcomes`, which is why the run loop above is the part worth learning once.
 
 ```{python}
 import numpy as np
@@ -68,13 +70,15 @@ from heormodel.voi import evpi, evppi_ranking
 icer_table(outcomes).round(3)
 ```
 
+Treatment is the more expensive, more effective strategy; whether its incremental cost-effectiveness ratio stays below a given willingness-to-pay threshold, and how much resolving that uncertainty would be worth, are what EVPI and the per-parameter ranking answer next.
+
 ```{python}
 WTP = 50_000.0
 print(f"EVPI at WTP {WTP:,.0f}: {evpi(outcomes, WTP):,.2f}")
 evppi_ranking(outcomes, draws, WTP).round(2)
 ```
 
-## Convergence check
+## Checking convergence with running means
 
 `running_means` tracks the running mean of an outcome column per strategy as iterations accumulate; flat traces at the right edge suggest the iteration count is adequate for the means (value-of-information estimates typically need more).
 
@@ -84,4 +88,4 @@ from heormodel.run import running_means
 running_means(outcomes).plot(xlabel="iterations", ylabel="mean cost");
 ```
 
-The [engines](../concepts/engines.qmd) concept page explains the contract this function satisfied. Next: the [value of information](voi.qmd) tutorial takes outcomes like these through the expected value of perfect, partial perfect, and sample information, checking each against a closed form.
+The [engines](../concepts/engines.qmd) concept page explains the contract `run_psa` enforces. Next: the [value of information](voi.qmd) tutorial takes outcomes like these through the expected value of perfect, partial perfect, and sample information, checking each against a closed form.

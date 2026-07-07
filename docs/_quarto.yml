@@ -10,15 +10,21 @@ website:
   google-analytics: "G-J6M5ECXYJC"
   sidebar:
     - id: main
+      style: docked
+      search: true
       contents:
+        - href: index.qmd
+          text: Overview
+        - href: get-started.qmd
+          text: Get started
         - section: Tutorials
           contents:
-            - href: tutorials/byo-outputs.qmd
-              text: Bring your own outputs
             - href: tutorials/mdm-cohort.qmd
               text: Markov cohort model
             - href: tutorials/microsim.qmd
               text: Microsimulation engine
+            - href: tutorials/byo-outputs.qmd
+              text: Bring your own outputs
             - href: tutorials/markov-vs-microsim.qmd
               text: Markov vs microsimulation models
             - href: tutorials/des.qmd
@@ -52,46 +58,6 @@ website:
             - href: changelog.md
               text: Changelog
   navbar:
-    search: true
-    left:
-      - href: get-started.qmd
-        text: Get started
-      - text: Tutorials
-        menu:
-          - href: tutorials/byo-outputs.qmd
-            text: Bring your own outputs
-          - href: tutorials/mdm-cohort.qmd
-            text: Markov cohort model
-          - href: tutorials/microsim.qmd
-            text: Microsimulation engine
-          - href: tutorials/markov-vs-microsim.qmd
-            text: Markov vs microsimulation models
-          - href: tutorials/des.qmd
-            text: Discrete-event simulation
-          - href: tutorials/full-pipeline.qmd
-            text: Full pipeline
-          - href: tutorials/voi.qmd
-            text: Value of information
-          - href: tutorials/calibration-workflow.qmd
-            text: Calibration workflow
-          - href: tutorials/parameter-inputs.qmd
-            text: Parameter inputs from data
-          - href: tutorials/dsa.qmd
-            text: Deterministic sensitivity analysis
-      - text: Replications
-        menu:
-          - href: tutorials/replication-gallery.qmd
-            text: Replication gallery
-          - href: tutorials/mdm-cohort-timedep.qmd
-            text: Time-dependent cohort model
-          - href: tutorials/mdm-microsim.qmd
-            text: Microsimulation replication
-      - href: concepts/engines.qmd
-        text: Concepts
-      - href: reference/index.qmd
-        text: Reference
-      - href: changelog.md
-        text: Changelog
     right:
       - icon: github
         href: https://github.com/pedroliman/heormodel

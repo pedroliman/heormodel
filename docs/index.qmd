@@ -15,46 +15,90 @@ The `calibration` extra adds Bayesian calibration: `pip install "heormodel[calib
 
 ## Quickstart
 
-A probabilistic sensitivity analysis table from any source enters the analysis through one call, `as_outcomes`. From the resulting object, run incremental cost-effectiveness analysis and value of information:
+This example builds a three-state Markov cohort state-transition model comparing standard care with two treatments of different efficacy and cost, then evaluates it by probabilistic sensitivity analysis:
 
 ```{python}
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from heormodel.run import as_outcomes
-from heormodel.cea import icer_table
+from heormodel.models import CohortSpec, MarkovModel
+from heormodel.params import Beta, Gamma, ParameterSet
+from heormodel.run import SeedManager, run_psa
+from heormodel.cea import ceac, ceaf, icer_table
+from heormodel.report import plot_ce_plane, plot_ceac
 from heormodel.voi import evpi
 
-rng = np.random.default_rng(7)
-n = 2_000
-df = pd.concat(
-    pd.DataFrame({
-        "strategy": name, "iteration": range(n),
-        "cost": rng.normal(cost, 2_000, n), "qaly": rng.normal(q, 0.4, n),
-    })
-    for name, cost, q in [("Standard care", 40_000, 8.0), ("New drug", 52_000, 8.6)]
-)
+WTP = 50_000.0
 
-outcomes = as_outcomes(df)
+
+def model(p, strategy):
+    rr = {"Standard care": 1.0, "Treatment A": p["rr_a"], "Treatment B": p["rr_b"]}[strategy]
+    add_cost = {"Standard care": 0.0, "Treatment A": p["c_a"], "Treatment B": p["c_b"]}[strategy]
+    p_progress = p["p_progress"] * rr
+    # Transition matrix. Rows: current state. Columns: next state.
+    P = np.array([
+        [1 - p_progress - p["p_die"], p_progress, p["p_die"]],
+        [0.0, 1 - p["p_die_sick"], p["p_die_sick"]],
+        [0.0, 0.0, 1.0],
+    ])
+    cost = np.array([0.0, p["c_sick"], 0.0])
+    cost[:2] += add_cost
+    return CohortSpec(P, cost, np.array([1.0, p["u_sick"], 0.0]))
+
+
+engine = MarkovModel(states=("Healthy", "Sick", "Dead"),
+                     strategies=("Standard care", "Treatment A", "Treatment B"),
+                     model_fn=model, n_cycles=40)
+
+params = ParameterSet({
+    "p_progress": Beta(20, 180), "rr_a": Beta(75, 25), "rr_b": Beta(45, 55),
+    "p_die": Beta(5, 995), "p_die_sick": Beta(50, 450),
+    "c_sick": Gamma(100, 250.0), "c_a": Gamma(100, 20.0), "c_b": Gamma(100, 110.0),
+    "u_sick": Beta(150, 50),
+})
+
+draws = params.sample(2_000, seed=SeedManager(1).generator())
+outcomes = run_psa(engine, draws)
 icer_table(outcomes).round(1)
 ```
 
-The `icer_table` orders strategies by cost and reports incremental cost-effectiveness ratios along the efficiency frontier; the `status` column flags dominated (`D`) and extended-dominated (`ED`) strategies. The expected value of perfect information reads off the same object:
+The `icer_table` orders strategies by cost and reports incremental cost-effectiveness ratios along the efficiency frontier; the `status` column flags dominated (`D`) and extended-dominated (`ED`) strategies. All three strategies sit on the frontier here, with Treatment A entering near 11,000 per quality-adjusted life-year (QALY) and Treatment B near 52,000. `plot_ce_plane` scatters every iteration's incremental cost and effect against standard care, and `plot_ceac` reports the share of iterations in which each strategy has the highest net benefit, across a grid of willingness-to-pay thresholds:
 
 ```{python}
-print(f"EVPI at WTP 30,000: {evpi(outcomes, wtp=30_000):,.1f}")
+grid = np.linspace(0, 100_000, 41)
+ceac_df = ceac(outcomes, grid)
+ceaf_df = ceaf(outcomes, grid)
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+plot_ce_plane(outcomes, comparator="Standard care", wtp=WTP, ax=axes[0])
+plot_ceac(ceac_df, ceaf_df=ceaf_df, ax=axes[1])
+fig.tight_layout()
+```
+
+At a willingness-to-pay threshold of 50,000, the acceptability curves cross: the choice between Treatment A and Treatment B is close, so the expected value of perfect information (EVPI) is high there. Swept across the threshold, EVPI peaks near each ICER on the frontier, sharpest where the decision is closest:
+
+```{python}
+evpi_curve = evpi(outcomes, grid)
+print(f"EVPI at WTP {WTP:,.0f}: {evpi(outcomes, WTP):,.1f}")
+
+fig2, ax2 = plt.subplots()
+ax2.plot(grid, evpi_curve.to_numpy(), color="#333333", lw=2)
+ax2.set_xlabel("Willingness to pay")
+ax2.set_ylabel("EVPI per person")
+fig2.tight_layout()
 ```
 
 ## How it fits together
 
-One parameter object flows through swappable model engines into a shared analysis layer. Every engine returns costs and effects in one standardized structure, `Outcomes`, indexed by `(strategy, iteration)`, so `icer_table`, `ceac`, and `evpi` behave the same whether the numbers come from a spreadsheet export, a decision tree function, or a future engine. You do not need an engine to start: bring your own table, as the quickstart does.
+One parameter object flows through swappable model engines into a shared analysis layer. Every engine returns costs and effects in one standardized structure, `Outcomes`, indexed by `(strategy, iteration)`, so `icer_table`, `ceac`, and `evpi` behave the same whether the numbers come from a Markov cohort model, a microsimulation, or a spreadsheet export. You do not need an engine to start: [bring your own table](tutorials/byo-outputs.qmd) instead.
 
 [Engines](concepts/engines.qmd) covers the contract every engine satisfies and the shared iteration index that the value-of-information estimators rely on.
 
 ## Where to go next
 
 - [Get started](get-started.qmd): install and run your first analysis.
-- [Bring your own outputs](tutorials/byo-outputs.qmd): an external results table through cost-effectiveness analysis, value of information, plots, and a run report.
 - [Markov cohort model](tutorials/mdm-cohort.qmd): the standard state-transition model, then the [microsimulation engine](tutorials/microsim.qmd) as the step up in detail.
+- [Bring your own outputs](tutorials/byo-outputs.qmd): an external results table through cost-effectiveness analysis, value of information, plots, and a run report.
 - [Full pipeline](tutorials/full-pipeline.qmd): parameters, `run_psa`, cost-effectiveness analysis, and value of information end to end.
 - [Calibration workflow](tutorials/calibration-workflow.qmd): calibrate some parameters, take the rest from the literature, mix both with `mix_draws`, then run the same analyses.
 - [API reference](reference/index.qmd): every public function, generated from docstrings.

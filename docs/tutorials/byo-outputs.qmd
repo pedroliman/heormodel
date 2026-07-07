@@ -2,11 +2,11 @@
 title: Bring your own outputs
 ---
 
-This tutorial walks the adoption wedge of `heormodel` end to end: a costs and effects table from any external model's probabilistic sensitivity analysis is loaded with `as_outcomes` and driven through cost-effectiveness analysis, value of information, plots, and a run report, without touching a model engine. It is the narrated version of [`examples/byoo_example.py`](https://github.com/pedroliman/heormodel/blob/main/examples/byoo_example.py). It assumes you have [installed `heormodel`](../get-started.qmd).
+This tutorial shows how to take a costs-and-effects table computed outside `heormodel`, a spreadsheet export or a legacy simulator's output, and run it through the complete analysis: cost-effectiveness, value of information, plots, and a reproducibility record, without building a model engine. This page walks through [`examples/byoo_example.py`](https://github.com/pedroliman/heormodel/blob/main/examples/byoo_example.py) step by step. Install `heormodel` first: [get started](../get-started.qmd).
 
-## An external results table
+## Simulating an external results table
 
-Three strategies for a chronic disease: standard of care, a new drug, and drug plus monitoring. To stand in for a spreadsheet export or a legacy simulator, we synthesise the table from sampled parameters, so the value-of-information results later are traceable to known drivers.
+Three strategies compete for a chronic disease: standard of care, a new drug, and drug plus monitoring. A real analysis would load this table from a spreadsheet or a legacy simulator's output; here it is synthesized from sampled parameters instead, so that the value-of-information results computed later can be traced back to the parameters that drive them.
 
 ```{python}
 import numpy as np
@@ -43,16 +43,18 @@ rows = pd.concat([
 ])
 ```
 
-## One call into the standard structure
+## Converting the table to the standard structure
 
-`as_outcomes` accepts a `DataFrame` or a CSV path and returns `Outcomes`, the structure every analysis consumes.
+`as_outcomes` accepts a `DataFrame` or a CSV path with `strategy`, `iteration`, `cost`, and effect columns, and returns `Outcomes`, the structure every analysis function below consumes. Converting once here means `icer_table`, the acceptability curves, the value-of-information estimators, and the plots all take the same object, regardless of where the numbers originally came from.
 
 ```{python}
 outcomes = as_outcomes(rows)
 outcomes.summary().round(2)
 ```
 
-## Cost-effectiveness analysis
+## Running the cost-effectiveness analysis
+
+`icer_table` orders strategies by cost and reports incremental cost-effectiveness ratios along the efficiency frontier.
 
 ```{python}
 from heormodel.cea import ceac, ceaf, icer_table
@@ -60,7 +62,7 @@ from heormodel.cea import ceac, ceaf, icer_table
 icer_table(outcomes).round(3)
 ```
 
-The table orders strategies by cost and reports incremental results along the efficiency frontier. The `status` column marks dominated (`D`) and extended-dominated (`ED`) strategies; here all three are non-dominated (`ND`), and the willingness-to-pay threshold of 30,000 sits between the two frontier incremental cost-effectiveness ratios, so the decision is genuinely uncertain.
+The `status` column marks dominated (`D`) and extended-dominated (`ED`) strategies; here all three are non-dominated (`ND`), and the willingness-to-pay threshold of 30,000 sits between the two frontier incremental cost-effectiveness ratios, so the decision is genuinely uncertain. `ceac` and `ceaf` turn that uncertainty into acceptability curves across a grid of thresholds, reused below in the plots and the value-of-information ranking.
 
 ```{python}
 grid = np.linspace(0, 80_000, 51)
@@ -68,9 +70,9 @@ ceac_df = ceac(outcomes, grid)
 ceaf_df = ceaf(outcomes, grid)
 ```
 
-## Value of information
+## Ranking parameters by their value of information
 
-The expected value of perfect information at the willingness-to-pay threshold, then a per-parameter ranking of the expected value of partial perfect information for research prioritisation. The ranking needs the draw matrix, linked to outcomes by the shared iteration index.
+The expected value of perfect information (EVPI) puts a monetary value, at the willingness-to-pay threshold, on resolving every remaining source of uncertainty at once. `evppi_ranking` breaks that value down by parameter instead, so a research budget can target whichever one drives the decision the most; it needs the draw matrix as well as the outcomes, linked to it by the shared iteration index.
 
 ```{python}
 from heormodel.voi import evpi, evppi_ranking
@@ -79,7 +81,9 @@ print(f"EVPI at WTP {WTP:,.0f}: {evpi(outcomes, WTP):,.1f}")
 evppi_ranking(outcomes, draws, WTP).round(1)
 ```
 
-## Plots
+## Plotting the frontier, acceptability, and tornado
+
+The cost-effectiveness plane scatters every iteration's incremental cost and effect against a comparator, so the spread of the cloud shows the uncertainty that the table's point estimates alone cannot.
 
 ```{python}
 from heormodel.report import plot_ce_plane, plot_ceac, plot_frontier, plot_tornado, tornado_data
@@ -87,18 +91,22 @@ from heormodel.report import plot_ce_plane, plot_ceac, plot_frontier, plot_torna
 plot_ce_plane(outcomes, comparator="Standard care", wtp=WTP);
 ```
 
+The acceptability curves plot the same probabilities computed above as one line per strategy against the threshold, making the crossover in the decision visible at a glance.
+
 ```{python}
 plot_ceac(ceac_df, ceaf_df=ceaf_df);
 ```
+
+A tornado plot instead breaks down the uncertainty in one comparison, new drug against standard care, by parameter, ranking each by how much it moves the incremental net benefit at the threshold.
 
 ```{python}
 td = tornado_data(outcomes, draws, WTP, strategy="New drug", comparator="Standard care")
 plot_tornado(td);
 ```
 
-## Reproducibility record
+## Recording the run for reproducibility
 
-`capture_run` snapshots the seed, parameter specs, and outcome shape; the record serialises to JSON and renders a run report.
+`capture_run` snapshots the seed, the parameter specifications, and the outcome shape into a record that serializes to JSON and renders as a run report, so a later reviewer can check what produced these numbers without rerunning the analysis.
 
 ```{python}
 from heormodel.report import capture_run

@@ -2,11 +2,11 @@
 title: Parameter inputs from data
 ---
 
-Not every analysis starts from `ParameterSet` distributions. Some run at one base-case set of point values, some carry a draw matrix exported from another tool, and some carry a posterior sample with weights. This tutorial covers the three `heormodel.params` entry points that turn each source into a parameter draw matrix: `single_draw` (with `ParameterSet.at_means`), `read_draws`, and `resample_posterior`. It is the narrated version of [`examples/parameter_inputs.py`](https://github.com/pedroliman/heormodel/blob/main/examples/parameter_inputs.py). It assumes you have read [bring your own outputs](byo-outputs.qmd), which is the analogue on the outcome side. The rule that governs all three: once the result is a draw matrix with an `iteration` index and numeric columns, `run_psa` does not care where it came from.
+Not every analysis starts from `ParameterSet` distributions: some run at one base-case set of point values, some carry a draw matrix exported from another tool, and some carry a posterior sample with weights. This tutorial shows how to turn each of those three sources into a parameter draw matrix with `single_draw` (via `ParameterSet.at_means`), `read_draws`, and `resample_posterior`. It walks through [`examples/parameter_inputs.py`](https://github.com/pedroliman/heormodel/blob/main/examples/parameter_inputs.py) step by step; [bring your own outputs](byo-outputs.qmd) is the analogue on the outcome side. All three converge on the same rule: once the result is a draw matrix with an `iteration` index and numeric columns, `run_psa` does not care where it came from.
 
-## A model to run
+## Specifying a model to run
 
-Two strategies for a chronic disease, standard care versus a new drug, with cost and quality-adjusted life-years (QALYs) per iteration as simple functions of three parameters.
+Two strategies compete for a chronic disease, standard care and a new drug; cost and quality-adjusted life-years (QALYs) per iteration are simple functions of three parameters.
 
 ```{python}
 import numpy as np
@@ -39,18 +39,18 @@ params = ParameterSet(
 )
 ```
 
-## Base case: one set of point values
+## Running a base case at one set of point values
 
-`ParameterSet.at_means` returns the analytic means as a one-row draw matrix at iteration 0, the deterministic run that sits next to the probabilistic analysis. It is `single_draw(params.means().to_dict())`; call `single_draw` directly when the point values come from elsewhere.
+`ParameterSet.at_means` returns the analytic means as a one-row draw matrix at iteration 0, giving the deterministic run that a probabilistic analysis is usually checked against. It is `single_draw(params.means().to_dict())` underneath; call `single_draw` directly when the point values come from somewhere other than a `ParameterSet`, a published base case, for instance.
 
 ```{python}
 base = params.at_means()
 run_psa(model, base).summary().round(2)
 ```
 
-## A draw matrix from another tool
+## Reading a draw matrix from another tool
 
-`read_draws` validates a CSV path or a DataFrame as a draw matrix. It honours an explicit `iteration` column and otherwise assigns a fresh index; a non-numeric column raises an error before it reaches the model. Here we write a sampled matrix to CSV to stand in for an external export, then read it back.
+`read_draws` validates a CSV path or a `DataFrame` as a draw matrix. It honors an explicit `iteration` column and otherwise assigns a fresh index; a non-numeric column raises an error before it reaches the model, so a malformed export fails at the boundary rather than inside the analysis. The code below writes a sampled matrix to CSV to stand in for an external tool's export, then reads it back the way a real export would be read.
 
 ```{python}
 external = params.sample(2_000, seed=1)
@@ -59,19 +59,19 @@ csv_draws = read_draws("external_draws.csv", iteration="iteration")
 run_psa(model, csv_draws).summary().round(2)
 ```
 
-## A weighted posterior
+## Resampling a weighted posterior
 
-A calibration or a bootstrap may hand back parameter rows with a weight column. `resample_posterior` draws whole rows with replacement in proportion to the weights, so any correlation in the posterior survives, then drops the weight column. Resampling to an `n` larger than the input adds no information; it only smooths Monte Carlo noise in downstream expectations.
+A calibration or a bootstrap may hand back parameter rows with a weight column instead of an already-uniform sample. `resample_posterior` draws whole rows with replacement in proportion to the weights, so any correlation between parameters in the posterior survives, then drops the weight column, giving a plain draw matrix `run_psa` can consume. Resampling to an `n` larger than the input adds no information; it only smooths Monte Carlo noise in downstream expectations.
 
 ```{python}
 grid = params.sample(500, seed=2)
-grid["weight"] = np.exp(4.0 * grid["p_response"])  # favour higher response
+grid["weight"] = np.exp(4.0 * grid["p_response"])  # favor higher response
 posterior = resample_posterior(grid, n=2_000, seed=7)
 print(f"grid mean p_response {grid['p_response'].mean():.3f}, "
       f"resample mean {posterior['p_response'].mean():.3f}")
 run_psa(model, posterior).summary().round(2)
 ```
 
-The resampled mean of `p_response` sits above the unweighted grid mean, because the weights favour higher values, and the reweighting raises the new drug's expected QALYs.
+The resampled mean of `p_response` sits above the unweighted grid mean, because the weights favor higher values, and the reweighting raises the new drug's expected QALYs.
 
 The [calibration workflow](calibration-workflow.qmd) produces such a posterior with `abc_calibrate` and mixes it with literature draws through `mix_draws`. Next: [deterministic sensitivity analysis](dsa.qmd) sweeps parameters one at a time through the same run loop.

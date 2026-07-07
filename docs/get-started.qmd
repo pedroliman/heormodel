@@ -2,9 +2,9 @@
 title: Get started
 ---
 
-This page installs `heormodel` and runs a first analysis on an existing probabilistic sensitivity analysis table. It assumes Python 3.11 or newer. For a narrated analysis, continue to the [bring your own outputs tutorial](tutorials/byo-outputs.qmd).
+This page shows how to install `heormodel` and run a first probabilistic cost-effectiveness analysis on a results table you already have, without writing any model code. It requires Python 3.11 or newer. For the same analysis worked through in full, continue to the [bring your own outputs tutorial](tutorials/byo-outputs.qmd).
 
-## Install
+## Installing the package
 
 With [uv](https://docs.astral.sh/uv/):
 
@@ -20,9 +20,9 @@ pip install heormodel
 
 The `calibration` extra adds Bayesian calibration via `pyabc`: `uv add "heormodel[calibration]"`.
 
-## Bring your own outputs
+## Analyzing a results table you already have
 
-You do not need a model engine to use `heormodel`. Any costs/effects table with `strategy`, `iteration`, `cost`, and `qaly` columns (a spreadsheet export, a legacy simulator's output) enters the analysis through `as_outcomes`:
+`heormodel` does not require a model engine. Any costs-and-effects table with `strategy`, `iteration`, `cost`, and `qaly` columns, whether it came from a spreadsheet export or a legacy simulator, enters the analysis through `as_outcomes`. The code below builds such a table from three synthetic strategies to stand in for that external source:
 
 ```{python}
 import numpy as np
@@ -41,25 +41,27 @@ df = pd.concat(
     for name, cost, q in [("A", 30_000, 7.0), ("B", 38_000, 7.4), ("C", 55_000, 7.5)]
 )
 
-outcomes = as_outcomes(df)          # accepts a DataFrame or a CSV path
+outcomes = as_outcomes(df)  # also reads a CSV path directly
 icer_table(outcomes).round(1)
 ```
 
-The incremental analysis reports incremental cost-effectiveness ratios along the efficiency frontier; the `status` column marks dominated (`D`) and extended-dominated (`ED`) strategies, and here all three are non-dominated (`ND`). From the same object, acceptability curves and value of information:
+`icer_table` orders strategies by cost and reports incremental cost-effectiveness ratios along the efficiency frontier. The `status` column marks dominated (`D`) and extended-dominated (`ED`) strategies; here all three are non-dominated (`ND`), so the right choice depends on how much the decision maker is willing to pay per quality-adjusted life-year (QALY). `ceac` answers that directly: for each threshold on a grid, it reports the share of iterations in which each strategy has the highest net benefit.
 
 ```{python}
 curves = ceac(outcomes, np.linspace(0, 100_000, 41))
 curves.iloc[::10].round(3)
 ```
 
+The expected value of perfect information (EVPI) turns that remaining uncertainty into a single number, at a chosen threshold: how much a decision maker should be willing to pay to resolve it entirely.
+
 ```{python}
 print(f"EVPI at WTP 50,000: {evpi(outcomes, wtp=50_000):,.1f}")
 ```
 
-`as_outcomes` also reads a CSV path directly, and column names are remappable via keyword arguments; see [`as_outcomes`](reference/as_outcomes.qmd).
+Column names are remappable via keyword arguments if a table does not already use `strategy`, `iteration`, `cost`, and `qaly`; see [`as_outcomes`](reference/as_outcomes.qmd).
 
 ## Next steps
 
-- [Bring your own outputs](tutorials/byo-outputs.qmd): the same wedge, expanded to plots, a value-of-information ranking, and a run report.
+- [Bring your own outputs](tutorials/byo-outputs.qmd): the same analysis, expanded to plots, a value-of-information ranking, and a run report.
 - [Markov cohort model](tutorials/mdm-cohort.qmd): the standard state-transition model, run through the same analysis. The [microsimulation engine](tutorials/microsim.qmd) is the step up in detail after it.
 - [Engines](concepts/engines.qmd): the contract every engine satisfies.

@@ -2,9 +2,9 @@
 title: Microsimulation replication
 ---
 
-This page reproduces the Sick-Sicker microsimulation of Krijkamp and others (2018) with `MicrosimModel`. It assumes the [microsimulation engine tutorial](microsim.qmd). Full script: [`examples/mdm_microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_microsim.py).
+This tutorial shows how to reproduce the Sick-Sicker microsimulation of Krijkamp and others (2018) with `MicrosimModel`, building on the [microsimulation engine tutorial](microsim.qmd). Full script: [`examples/mdm_microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_microsim.py).
 
-## Why an individual-level model
+## Modeling duration-dependent risk and a treatment effect modifier
 
 Two features rule out a cohort average: mortality rises with the number of consecutive years spent in the Sick and Sicker states, and a per-individual effect modifier scales the treatment utility. The duration clock keeps running across the Sick to Sicker progression, so the engine tracks it with `duration_groups`, a counter over a set of states that `time_in_state` (one exact state) cannot express. The counter is 0 on the first sick cycle; mortality reads it as `dur + 1` and utility reads it directly.
 
@@ -48,9 +48,9 @@ def payoffs(p, state, attrs):
     return cost, util
 ```
 
-## Run and compare
+## Running the base case and comparing strategies
 
-The base-case parameters drive both arms through common random numbers with 50,000 individuals (the source used 100,000).
+The base-case parameters drive both arms through common random numbers, with 50,000 individuals rather than the source's 100,000, which trades some Monte Carlo precision for a faster run.
 
 ```{python}
 from heormodel.cea import icer_table

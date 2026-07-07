@@ -2,7 +2,7 @@
 title: Engines
 ---
 
-This page explains the engine side of the contract: what `ModelEngine` requires, why engines share outputs rather than an implementation, and where the built-in engines stand. It assumes the [quickstart](../index.qmd), which introduces the `Outcomes` structure those engines return.
+This page explains the engine side of the contract: what `ModelEngine` requires, why engines share outputs rather than an implementation, and where the built-in engines stand. The [quickstart](../index.qmd) introduces the `Outcomes` structure those engines return.
 
 ## A contract on outputs, not internals
 
@@ -33,6 +33,6 @@ A plain function `draws -> Outcomes` works too; the name `ModelFn` refers to tha
 
 ## The built-in engines
 
-Phase 1 fixed the contract; the engines followed in priority order and are now built. `MarkovModel` sweeps a cohort trace across iterations with constant or per-cycle (age-varying) transition arrays, per-state and per-transition rewards, and a choice of within-cycle correction. `MicrosimModel` advances an individual-level population on a cycle grid (`clock="discrete"`) or races competing time-to-event samplers between events (`clock="continuous"`). `DESModel` builds on SimPy for discrete-event models where entities queue for scarce resources; the SimPy environment, processes, and resources stay the user's code, and the engine adds discounted accrual, seeding, and an event log. All configure once and evaluate on draws, and share the accrual and discounting helpers in `heormodel.models._accrual`. The [cohort](../tutorials/mdm-cohort.qmd), [microsimulation](../tutorials/microsim.qmd), and [discrete-event](../tutorials/des.qmd) tutorials run them end to end, and the [replication gallery](../tutorials/replication-gallery.qmd) reproduces published results with them.
+Three built-in engines cover the model types used in cost-effectiveness analysis, and all three configure once and evaluate on draws. `MarkovModel` sweeps a cohort trace across iterations with constant or per-cycle (age-varying) transition arrays, per-state and per-transition rewards, and a choice of within-cycle correction. `MicrosimModel` advances an individual-level population on a cycle grid (`clock="discrete"`) or races competing time-to-event samplers between events (`clock="continuous"`), which lets it represent history and heterogeneity that a cohort trace averages away. `DESModel` builds on SimPy for discrete-event models where entities queue for scarce resources; the SimPy environment, processes, and resources stay the user's code, and the engine adds discounted accrual, seeding, and an event log. All three share the accrual and discounting helpers in `heormodel.models._accrual`, so a change to how discounting works reaches every engine at once. The [cohort](../tutorials/mdm-cohort.qmd), [microsimulation](../tutorials/microsim.qmd), and [discrete-event](../tutorials/des.qmd) tutorials run them end to end, and the [replication gallery](../tutorials/replication-gallery.qmd) reproduces published results with them.
 
 Because analyses consume only the outcome structure, everything downstream of an engine already works, so each engine ships against a stable analysis layer and a documented contract.

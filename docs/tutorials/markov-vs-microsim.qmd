@@ -2,11 +2,11 @@
 title: Markov vs microsimulation models
 ---
 
-This tutorial builds one Sick-Sicker-style model twice, as a `MarkovModel` cohort trace and as a `MicrosimModel` individual simulation, from the same transition rates and rewards. It does two things: cross-validate the two engines against each other, and show what a microsimulation represents that a cohort model averages away. It assumes the [cohort state-transition tutorial](mdm-cohort.qmd) and the [microsimulation engine tutorial](microsim.qmd). The full script is [`examples/markov_vs_microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/markov_vs_microsim.py).
+This tutorial shows how to build one Sick-Sicker-style model twice, as a `MarkovModel` cohort trace and as a `MicrosimModel` individual simulation, from the same transition rates and rewards, in order to cross-validate the two engines against each other and show what a microsimulation represents that a cohort model averages away. It builds on the [cohort state-transition tutorial](mdm-cohort.qmd) and the [microsimulation engine tutorial](microsim.qmd). The full script is [`examples/markov_vs_microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/markov_vs_microsim.py).
 
-## One model, two engines
+## Specifying one model for two engines
 
-The model is progressive: Healthy, Sick, Sicker, Dead over 40 annual cycles. Onset, progression, and death are competing annual hazards; each cycle's transition probabilities come from the same function for both engines, so any difference between them is Monte Carlo noise, not a coding difference. Frailty `z` multiplies the progression and mortality hazards. The cohort runs at `z = 1`.
+The model is progressive, with four states, Healthy, Sick, Sicker, and Dead, over 40 annual cycles. Onset, progression, and death are competing annual hazards; each cycle's transition probabilities come from the same `hazards` function for both engines, so any difference between the two engines' results is Monte Carlo noise, not a coding difference between two separately written models. Frailty `z` multiplies the progression and mortality hazards, and the cohort runs at `z = 1`, the population average.
 
 ```{python}
 import numpy as np
@@ -67,9 +67,9 @@ cohort = MarkovModel(states=STATES, strategies=("Standard of care",), model_fn=c
 cohort.evaluate(draws).summary().round(3)
 ```
 
-## Identical assumptions converge
+## Cross-validating the two engines
 
-With a memoryless, homogeneous population the microsimulation mean approaches the cohort trace as the population grows. This is the cross-validation: two independent implementations agree, so both are trusted.
+With a memoryless, homogeneous population, the microsimulation mean should approach the cohort trace as the population grows; if it did not, one of the two implementations would have a bug. The check below runs the microsimulation at increasing population sizes and compares each to the cohort trace computed above.
 
 ```{python}
 rows = [dict(n=n, **run_psa(microsim(n, 0.0), draws, sequential=True)
@@ -77,22 +77,22 @@ rows = [dict(n=n, **run_psa(microsim(n, 0.0), draws, sequential=True)
 pd.DataFrame(rows).set_index("n").round(3)
 ```
 
-The cohort trace gives 78,614 dollars and 11.740 quality-adjusted life-years. At 40,000 individuals the microsimulation lands within half a percent of both, and the gap shrinks with the population. The two engines are the same model.
+The cohort trace gives 78,614 dollars and 11.740 quality-adjusted life-years. At 40,000 individuals the microsimulation lands within half a percent of both, and the gap shrinks further as the population grows. The two engines agree because they are, mathematically, the same model.
 
-## Heterogeneity breaks the cohort assumption
+## Adding heterogeneous frailty
 
-Now give each individual a frailty `z` drawn from a Gamma distribution with mean 1 and variance 0.5, multiplying the progression and mortality hazards. The mean hazard is unchanged, so the cohort model, which tracks the average person, is untouched. The microsimulation mean is not.
+This section assigns each individual a frailty `z`, drawn from a Gamma distribution with mean 1 and variance 0.5, that multiplies the progression and mortality hazards. The mean hazard across the population is unchanged, so the cohort model, which tracks only the average person, produces the same result as before. The microsimulation does not, because it tracks each individual rather than the average.
 
 ```{python}
 het = run_psa(microsim(40_000, 0.5), draws, sequential=True).summary()
 het.round(3)
 ```
 
-Quality-adjusted life-years rise by about 8% and cost by about 2% against the cohort trace, on identical mean rates. The reason is frailty selection: an individual's survival curve bends non-linearly in the hazard, and the frail die early while the rest accumulate life-years, so the population outlives the cohort built on the average hazard. The average of a survival curve is not the survival curve of the average hazard. This gap is a property of the model, not a bug, and it is the reason to reach for a microsimulation when risk is heterogeneous.
+Quality-adjusted life-years rise by about 8% and cost by about 2% against the cohort trace, even though the mean rates are identical. The reason is frailty selection: individuals with higher frailty die sooner, so the survivors are increasingly drawn from the lower-frailty part of the population, and this survivor group lives longer on average than a cohort model, which tracks a single average-frailty person throughout, would predict. This gap is a property of the model, not a bug, and it is why a microsimulation is the right model type to use when risk is heterogeneous.
 
-## What else the microsimulation buys
+## Representing history with duration groups
 
-The same machinery carries history. Let mortality in the sick states rise 8% per year already spent sick, a `duration_groups` counter the cohort holds only by adding tunnel states.
+The same machinery also carries history, which the frailty example above did not need. This section makes mortality in the sick states rise 8% for every year already spent sick. A cohort model can only represent that by adding a tunnel state for each duration bucket, since a Markov transition cannot depend on how long an individual has already been in a state; the microsimulation instead tracks a `duration_groups` counter per individual and reads it directly in the transition function, without restructuring the state space.
 
 ```{python}
 def hist_transition(p, state, attrs, rng):
