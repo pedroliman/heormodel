@@ -88,15 +88,8 @@ ax2.set_ylabel("EVPI per person")
 fig2.tight_layout()
 ```
 
-## How it fits together
-
-One parameter object flows through swappable model engines into a shared analysis layer. Every engine returns costs and effects in one standardized structure, `Outcomes`, indexed by `(strategy, iteration)`, so `icer_table`, `ceac`, and `evpi` behave the same whether the numbers come from a Markov cohort model, a microsimulation, or a spreadsheet export. You do not need an engine to start: [bring your own table](tutorials/byo-outputs.qmd) instead.
-
-[Engines](concepts/engines.qmd) covers the contract every engine satisfies and the shared iteration index that the value-of-information estimators rely on.
-
 ## Where to go next
 
-- [Get started](get-started.qmd): install and run your first analysis.
 - [Markov cohort model](tutorials/mdm-cohort.qmd): the standard state-transition model, then the [microsimulation engine](tutorials/microsim.qmd) as the step up in detail.
 - [Bring your own outputs](tutorials/byo-outputs.qmd): an external results table through cost-effectiveness analysis, value of information, plots, and a run report.
 - [Full pipeline](tutorials/full-pipeline.qmd): parameters, `run_psa`, cost-effectiveness analysis, and value of information end to end.

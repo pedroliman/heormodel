@@ -5,29 +5,27 @@
 [![PyPI](https://img.shields.io/pypi/v/heormodel.svg)](https://pypi.org/project/heormodel/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`heormodel` is a python decision-analytic modeling framework for health economic evaluation and health technology assessment.
+`heormodel` is a Python decision-analytic modeling framework for health economic evaluation and health technology assessment.
 
-`heormodel` is a one-stop-shop for your cost-effectiveness analysis. It supports probabilistic parameter specification for a range of models including: markov cohort state-transition models, microsimulation models, and discrete-event simulation models. The package supports the canonical cost-effectiveness analysis workflow, ICERs table, and value-of-information analysis. If you are not ready to port your model to python, the package also supports bringing in your model results directly into the package.
+`heormodel` covers the full cost-effectiveness analysis workflow in one package. It supports probabilistic parameter specification for a range of models: Markov cohort state-transition models, microsimulation models, and discrete-event simulation models. It builds the incremental cost-effectiveness ratio (ICER) table and runs value-of-information analysis. If you are not ready to port your model to Python, you can also bring your existing model results directly into the package.
 
 Read more in the documentation: [pedroliman.github.io/heormodel](https://pedroliman.github.io/heormodel/)
 
 ## Install
 
-If you are new to python, I recommend installing your python using [uv](https://docs.astral.sh/uv/guides/install-python/). Once you have a working python installation, run this from your terminal within your project's folder:
+If you are new to Python, I recommend installing it with [uv](https://docs.astral.sh/uv/guides/install-python/). Once you have a working Python installation, run this from your terminal within your project's folder:
 
 ```bash
 pip install heormodel
 # or using uv, which I prefer:
-# (run this only time)
-uv init 
+# (run uv init once)
+uv init
 uv add heormodel
 ```
 
 ## Quickstart
 
-Here is a quick example to get you started: A three-state markov cohort state-transition model comparing treatment with standard care, evaluated by probabilistic sensitivity analysis. This code builds the model runs it and reports the ICER table and the expected value of perfect information.
-
-The whole point 
+Here is a quick example to get you started: a three-state Markov cohort state-transition model comparing treatment with standard care, evaluated by probabilistic sensitivity analysis. This code builds the model, runs it, and reports the ICER table and the expected value of perfect information.
 
 ```python
 import numpy as np
@@ -52,7 +50,7 @@ def model(p, strategy):
         cost[:2] += p["c_treat"]
     return CohortSpec(P, cost, np.array([1.0, p["u_sick"], 0.0]))
 
-# create your MarkovModel engine with heormodel's MarkovModel engine.
+# create the MarkovModel engine.
 engine = MarkovModel(states=("Healthy", "Sick", "Dead"),
                      strategies=("Standard care", "Treatment"),
                      model_fn=model, n_cycles=40)
@@ -71,7 +69,7 @@ draws = params.sample(1000, seed=SeedManager(1).generator())
 # run your model over your parameters.
 outcomes = run_psa(engine, draws)
 
-# Get a *nice* ICER table (pun intended)
+# Get the ICER table.
 icer_table(outcomes).round(1)
 #                    cost  effect  inc_cost  inc_effect     icer status
 # strategy
@@ -83,7 +81,7 @@ round(evpi(outcomes, wtp=50_000), 1)
 # 2738.7
 ```
 
-Once you master this workflow, you can do a lot more with the package, like defining microsimulations and even DES. The package also has a nice calibration function you can use the calibrate some parameters, take others from the literature, then run a full PSA. 
+Once you master this workflow, you can do a lot more with the package, like defining microsimulations and discrete-event simulation models. The package also has a calibration function you can use to calibrate some parameters, take others from the literature, then run a full probabilistic sensitivity analysis.
 
 ## Development
 
