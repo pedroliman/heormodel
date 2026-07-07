@@ -2,7 +2,7 @@
 title: Bring your own outputs
 ---
 
-This tutorial walks the adoption wedge of `heormodel` end to end: a costs and effects table from any external model's probabilistic sensitivity analysis is loaded with `as_outcomes` and driven through cost-effectiveness analysis, value of information, plots, and a run report, without touching a model engine. It is the narrated version of [`examples/byoo_example.py`](https://github.com/pedroliman/heormodel/blob/main/examples/byoo_example.py). It assumes you have [installed `heormodel`](../get-started.qmd).
+This tutorial walks the adoption wedge of `heormodel` end to end: a costs and effects table from any external model's probabilistic sensitivity analysis is loaded with `as_outcomes` and driven through cost-effectiveness analysis, value of information, plots, and a run report, without touching a model engine. It is the narrated version of [`examples/byoo_example.py`](https://github.com/pedroliman/heormodel/blob/main/examples/byoo_example.py). Install `heormodel` first: [get started](../get-started.qmd).
 
 ## An external results table
 

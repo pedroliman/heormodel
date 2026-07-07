@@ -2,7 +2,7 @@
 title: Cohort state-transition model
 ---
 
-This page reproduces the introductory Sick-Sicker cohort state-transition analysis of Alarid-Escudero and others (2023) with `MarkovModel`, then runs its probabilistic sensitivity analysis through the same analysis layer. It assumes the [bring your own outputs tutorial](byo-outputs.qmd). Full script: [`examples/mdm_cohort.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_cohort.py); companion replications: [replication gallery](replication-gallery.qmd).
+This page reproduces the introductory Sick-Sicker cohort state-transition analysis of Alarid-Escudero and others (2023) with `MarkovModel`, then runs its probabilistic sensitivity analysis through the same analysis layer. Full script: [`examples/mdm_cohort.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_cohort.py); companion replications: [replication gallery](replication-gallery.qmd).
 
 ## The model
 

@@ -2,7 +2,7 @@
 title: Markov vs microsimulation models
 ---
 
-This tutorial builds one Sick-Sicker-style model twice, as a `MarkovModel` cohort trace and as a `MicrosimModel` individual simulation, from the same transition rates and rewards. It does two things: cross-validate the two engines against each other, and show what a microsimulation represents that a cohort model averages away. It assumes the [cohort state-transition tutorial](mdm-cohort.qmd) and the [microsimulation engine tutorial](microsim.qmd). The full script is [`examples/markov_vs_microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/markov_vs_microsim.py).
+This tutorial builds one Sick-Sicker-style model twice, as a `MarkovModel` cohort trace and as a `MicrosimModel` individual simulation, from the same transition rates and rewards. It does two things: cross-validate the two engines against each other, and show what a microsimulation represents that a cohort model averages away, building on the [cohort state-transition tutorial](mdm-cohort.qmd) and the [microsimulation engine tutorial](microsim.qmd). The full script is [`examples/markov_vs_microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/markov_vs_microsim.py).
 
 ## One model, two engines
 

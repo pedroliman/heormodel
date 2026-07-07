@@ -2,7 +2,7 @@
 title: Engines
 ---
 
-This page explains the engine side of the contract: what `ModelEngine` requires, why engines share outputs rather than an implementation, and where the built-in engines stand. It assumes the [quickstart](../index.qmd), which introduces the `Outcomes` structure those engines return.
+This page explains the engine side of the contract: what `ModelEngine` requires, why engines share outputs rather than an implementation, and where the built-in engines stand. The [quickstart](../index.qmd) introduces the `Outcomes` structure those engines return.
 
 ## A contract on outputs, not internals
 

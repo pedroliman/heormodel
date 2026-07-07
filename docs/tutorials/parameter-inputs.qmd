@@ -2,7 +2,7 @@
 title: Parameter inputs from data
 ---
 
-Not every analysis starts from `ParameterSet` distributions. Some run at one base-case set of point values, some carry a draw matrix exported from another tool, and some carry a posterior sample with weights. This tutorial covers the three `heormodel.params` entry points that turn each source into a parameter draw matrix: `single_draw` (with `ParameterSet.at_means`), `read_draws`, and `resample_posterior`. It is the narrated version of [`examples/parameter_inputs.py`](https://github.com/pedroliman/heormodel/blob/main/examples/parameter_inputs.py). It assumes you have read [bring your own outputs](byo-outputs.qmd), which is the analogue on the outcome side. The rule that governs all three: once the result is a draw matrix with an `iteration` index and numeric columns, `run_psa` does not care where it came from.
+Not every analysis starts from `ParameterSet` distributions. Some run at one base-case set of point values, some carry a draw matrix exported from another tool, and some carry a posterior sample with weights. This tutorial covers the three `heormodel.params` entry points that turn each source into a parameter draw matrix: `single_draw` (with `ParameterSet.at_means`), `read_draws`, and `resample_posterior`. It is the narrated version of [`examples/parameter_inputs.py`](https://github.com/pedroliman/heormodel/blob/main/examples/parameter_inputs.py). [Bring your own outputs](byo-outputs.qmd) is the analogue on the outcome side. The rule that governs all three: once the result is a draw matrix with an `iteration` index and numeric columns, `run_psa` does not care where it came from.
 
 ## A model to run
 

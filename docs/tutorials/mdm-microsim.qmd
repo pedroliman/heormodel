@@ -2,7 +2,7 @@
 title: Microsimulation replication
 ---
 
-This page reproduces the Sick-Sicker microsimulation of Krijkamp and others (2018) with `MicrosimModel`. It assumes the [microsimulation engine tutorial](microsim.qmd). Full script: [`examples/mdm_microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_microsim.py).
+This page reproduces the Sick-Sicker microsimulation of Krijkamp and others (2018) with `MicrosimModel`, building on the [microsimulation engine tutorial](microsim.qmd). Full script: [`examples/mdm_microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_microsim.py).
 
 ## Why an individual-level model
 

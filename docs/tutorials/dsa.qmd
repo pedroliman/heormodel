@@ -2,7 +2,7 @@
 title: Deterministic sensitivity analysis
 ---
 
-Probabilistic sensitivity analysis answers how uncertain a decision is; deterministic sensitivity analysis (DSA) answers which parameters move the result and by how much. This tutorial runs the deterministic forms on the same Sick-Sicker cohort model the [cohort tutorial](mdm-cohort.qmd) uses for its probabilistic analysis, so the two read as a pair. It assumes that tutorial. The full script is [`examples/dsa.py`](https://github.com/pedroliman/heormodel/blob/main/examples/dsa.py).
+Probabilistic sensitivity analysis answers how uncertain a decision is; deterministic sensitivity analysis (DSA) answers which parameters move the result and by how much. This tutorial runs the deterministic forms on the same Sick-Sicker cohort model the [cohort tutorial](mdm-cohort.qmd) uses for its probabilistic analysis, so the two read as a pair. The full script is [`examples/dsa.py`](https://github.com/pedroliman/heormodel/blob/main/examples/dsa.py).
 
 `heormodel.dsa` builds scenario designs that run through `run_psa` unchanged: a design is a draw matrix whose rows are scenarios instead of random draws, paired with a descriptor naming what each scenario varied. Nothing in the run loop or the `Outcomes` structure changes.
 

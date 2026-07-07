@@ -2,7 +2,7 @@
 title: Microsimulation engine
 ---
 
-This tutorial builds an individual-level model with `MicrosimModel` and runs it through cost-effectiveness and value-of-information analysis. It assumes the [Markov cohort model](mdm-cohort.qmd), which runs a model through `run_psa` and the analysis layer. The narrated version here is [`examples/microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/microsim.py). A microsimulation earns its cost when outcomes depend on individual history or heterogeneity, which a cohort average cannot carry.
+This tutorial builds an individual-level model with `MicrosimModel` and runs it through cost-effectiveness and value-of-information analysis. The [Markov cohort model tutorial](mdm-cohort.qmd) runs a model through `run_psa` and the analysis layer. The narrated version here is [`examples/microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/microsim.py). A microsimulation earns its cost when outcomes depend on individual history or heterogeneity, which a cohort average cannot carry.
 
 ## The model
 

@@ -2,7 +2,7 @@
 title: Discrete-event simulation engine
 ---
 
-This tutorial builds a resource-constrained model with `DESModel` and runs it through cost-effectiveness and value-of-information analysis. It assumes the [microsimulation tutorial](microsim.qmd), which covers the shared ideas: configure once and evaluate on draws, per-iteration seeding, and the accrual layer. The narrated version here is [`examples/des.py`](https://github.com/pedroliman/heormodel/blob/main/examples/des.py). A discrete-event model earns its cost when a shared, scarce resource makes entities queue, so one patient's outcome depends on the others in the system, a coupling a cohort or independent-microsimulation model cannot carry.
+This tutorial builds a resource-constrained model with `DESModel` and runs it through cost-effectiveness and value-of-information analysis. The [microsimulation tutorial](microsim.qmd) covers the shared ideas: configure once and evaluate on draws, per-iteration seeding, and the accrual layer. The narrated version here is [`examples/des.py`](https://github.com/pedroliman/heormodel/blob/main/examples/des.py). A discrete-event model earns its cost when a shared, scarce resource makes entities queue, so one patient's outcome depends on the others in the system, a coupling a cohort or independent-microsimulation model cannot carry.
 
 ## The model
 

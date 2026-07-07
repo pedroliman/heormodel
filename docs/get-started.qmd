@@ -2,7 +2,7 @@
 title: Get started
 ---
 
-This page installs `heormodel` and runs a first analysis on an existing probabilistic sensitivity analysis table. It assumes Python 3.11 or newer. For a narrated analysis, continue to the [bring your own outputs tutorial](tutorials/byo-outputs.qmd).
+This page installs `heormodel` and runs a first analysis on an existing probabilistic sensitivity analysis table. Requires Python 3.11 or newer. For a narrated analysis, continue to the [bring your own outputs tutorial](tutorials/byo-outputs.qmd).
 
 ## Install
 

@@ -2,7 +2,7 @@
 title: Full pipeline
 ---
 
-This tutorial runs the workflow the engines plug into: specify parameters, sample draws, evaluate a model with `run_psa`, then feed the outcomes to cost-effectiveness and value-of-information analysis. It assumes the [bring your own outputs tutorial](byo-outputs.qmd), which covers the analysis functions in more detail. Here the focus is the run loop and its contract.
+This tutorial runs the workflow the engines plug into: specify parameters, sample draws, evaluate a model with `run_psa`, then feed the outcomes to cost-effectiveness and value-of-information analysis. [Bring your own outputs](byo-outputs.qmd) covers the analysis functions in more detail; here the focus is the run loop and its contract.
 
 ## Specify and sample parameters
 
