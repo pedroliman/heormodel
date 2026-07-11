@@ -10,6 +10,13 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ## [Unreleased]
 
+### Added
+
+- `MarkovModel.trace(params, intervention)` returns the cohort occupancy trace
+  (a `cycle` column and one occupancy column per state), the public parallel to
+  `ODEModel.trajectory`, for inspecting and validating a cohort model
+  ([#43](https://github.com/pedroliman/heormodel/issues/43)).
+
 ## [0.7.1] - 2026-07-11
 
 ### Added

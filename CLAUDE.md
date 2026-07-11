@@ -18,6 +18,7 @@ Guidance for Claude Code when working in this repository.
 - Do not mention external existing R packages in code or documentation.
 - Lint/format with `ruff`, type-check the public API with `mypy`, test with `pytest`.
 - Every public function carries a docstring with a short worked example.
+- Avoid uninformative single-letter names in teaching code (tutorials, examples, docstring worked examples); use a meaningful short single word or `snake_case` name instead, since a health economist reading the tutorial should not have to decode them (`P` for a transition matrix becomes `transition_matrix`). Two exceptions stay: domain-standard notation, such as the SEIR compartment letters `s, e, i, r, v`, and parameter names that follow a replicated paper's own conventions (`p_S1D`, `r_HS1`, `hr_S1`).
 
 ## Writing style
 

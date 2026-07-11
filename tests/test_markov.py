@@ -185,6 +185,57 @@ def test_transition_reward_adds_one_time_cost():
     assert cost == pytest.approx(death_cost, abs=5.0)
 
 
+# -- occupancy trace --------------------------------------------------------
+
+
+def test_trace_shape_and_occupancy():
+    """trace returns a cycle-indexed occupancy distribution per state."""
+    def model(params, intervention):
+        p_die = 0.1
+        transition = np.array([[1 - p_die, p_die], [0.0, 1.0]])
+        return CohortSpec(transition, np.array([params["c"], 0.0]), np.array([1.0, 0.0]))
+
+    engine = MarkovModel(
+        states=("alive", "dead"), interventions=("care",),
+        transitions_and_rewards=model, n_cycles=5,
+    )
+    trace = engine.trace(pd.Series({"c": 1000.0}), "care")
+    assert list(trace.columns) == ["cycle", "alive", "dead"]
+    assert trace["cycle"].tolist() == [0, 1, 2, 3, 4, 5]
+    # occupancy is a distribution every cycle
+    assert trace[["alive", "dead"]].sum(axis=1).to_numpy() == pytest.approx(1.0)
+    # alive decays geometrically at the death probability
+    assert trace["alive"].to_numpy() == pytest.approx(0.9 ** np.arange(6))
+
+
+def test_trace_reflects_the_intervention():
+    """Branching the model on the intervention name changes the trace."""
+    def model(params, intervention):
+        p_die = 0.3 if intervention == "aggressive" else 0.1
+        transition = np.array([[1 - p_die, p_die], [0.0, 1.0]])
+        return CohortSpec(transition, np.zeros(2), np.array([1.0, 0.0]))
+
+    engine = MarkovModel(
+        states=("alive", "dead"), interventions=("mild", "aggressive"),
+        transitions_and_rewards=model, n_cycles=4,
+    )
+    mild = engine.trace(pd.Series(dtype=float), "mild")
+    aggressive = engine.trace(pd.Series(dtype=float), "aggressive")
+    # the higher-mortality arm has fewer alive at every cycle after the first
+    assert (aggressive["alive"][1:].to_numpy() < mild["alive"][1:].to_numpy()).all()
+
+
+def test_trace_unknown_intervention_rejected():
+    def model(params, intervention):
+        return CohortSpec(np.eye(2), np.zeros(2), np.zeros(2))
+
+    engine = MarkovModel(
+        states=("a", "d"), interventions=("s",), transitions_and_rewards=model, n_cycles=3,
+    )
+    with pytest.raises(KeyError, match="Unknown intervention"):
+        engine.trace(pd.Series(dtype=float), "missing")
+
+
 # -- contract and validation ------------------------------------------------
 
 

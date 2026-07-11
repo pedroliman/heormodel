@@ -37,4 +37,18 @@ Four built-in engines cover the model types used in cost-effectiveness analysis,
 
 `MarkovModel` and `ODEModel` are deterministic given a parameter set, so they satisfy `ModelEngine` with an `evaluate` method alone. `MicrosimModel` and `DESModel` are stochastic: they additionally take per-iteration random streams from the run loop through the wider `StochasticEngine` contract, so a run's numbers do not depend on how it is split across workers.
 
+## The model function each engine expects
+
+Engines share the output contract but not the shape of the function you write to describe the model. A deterministic engine takes one function that returns a specification object bundling the dynamics and the rewards. A microsimulation takes two functions, because it evaluates transitions and rewards for every individual at every step and keeps those two jobs separate. The discrete-event engine takes one imperative process that accrues as it runs. Every one of them receives the parameter row and the intervention name, so an arm can branch on either.
+
+| Engine | Model function(s) | Signature |
+|--------|-------------------|-----------|
+| `MarkovModel` | `transitions_and_rewards` | `(params, intervention) -> CohortSpec` |
+| `ODEModel` | `dynamics_and_rewards` | `(params, intervention) -> ODESpec` |
+| `MicrosimModel.discrete` | `transition_probabilities`, `state_rewards` | `(params, intervention, state, attrs, rng)`, `(params, intervention, state, attrs)` |
+| `MicrosimModel.continuous` | `event_times`, `state_reward_rates` | `(params, intervention, state, attrs, rng)`, `(params, intervention, state, attrs)` |
+| `DESModel` | `process` | `(env, entity, params, intervention, toolkit)` |
+
+`DESModel` leads with `env` and `entity` rather than the parameter row because its process is a SimPy generator and SimPy passes the environment first; the parameter row and intervention name follow.
+
 Because analyses consume only the outcome structure, everything downstream of an engine already works, so each engine ships against a stable analysis layer and a documented contract.

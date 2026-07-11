@@ -138,9 +138,9 @@ class MarkovModel:
         >>> import numpy as np, pandas as pd
         >>> from heormodel.models.markov import CohortSpec, MarkovModel
         >>> def transitions_and_rewards(params, intervention):
-        ...     p = params["p_die"]
-        ...     P = np.array([[1 - p, p], [0.0, 1.0]])
-        ...     return CohortSpec(P, np.array([params["cost"], 0.0]),
+        ...     p_die = params["p_die"]
+        ...     transition = np.array([[1 - p_die, p_die], [0.0, 1.0]])
+        ...     return CohortSpec(transition, np.array([params["cost"], 0.0]),
         ...                       np.array([1.0, 0.0]))
         >>> engine = MarkovModel(
         ...     states=("alive", "dead"), interventions=("care",),
@@ -279,6 +279,53 @@ class MarkovModel:
         total_cost = float(cost_cycle @ (self._disc * self._wcc))
         total_effect = float(eff_cycle @ (self._disc * self._wcc))
         return total_cost, total_effect
+
+    def trace(self, params: pd.Series, intervention: str) -> pd.DataFrame:
+        """Cohort occupancy over the horizon for one parameter set.
+
+        A convenience for inspection and plotting (a cohort trace, a survival
+        curve) and for validation against a hand computation; it is not part of
+        the engine contract and does not accrue costs or effects. `evaluate` is
+        what produces `Outcomes`. The intervention's decision levers are applied
+        exactly as `evaluate` applies them, so the trace reflects the arm. It
+        parallels `heormodel.models.ODEModel.trajectory` for the cohort engine.
+
+        Args:
+            params: One draw-matrix row (a ``pandas.Series``) of parameter values.
+            intervention: The intervention name passed to
+                ``transitions_and_rewards``.
+
+        Returns:
+            A ``DataFrame`` with an integer ``cycle`` column (``0`` to
+            ``n_cycles``) and one occupancy column per state, in state order.
+
+        Example:
+            >>> import numpy as np, pandas as pd
+            >>> from heormodel.models.markov import CohortSpec, MarkovModel
+            >>> def transitions_and_rewards(params, intervention):
+            ...     p_die = params["p_die"]
+            ...     transition = np.array([[1 - p_die, p_die], [0.0, 1.0]])
+            ...     return CohortSpec(transition, np.array([params["cost"], 0.0]),
+            ...                       np.array([1.0, 0.0]))
+            >>> engine = MarkovModel(
+            ...     states=("alive", "dead"), interventions=("care",),
+            ...     transitions_and_rewards=transitions_and_rewards, n_cycles=3)
+            >>> trace = engine.trace(pd.Series({"p_die": 0.1, "cost": 1000.0}), "care")
+            >>> [round(float(x), 3) for x in trace["alive"]]
+            [1.0, 0.9, 0.81, 0.729]
+        """
+        if intervention not in self._interventions:
+            raise KeyError(
+                f"Unknown intervention {intervention!r}; interventions are "
+                f"{list(self._interventions)}."
+            )
+        merged = merge_decision_levers(params, self._interventions[intervention])
+        spec = self._transitions_and_rewards(merged, intervention)
+        occupancy = self._trace(spec.transition)
+        frame = pd.DataFrame({"cycle": np.arange(self._n_cycles + 1)})
+        for i, name in enumerate(self._states):
+            frame[name] = occupancy[:, i]
+        return frame
 
     def evaluate(self, draws: pd.DataFrame) -> Outcomes:
         """Evaluate every intervention on every draw and return `Outcomes`.
