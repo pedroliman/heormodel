@@ -12,7 +12,7 @@ The model is progressive, with four states, Healthy, Sick, Sicker, and Dead, ove
 import numpy as np
 import pandas as pd
 from heormodel.models import CohortSpec, MarkovModel, MicrosimModel
-from heormodel.run import SeedManager, run_psa
+from heormodel.run import run_psa
 
 STATES = ("H", "S1", "S2", "D")
 N_CYCLES = 40
@@ -61,7 +61,7 @@ def microsim(n, var):
         states=STATES, transition_probabilities=transition_probabilities,
         state_rewards=state_rewards, population=make_pop(var),
         n_individuals=n, strategies=["Standard of care"], n_cycles=N_CYCLES,
-        discount_rate=0.03, cycle_correction="half_cycle", seed_manager=SeedManager(1))
+        discount_rate=0.03, cycle_correction="half_cycle")
 
 cohort = MarkovModel(states=STATES, strategies=("Standard of care",),
     transitions_and_rewards=cohort_model,
@@ -74,8 +74,8 @@ cohort.evaluate(draws).summary().round(3)
 With a memoryless, homogeneous population, the microsimulation mean should approach the cohort trace as the population grows; if it did not, one of the two implementations would have a bug. The check below runs the microsimulation at increasing population sizes and compares each to the cohort trace computed above.
 
 ```{python}
-rows = [dict(n=n, **run_psa(microsim(n, 0.0), draws, sequential=True)
-             .summary().loc["Standard of care"]) for n in (2_000, 10_000, 40_000)]
+rows = [dict(n=n, **run_psa(microsim(n, 0.0), draws, seed=1, sequential=True)
+             .outcomes.summary().loc["Standard of care"]) for n in (2_000, 10_000, 40_000)]
 pd.DataFrame(rows).set_index("n").round(3)
 ```
 
@@ -86,7 +86,7 @@ The cohort trace gives 78,614 dollars and 11.740 quality-adjusted life-years. At
 This section assigns each individual a frailty `z`, drawn from a Gamma distribution with mean 1 and variance 0.5, that multiplies the progression and mortality hazards. The mean hazard across the population is unchanged, so the cohort model, which tracks only the average person, produces the same result as before. The microsimulation does not, because it tracks each individual rather than the average.
 
 ```{python}
-het = run_psa(microsim(40_000, 0.5), draws, sequential=True).summary()
+het = run_psa(microsim(40_000, 0.5), draws, seed=1, sequential=True).outcomes.summary()
 het.round(3)
 ```
 
@@ -109,9 +109,9 @@ hist = MicrosimModel.discrete(
     states=STATES, transition_probabilities=hist_transition,
     state_rewards=state_rewards, population=make_pop(0.5),
     n_individuals=40_000, strategies=["Standard of care"], n_cycles=N_CYCLES,
-    discount_rate=0.03, cycle_correction="half_cycle", seed_manager=SeedManager(1),
+    discount_rate=0.03, cycle_correction="half_cycle",
     duration_groups={"tis": ("S1", "S2")})
-run_psa(hist, draws, sequential=True).summary().round(3)
+run_psa(hist, draws, seed=1, sequential=True).outcomes.summary().round(3)
 ```
 
 The trade is plain. The cohort model is faster and exact for its assumptions. The microsimulation costs iterations but represents heterogeneity and history the cohort averages away. Neither is more correct in general; they answer under different assumptions.

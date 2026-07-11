@@ -67,7 +67,7 @@ params = ParameterSet({
 draws = params.sample(1000, seed=SeedManager(1).generator())
 
 # run your model over your parameters.
-outcomes = run_psa(engine, draws)
+outcomes = run_psa(engine, draws).outcomes
 
 # Get the ICER table.
 icer_table(outcomes).round(1)

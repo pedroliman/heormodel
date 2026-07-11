@@ -72,10 +72,11 @@ def main() -> None:
     engine = build_engine(
         life_table=life_table, states=state_labels, strategies=strategy_defs,
         age_start=age_start, horizon=horizon, discount_rate=discount_rate,
-        population=n_base, seed_manager=seeds,
+        population=n_base,
     )
     base = single_draw(base_case())
-    outcomes, events = engine.evaluate(base, trace="events")
+    base_run = run_psa(engine, base, seed=seeds.entropy, collect="events")
+    outcomes, events = base_run.outcomes, base_run.events
     outcomes = with_transition_costs_and_utilities(
         outcomes, events, base, n_individuals=n_base, discount_rate=discount_rate
     )
@@ -110,11 +111,11 @@ def main() -> None:
         build_engine(
             life_table=life_table, states=state_labels, strategies=strategy_defs,
             age_start=age_start, horizon=horizon, discount_rate=discount_rate,
-            population=n_psa_individuals, seed_manager=seeds,
+            population=n_psa_individuals,
         ),
         n_individuals=n_psa_individuals, discount_rate=discount_rate,
     )
-    psa = run_psa(model, draws, batch_size=1)
+    psa = run_psa(model, draws, seed=seeds.entropy, batch_size=1).outcomes
     print(f"\nProbabilistic analysis, {n_psa_draws:,} parameter sets:")
     print(icer_table(psa).round(2).to_string())
 

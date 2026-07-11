@@ -41,30 +41,31 @@ from mdm_des import (
 
 ## Reproducing the base case
 
-The base case is one run at the article's Table 1 point estimates. `load_life_table` reads the US 2015 mortality rates from the CSV shipped with the example, and `build_engine` assembles the continuous-clock engine from the life table and the model structure. Evaluating with `trace="events"` returns both the standard outcomes and the event history, one row per transition.
+The base case is one run at the article's Table 1 point estimates. `load_life_table` reads the US 2015 mortality rates from the CSV shipped with the example, and `build_engine` assembles the continuous-clock engine from the life table and the model structure. `run_psa` with `collect="events"` returns both the standard outcomes and the event history, one row per transition, in a `RunResult`.
 
 The transition amounts are not in the engine's per-year valuation. The companion code adds each (the onset cost and disutility, and the cost of dying) to the annual flow of the sojourn that ends in the transition, then multiplies by the discounted sojourn length, so the cost of dying enters as its amount per year over the whole final sojourn. `with_transition_costs_and_utilities` reconstructs that from the event history and folds it into the outcomes. 25,000 individuals keep this page fast; the full script uses 100,000.
 
 ```{python}
 from heormodel.cea import icer_table
 from heormodel.params import single_draw
-from heormodel.run import SeedManager
+from heormodel.run import run_psa
 
 age_start, horizon, discount_rate = 25.0, 75.0, 0.03
+SEED = 2
 state_labels, strategy_defs = states(), strategies()
 life_table = load_life_table(examples / "mdm_des" / "data" / "us_mortality_2015.csv")
-seeds = SeedManager(2)
 
 engine = build_engine(
     life_table=life_table, states=state_labels, strategies=strategy_defs,
     age_start=age_start, horizon=horizon, discount_rate=discount_rate,
-    population=25_000, seed_manager=seeds,
+    population=25_000,
 )
 base = single_draw(base_case())
-outcomes, events = engine.evaluate(base, trace="events")
+base_run = run_psa(engine, base, seed=SEED, collect="events")
 outcomes = with_transition_costs_and_utilities(
-    outcomes, events, base, n_individuals=25_000, discount_rate=discount_rate
+    base_run.outcomes, base_run.events, base, n_individuals=25_000, discount_rate=discount_rate
 )
+events = base_run.events
 icer_table(outcomes).round(2)
 ```
 
@@ -107,22 +108,20 @@ Individuals spend about 6 years per stay in Healthy, under 2 in Sick, and about 
 
 `parameter_set` returns the probabilistic distributions. Six parameters the companion draws but never reads are held fixed there to match its figures: the Weibull progression scale, both treatment costs, both transition costs, and the treated-utility increment. With the scale fixed, only the Weibull shape varies, so the progression hazard barely moves across draws.
 
-The transition amounts must be added on every iteration, so `costs_and_utilities_model` wraps the engine as a `draws -> Outcomes` function that evaluates with the event history and folds the amounts in. `run_psa` drives that wrapper over the draw matrix; one draw per experiment keeps each worker's event history small. The article runs 1,000 parameter sets of 100,000 individuals each; 300 sets of 2,500 individuals keep this page fast.
+The transition amounts must be added on every iteration, so `costs_and_utilities_model` wraps the engine as a stochastic engine that collects the event history and folds the amounts in. `run_psa` drives that wrapper over the draw matrix, supplying the seed; one draw per experiment keeps each worker's event history small. The article runs 1,000 parameter sets of 100,000 individuals each; 300 sets of 2,500 individuals keep this page fast.
 
 ```{python}
-from heormodel.run import run_psa
-
 params = parameter_set()
-draws = params.sample(300, seed=seeds.generator())
+draws = params.sample(300, seed=SEED)
 model = costs_and_utilities_model(
     build_engine(
         life_table=life_table, states=state_labels, strategies=strategy_defs,
         age_start=age_start, horizon=horizon, discount_rate=discount_rate,
-        population=2_500, seed_manager=seeds,
+        population=2_500,
     ),
     n_individuals=2_500, discount_rate=discount_rate,
 )
-psa = run_psa(model, draws, batch_size=1)
+psa = run_psa(model, draws, seed=SEED, batch_size=1).outcomes
 icer_table(psa).round(2)
 ```
 

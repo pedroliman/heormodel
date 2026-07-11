@@ -78,9 +78,9 @@ engine = MicrosimModel.discrete(
     population=population, n_individuals=800,
     strategies={"Standard care": {"on_treatment": 0.0},
                 "Treatment": {"on_treatment": 1.0}},
-    n_cycles=30, seed_manager=seeds,
+    n_cycles=30,
 )
-outcomes = run_psa(engine, draws, sequential=True)
+outcomes = run_psa(engine, draws, seed=seeds.entropy, sequential=True).outcomes
 outcomes.summary().round(3)
 ```
 
@@ -127,9 +127,8 @@ check = MicrosimModel.discrete(
     transition_probabilities=lambda params, strategy, state, attrs, rng: P[state],
     state_rewards=lambda params, strategy, state, attrs: (cost_vec[state], eff_vec[state]),
     population=60_000, strategies=["cohort"], n_cycles=40,
-    seed_manager=SeedManager(1),
 )
-sim = check.evaluate(draws.iloc[[0]]).summary().loc["cohort"]
+sim = run_psa(check, draws.iloc[[0]], seed=1).outcomes.summary().loc["cohort"]
 ref_cost, ref_eff = cohort()
 pd.DataFrame({
     "microsim": [sim["cost"], sim["qaly"]],

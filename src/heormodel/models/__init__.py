@@ -15,17 +15,19 @@ from heormodel.models.markov import CohortSpec, MarkovModel
 from heormodel.models.microsim import MicrosimModel
 from heormodel.models.occupancy import state_occupancy
 from heormodel.models.outcomes import Outcomes
-from heormodel.models.protocol import ModelEngine, ModelFn
+from heormodel.models.protocol import EngineResult, ModelEngine, ModelFn, StochasticEngine
 
 __all__ = [
     "CohortSpec",
     "DESModel",
+    "EngineResult",
     "LifeTable",
     "MarkovModel",
     "MicrosimModel",
     "ModelEngine",
     "ModelFn",
     "Outcomes",
+    "StochasticEngine",
     "queue_waits",
     "state_occupancy",
 ]

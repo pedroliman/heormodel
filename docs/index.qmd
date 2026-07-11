@@ -58,7 +58,7 @@ params = ParameterSet({
 })
 
 draws = params.sample(2_000, seed=SeedManager(1).generator())
-outcomes = run_psa(engine, draws)
+outcomes = run_psa(engine, draws).outcomes
 icer_table(outcomes).round(1)
 ```
 

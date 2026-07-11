@@ -11,12 +11,11 @@ engine's per-year valuation.
 
 from __future__ import annotations
 
-from collections.abc import Callable
-
 import numpy as np
 import pandas as pd
 
-from heormodel.models import Outcomes
+from heormodel.models import EngineResult, Outcomes, StochasticEngine
+from heormodel.run import SeedManager
 
 
 def transition_costs_and_utilities(
@@ -24,8 +23,8 @@ def transition_costs_and_utilities(
 ) -> pd.DataFrame:
     """Per-person cost and utility from the transition amounts, accrued over the sojourn.
 
-    Input: the event history from ``evaluate(trace="events")``, the draw matrix
-    (for the onset and death amounts per iteration), the population size, and
+    Input: the event history from ``run_psa(engine, draws, collect="events")``,
+    the draw matrix (for the onset and death amounts per iteration), the population size, and
     the annual discount rate. Output: a DataFrame indexed by ``(strategy,
     iteration)`` with a ``cost`` and a ``qaly`` column to add to each strategy's
     outcomes.
@@ -76,21 +75,45 @@ def with_transition_costs_and_utilities(
     return Outcomes(data, effect=outcomes.effect)
 
 
-def costs_and_utilities_model(
-    engine: object, *, n_individuals: int, discount_rate: float
-) -> Callable[[pd.DataFrame], Outcomes]:
-    """Wrap the engine as a ``draws -> Outcomes`` model that adds the transition amounts.
+class _WithTransitionAccrual:
+    """A stochastic engine that folds the sojourn-accrued transition amounts in.
 
-    ``run_psa`` drives the returned function over the draw matrix, so the sojourn
-    accrual runs inside the framework's per-iteration seeding. Input: a
-    continuous-clock engine, the population size, and the discount rate. Output:
-    a function ``model(draws) -> Outcomes``.
+    It wraps a continuous-clock engine, collects the event history one batch at a
+    time, adds the transition amounts, and returns outcomes only, so the runner
+    never gathers the whole event history. Because it exposes ``evaluate_streamed``
+    it is a `heormodel.models.StochasticEngine`: `run_psa` hands it the
+    per-iteration streams, so the sojourn accrual runs under the run's seed.
     """
 
-    def model(draws: pd.DataFrame) -> Outcomes:
-        outcomes, events = engine.evaluate(draws, trace="events")  # type: ignore[attr-defined]
-        return with_transition_costs_and_utilities(
-            outcomes, events, draws, n_individuals=n_individuals, discount_rate=discount_rate
-        )
+    def __init__(self, engine: StochasticEngine, *, n_individuals: int, discount_rate: float):
+        self._engine = engine
+        self._n_individuals = n_individuals
+        self._discount_rate = discount_rate
 
-    return model
+    def evaluate(self, draws: pd.DataFrame) -> Outcomes:
+        return self.evaluate_streamed(draws, streams=SeedManager(0)).outcomes
+
+    def evaluate_streamed(
+        self, draws: pd.DataFrame, *, streams: SeedManager, collect: str | None = None
+    ) -> EngineResult:
+        result = self._engine.evaluate_streamed(draws, streams=streams, collect="events")
+        outcomes = with_transition_costs_and_utilities(
+            result.outcomes, result.events, draws,
+            n_individuals=self._n_individuals, discount_rate=self._discount_rate,
+        )
+        return EngineResult(outcomes, events=result.events if collect == "events" else None)
+
+
+def costs_and_utilities_model(
+    engine: StochasticEngine, *, n_individuals: int, discount_rate: float
+) -> _WithTransitionAccrual:
+    """Wrap the engine so its outcomes carry the sojourn-accrued transition amounts.
+
+    ``run_psa`` drives the returned engine over the draw matrix, so the sojourn
+    accrual runs inside the framework's per-iteration seeding. Input: a
+    continuous-clock engine, the population size, and the discount rate. Output:
+    a stochastic engine whose ``evaluate`` folds the transition amounts in.
+    """
+    return _WithTransitionAccrual(
+        engine, n_individuals=n_individuals, discount_rate=discount_rate
+    )

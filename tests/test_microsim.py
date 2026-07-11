@@ -11,7 +11,7 @@ import pandas as pd
 import pytest
 
 from heormodel.models import MicrosimModel, ModelEngine
-from heormodel.run import SeedManager, run_psa
+from heormodel.run import run_psa
 
 # A three-state cohort: Healthy, Sick, Dead. Constant transitions and payoffs.
 P = np.array(
@@ -67,9 +67,8 @@ class TestDiscreteValidation:
             n_cycles=horizon,
             discount_rate=0.03,
             cycle_correction="half_cycle",
-            seed_manager=SeedManager(2026),
         )
-        out = engine.evaluate(_draws())
+        out = run_psa(engine, _draws(), seed=2026).outcomes
         ref_cost, ref_eff = _cohort_reference(horizon, 0.03, 0.03, half_cycle=True)
         got = out.summary().loc["care"]
         assert got["cost"] == pytest.approx(ref_cost, rel=0.01)
@@ -103,9 +102,8 @@ class TestContinuousValidation:
             strategies=["care"],
             horizon=horizon,
             discount_rate=rate,
-            seed_manager=SeedManager(7),
         )
-        out = engine.evaluate(_draws())
+        out = run_psa(engine, _draws(), seed=7).outcomes
         disc_ly = (1 - np.exp(-(rate + lam) * horizon)) / (rate + lam)
         got = out.summary().loc["care"]
         assert got["cost"] == pytest.approx(cost_year * disc_ly, rel=0.01)
@@ -129,7 +127,6 @@ class TestContinuousValidation:
             population=10,
             strategies=["care"],
             horizon=100.0,
-            seed_manager=SeedManager(1),
             max_events=50,
         )
         with pytest.raises(RuntimeError, match="max_events"):
@@ -144,7 +141,6 @@ def _small_engine(**overrides):
         population=200,
         strategies=["care"],
         n_cycles=10,
-        seed_manager=SeedManager(99),
     )
     kwargs.update(overrides)
     return MicrosimModel.discrete(**kwargs)
@@ -153,8 +149,8 @@ def _small_engine(**overrides):
 class TestReproducibility:
     def test_same_seed_identical_across_n_jobs(self):
         draws = _draws(6)
-        serial = run_psa(_small_engine(), draws, sequential=True)
-        parallel = run_psa(_small_engine(), draws, n_jobs=2)
+        serial = run_psa(_small_engine(), draws, seed=99, sequential=True).outcomes
+        parallel = run_psa(_small_engine(), draws, seed=99, n_jobs=2).outcomes
         pd.testing.assert_frame_equal(serial.data, parallel.data)
 
     def test_different_iterations_differ(self):
@@ -191,7 +187,7 @@ class TestContract:
 
     def test_iteration_index_preserved(self):
         draws = _draws(5)
-        out = run_psa(_small_engine(), draws)
+        out = run_psa(_small_engine(), draws).outcomes
         assert out.iterations.equals(draws.index)
 
     def test_strategies_in_declared_order(self):
@@ -240,10 +236,11 @@ class TestPopulationAndTrace:
         out = engine.evaluate(_draws(2))
         assert out.n_iterations == 2
 
-    def test_trace_returns_individual_rows(self):
+    def test_individuals_channel_returns_per_individual_rows(self):
         engine = _small_engine(strategies={"A": {}, "B": {}})
-        out, trace = engine.evaluate(_draws(2), trace=True)
-        assert out.strategies == ["A", "B"]
+        result = run_psa(engine, _draws(2), seed=99, collect="individuals")
+        assert result.outcomes.strategies == ["A", "B"]
+        trace = result.individuals
         assert len(trace) == 2 * 2 * 200  # strategies x iterations x individuals
         assert set(trace.columns) == {"strategy", "iteration", "individual", "cost", "qaly"}
 
@@ -270,7 +267,7 @@ class TestDurationGroups:
             states=("H", "S1", "S2", "D"),
             transition_probabilities=transition, state_rewards=payoffs,
             population=1, strategies=["s"], n_cycles=len(path) - 1,
-            seed_manager=SeedManager(0), duration_groups={"sick_dur": ("S1", "S2")},
+            duration_groups={"sick_dur": ("S1", "S2")},
         )
         engine.evaluate(_draws())
         # duration is 0 on entry to the sick complex and keeps counting through
@@ -291,7 +288,7 @@ class TestConstructorValidation:
         with pytest.raises(TypeError, match="transition_probabilities"):
             MicrosimModel.discrete(
                 states=("H", "S", "D"), state_rewards=_payoffs, population=10,
-                strategies=["care"], n_cycles=10, seed_manager=SeedManager(0),
+                strategies=["care"], n_cycles=10,
             )
 
     def test_continuous_requires_event_times(self):
@@ -301,7 +298,7 @@ class TestConstructorValidation:
         with pytest.raises(TypeError, match="event_times"):
             MicrosimModel.continuous(
                 states=("H", "S", "D"), state_reward_rates=reward_rates,
-                population=10, strategies=["care"], horizon=10.0, seed_manager=SeedManager(0),
+                population=10, strategies=["care"], horizon=10.0,
             )
 
     def test_mode_invalid_parameter_rejected(self):
@@ -317,5 +314,5 @@ class TestConstructorValidation:
             MicrosimModel.continuous(
                 states=("H", "S", "D"), event_times=event_times,
                 state_reward_rates=reward_rates, population=10, strategies=["care"],
-                horizon=10.0, seed_manager=SeedManager(0), cycle_correction="none",
+                horizon=10.0, cycle_correction="none",
             )

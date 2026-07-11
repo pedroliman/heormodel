@@ -137,7 +137,7 @@ def main() -> None:
 
     # Probabilistic sensitivity analysis on the same model.
     draws = parameters().sample(N_SIM, seed=seeds.generator())
-    outcomes = run_psa(engine, draws)
+    outcomes = run_psa(engine, draws).outcomes
     print("\nProbabilistic CEA (mean over draws):")
     print(icer_table(outcomes).round(2).to_string())
     print(f"\nEVPI at WTP {WTP:,.0f}: {evpi(outcomes, WTP):,.1f}")

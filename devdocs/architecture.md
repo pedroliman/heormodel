@@ -28,7 +28,7 @@ Because the analysis layer sees only this structure, cost-effectiveness and valu
 
 ## The shared iteration index
 
-Parameter draw matrices and outcomes share one iteration index. `ParameterSet.sample` returns a draw matrix whose row index is the canonical iteration index, and `run_psa` guarantees the outcomes it returns carry exactly that index, in the same order.
+Parameter draw matrices and outcomes share one iteration index. `ParameterSet.sample` returns a draw matrix whose row index is the canonical iteration index, and `run_psa` guarantees the outcomes in the `RunResult` it returns carry exactly that index, in the same order. `run_psa` is the single execution point: it owns seeding (the `seed` argument builds the per-iteration streams a stochastic engine uses) and the optional event or individual log (the `collect` argument), so engines stay seed-free descriptions of a model.
 
 The point is traceability: the expected value of partial perfect information and of sample information regress outcome quantities on parameter draws, which is only valid when row `i` of the draws produced iteration `i` of the outcomes. Analyses that need both objects, such as `evppi` and `tornado_data`, rely on the index to align them.
 
@@ -42,7 +42,7 @@ def model(d: pd.DataFrame) -> Outcomes:
     return Outcomes.from_wide(costs, effects)
 
 draws = ParameterSet({"c": Normal(100, 5)}).sample(500, seed=1)
-outcomes = run_psa(model, draws, sequential=True)
+outcomes = run_psa(model, draws, sequential=True).outcomes
 outcomes.iterations.equals(draws.index)
 ```
 

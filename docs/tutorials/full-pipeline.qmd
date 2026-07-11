@@ -54,7 +54,7 @@ def decision_tree(d: pd.DataFrame) -> Outcomes:
 ```{python}
 from heormodel.run import run_psa
 
-outcomes = run_psa(decision_tree, draws, sequential=True)
+outcomes = run_psa(decision_tree, draws, sequential=True).outcomes
 outcomes.summary().round(3)
 ```
 

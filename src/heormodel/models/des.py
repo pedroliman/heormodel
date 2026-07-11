@@ -42,6 +42,7 @@ from heormodel.models.outcomes import (
     STRATEGY_LEVEL,
     Outcomes,
 )
+from heormodel.models.protocol import EngineResult
 from heormodel.run.seeds import SeedManager
 
 if TYPE_CHECKING:
@@ -260,8 +261,6 @@ class DESModel:
         strategies: Strategy names, or a mapping of name to a parameter-override
             dict merged into ``params`` for that strategy. Order is preserved in
             `Outcomes`.
-        seed_manager: Root of all randomness. Each iteration draws a stream keyed
-            by its index; entity streams derive from it.
         resources: ``fn(env, params, strategy) -> dict[str, simpy.Resource]``,
             built fresh for each run and shared by every entity in it. ``None``
             for a model with no constrained resources.
@@ -276,17 +275,19 @@ class DESModel:
         independent_streams: Give each strategy its own population and streams
             instead of common random numbers.
 
+    Randomness is supplied by `heormodel.run.run_psa` at run time, not at
+    construction; the engine holds no seed of its own.
+
     Example:
         >>> import numpy as np, pandas as pd
         >>> from heormodel.models import DESModel
-        >>> from heormodel.run import SeedManager
         >>> def process(env, entity, params, strategy, toolkit):
         ...     wait = toolkit.rng.exponential(params["los"])
         ...     toolkit.accrue_rate(params["day_cost"], 1.0, wait)
         ...     yield env.timeout(wait)
         >>> engine = DESModel(
         ...     process=process, population=200, strategies=["ward"],
-        ...     horizon=30.0, seed_manager=SeedManager(0))
+        ...     horizon=30.0)
         >>> draws = pd.DataFrame({"los": [3.0], "day_cost": [500.0]},
         ...                      index=pd.RangeIndex(1, name="iteration"))
         >>> engine.evaluate(draws).strategies
@@ -299,7 +300,6 @@ class DESModel:
         process: ProcessFn,
         population: PopulationSpec = None,
         strategies: StrategySpec,
-        seed_manager: SeedManager,
         resources: ResourceFn | None = None,
         horizon: float,
         discount_rate: float = 0.03,
@@ -313,7 +313,6 @@ class DESModel:
         self._process = process
         self._resources_fn = resources
         self._strategies = normalize_strategies(strategies)
-        self._seed_manager = seed_manager
         self._horizon = float(horizon)
         self._discount_rate = float(discount_rate)
         self._effect = effect
@@ -380,43 +379,70 @@ class DESModel:
             result[name] = np.array([tk.components.get(name, 0.0) for tk in toolkits])
         return result
 
-    def evaluate(
-        self, draws: pd.DataFrame, *, trace: bool = False
-    ) -> Outcomes | tuple[Outcomes, pd.DataFrame]:
+    def evaluate(self, draws: pd.DataFrame) -> Outcomes:
         """Simulate every draw and strategy, averaging entities to `Outcomes`.
+
+        This is the narrow `heormodel.models.ModelEngine` entry point: it seeds
+        each iteration from a fixed default stream, so a direct call is
+        reproducible. Run through `heormodel.run.run_psa` to choose the seed, to
+        run in parallel, and to collect the event or individual logs.
 
         Args:
             draws: Parameter draw matrix (rows = iterations). Its index becomes
                 the outcome iteration index.
-            trace: Also return the per-entity event log as a long ``DataFrame``
-                with columns ``strategy, iteration, entity, t, event, state,
-                resource``, the optional individual-level side channel.
 
         Returns:
-            `Outcomes`, or ``(Outcomes, trace)`` when ``trace`` is set.
+            `Outcomes` indexed by ``(strategy, draws.index)``.
 
         Example:
             >>> import pandas as pd
             >>> from heormodel.models import DESModel
-            >>> from heormodel.run import SeedManager
             >>> def process(env, entity, params, strategy, toolkit):
             ...     toolkit.accrue_cost(params["visit"])
             ...     yield env.timeout(1.0)
             >>> engine = DESModel(
             ...     process=process, population=50, strategies=["clinic"],
-            ...     horizon=5.0, seed_manager=SeedManager(1))
+            ...     horizon=5.0)
             >>> draws = pd.DataFrame({"visit": [200.0, 210.0]},
             ...                      index=pd.RangeIndex(2, name="iteration"))
             >>> engine.evaluate(draws).n_iterations
             2
         """
+        return self.evaluate_streamed(draws, streams=SeedManager(0)).outcomes
+
+    def evaluate_streamed(
+        self, draws: pd.DataFrame, *, streams: SeedManager, collect: str | None = None
+    ) -> EngineResult:
+        """Simulate every draw under ``streams``, collecting the ``collect`` log.
+
+        Args:
+            draws: Parameter draw matrix (rows = iterations).
+            streams: Root of the per-iteration streams; each iteration draws a
+                stream keyed by its index, so results do not depend on how the
+                run is chunked across workers.
+            collect: ``None`` for outcomes only, ``"events"`` for the per-entity
+                event log (columns ``strategy``, ``iteration``, ``entity``,
+                ``t``, ``event``, ``state``, ``resource``), or ``"individuals"``
+                for per-entity cost and effect.
+
+        Returns:
+            An `EngineResult` whose ``outcomes`` is always set and whose
+            ``events`` or ``individuals`` is set to match ``collect``.
+        """
+        if collect not in (None, "events", "individuals"):
+            raise ValueError(
+                f"collect must be None, 'events', or 'individuals', got {collect!r}."
+            )
         if draws.empty:
             raise ValueError("draws is empty.")
+        collect_events = collect == "events"
+        collect_individuals = collect == "individuals"
         strategy_names = list(self._strategies)
         rows: list[pd.DataFrame] = []
-        traces: list[pd.DataFrame] = []
+        event_frames: list[pd.DataFrame] = []
+        individual_frames: list[pd.DataFrame] = []
         for label, (_, raw_params) in zip(draws.index, draws.iterrows(), strict=True):
-            iter_seq = self._seed_manager.child_sequence(_iteration_key(label))
+            iter_seq = streams.child_sequence(_iteration_key(label))
             shared_attrs: pd.DataFrame | None = None
             shared_entity_seqs: list[np.random.SeedSequence] | None = None
             if self._independent_streams:
@@ -434,27 +460,36 @@ class DESModel:
                     assert shared_attrs is not None and shared_entity_seqs is not None
                     attrs = shared_attrs.copy()
                     entity_seqs = shared_entity_seqs  # common random numbers
-                log: list[dict[str, Any]] | None = [] if trace else None
+                log: list[dict[str, Any]] | None = [] if collect_events else None
                 accruals = self._run_once(params, attrs, entity_seqs, name, log)
                 rows.append(aggregate(accruals, name, label))
-                if trace and log is not None:
+                if collect_events and log is not None:
                     frame = pd.DataFrame(log, columns=list(_LOG_COLS[2:]))
                     frame.insert(0, ITERATION_LEVEL, label)
                     frame.insert(0, STRATEGY_LEVEL, name)
-                    traces.append(frame)
+                    event_frames.append(frame)
+                elif collect_individuals:
+                    frame = pd.DataFrame(accruals)
+                    frame.insert(0, "individual", np.arange(len(frame)))
+                    frame.insert(0, ITERATION_LEVEL, label)
+                    frame.insert(0, STRATEGY_LEVEL, name)
+                    individual_frames.append(frame)
         data = pd.concat(rows).fillna(0.0)
         full_index = pd.MultiIndex.from_product(
             [strategy_names, draws.index], names=[STRATEGY_LEVEL, ITERATION_LEVEL]
         )
         outcomes = Outcomes(data.reindex(full_index), effect=self._effect)
-        if trace:
-            trace_df = (
-                pd.concat(traces, ignore_index=True)
-                if traces
+        events = None
+        individuals = None
+        if collect_events:
+            events = (
+                pd.concat(event_frames, ignore_index=True)
+                if event_frames
                 else pd.DataFrame(columns=list(_LOG_COLS))
             )
-            return outcomes, trace_df
-        return outcomes
+        elif collect_individuals:
+            individuals = pd.concat(individual_frames, ignore_index=True)
+        return EngineResult(outcomes, events=events, individuals=individuals)
 
 
 def queue_waits(trace: pd.DataFrame) -> pd.DataFrame:
@@ -466,7 +501,7 @@ def queue_waits(trace: pd.DataFrame) -> pd.DataFrame:
     analysis code never reaches into the engine.
 
     Args:
-        trace: The event log returned by ``DESModel.evaluate(..., trace=True)``.
+        trace: The event log from ``run_psa(engine, draws, collect="events").events``.
 
     Returns:
         One row per served request with a ``wait`` column.

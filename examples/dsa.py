@@ -105,7 +105,7 @@ def model(params: pd.Series, strategy: str) -> CohortSpec:
 
 def incremental_nmb(design: pd.DataFrame) -> pd.Series:
     """Incremental NMB of Strategy AB over standard of care, per scenario."""
-    outcomes = run_psa(engine, design)
+    outcomes = run_psa(engine, design).outcomes
     nb = nmb(outcomes, WTP)
     return nb["Strategy AB"] - nb["Standard of care"]
 
@@ -134,7 +134,7 @@ def main() -> None:
     # One-at-a-time tornado: each parameter to +/- 20% of its base value.
     ranges = {name: (0.8 * BASE[name], 1.2 * BASE[name]) for name in BASE.index}
     oat_design, oat_descriptor = one_at_a_time(BASE, ranges)
-    oat_outcomes = run_psa(engine, oat_design)
+    oat_outcomes = run_psa(engine, oat_design).outcomes
     td = tornado_data(
         oat_outcomes,
         (oat_design, oat_descriptor),

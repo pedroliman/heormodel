@@ -45,6 +45,7 @@ STATES = ("H", "S1", "S2", "D")
 STRATEGY = "Standard of care"
 N_CYCLES = 40  # annual cycles, ages 40 to 80
 DISCOUNT = 0.03
+SEED = 20260705  # root seed for the microsimulation streams, passed to run_psa
 
 # One base-case parameter set drives both engines. Rates are annual hazards.
 BASE = dict(
@@ -147,7 +148,7 @@ def micro_payoffs(
 
 
 def build_microsim(
-    n_individuals: int, frailty_var: float, seeds: SeedManager,
+    n_individuals: int, frailty_var: float,
     *, transition_probabilities=micro_transition, **kwargs,
 ) -> MicrosimModel:
     """A microsimulation twin of the cohort model at one population size."""
@@ -161,7 +162,6 @@ def build_microsim(
         n_cycles=N_CYCLES,
         discount_rate=DISCOUNT,
         cycle_correction="half_cycle",
-        seed_manager=seeds,
         **kwargs,
     )
 
@@ -190,8 +190,7 @@ def main() -> None:
     print(f"  {'n':>8}  {'cost':>12}  {'QALYs':>9}  {'QALY gap %':>11}")
     micro_cost, micro_qaly = [], []
     for n in sizes:
-        seeds = SeedManager(20260705)
-        out = run_psa(build_microsim(n, 0.0, seeds), draws, sequential=True)
+        out = run_psa(build_microsim(n, 0.0), draws, seed=SEED, sequential=True).outcomes
         row = out.summary().loc[STRATEGY]
         micro_cost.append(float(row["cost"]))
         micro_qaly.append(float(row["qaly"]))
@@ -199,8 +198,7 @@ def main() -> None:
         print(f"  {n:>8,}  {micro_cost[-1]:>12,.1f}  {micro_qaly[-1]:>9.4f}  {gap:>10.2f}%")
 
     # 2. Heterogeneity: a mean-1 frailty moves the microsimulation off the cohort.
-    seeds = SeedManager(20260705)
-    het = run_psa(build_microsim(80_000, FRAILTY_VAR, seeds), draws, sequential=True)
+    het = run_psa(build_microsim(80_000, FRAILTY_VAR), draws, seed=SEED, sequential=True).outcomes
     h_row = het.summary().loc[STRATEGY]
     h_cost, h_qaly = float(h_row["cost"]), float(h_row["qaly"])
     print(f"\nHeterogeneous microsimulation (frailty variance {FRAILTY_VAR}, n=80,000):")
@@ -210,8 +208,6 @@ def main() -> None:
 
     # 3. History dependence: mortality rising with time spent sick, cohort cannot
     #    hold it without tunnel states.
-    seeds = SeedManager(20260705)
-
     def hist_transition(params, strategy, state, attrs, rng):
         z = attrs["z"].to_numpy()
         tis = attrs["tis"].to_numpy()
@@ -224,10 +220,10 @@ def main() -> None:
         return probs
 
     hist = build_microsim(
-        80_000, FRAILTY_VAR, seeds,
+        80_000, FRAILTY_VAR,
         transition_probabilities=hist_transition, duration_groups={"tis": ("S1", "S2")},
     )
-    hist_out = run_psa(hist, draws, sequential=True)
+    hist_out = run_psa(hist, draws, seed=SEED, sequential=True).outcomes
     hist_row = hist_out.summary().loc[STRATEGY]
     print(f"\nWith duration-dependent mortality (n=80,000, frailty {FRAILTY_VAR}):")
     print(f"  cost {float(hist_row['cost']):,.1f}  QALYs {float(hist_row['qaly']):.4f}")

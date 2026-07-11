@@ -69,7 +69,7 @@ params = ParameterSet({
     "u_H": Beta(200, 3), "u_S1": Beta(130, 45), "u_S2": Beta(230, 230), "u_trtA": Beta(300, 15),
 })
 draws = params.sample(1000, seed=SeedManager(20260705).generator())
-outcomes = run_psa(engine, draws, sequential=True)
+outcomes = run_psa(engine, draws, sequential=True).outcomes
 icer_table(outcomes).round(2)
 ```
 

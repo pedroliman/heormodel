@@ -12,7 +12,7 @@ Two features rule out a cohort average: mortality rises with the number of conse
 import numpy as np
 import pandas as pd
 from heormodel.models import MicrosimModel
-from heormodel.run import SeedManager, run_psa
+from heormodel.run import run_psa
 
 STATES = ("H", "S1", "S2", "D")
 
@@ -60,13 +60,14 @@ base = dict(p_HD=0.005, p_HS1=0.15, p_S1H=0.5, p_S1S2=0.105, rr_S1=3.0, rr_S2=10
 engine = MicrosimModel.discrete(
     states=STATES, transition_probabilities=transition_probabilities,
     state_rewards=state_rewards, population=population,
-    n_individuals=50_000, seed_manager=SeedManager(1),
+    n_individuals=50_000,
     strategies={"No Treatment": {"on_treatment": 0.0}, "Treatment": {"on_treatment": 1.0}},
     n_cycles=30, discount_rate=0.03,
     cycle_correction="none", duration_groups={"dur": ("S1", "S2")})
 outcomes = run_psa(
-    engine, pd.DataFrame([base], index=pd.RangeIndex(1, name="iteration")), sequential=True
-)
+    engine, pd.DataFrame([base], index=pd.RangeIndex(1, name="iteration")),
+    seed=1, sequential=True,
+).outcomes
 icer_table(outcomes).round(2)
 ```
 

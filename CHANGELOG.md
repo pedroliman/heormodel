@@ -107,6 +107,31 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Changed
 
+- The runner owns execution, a clean break with no aliases
+  ([#28](https://github.com/pedroliman/heormodel/issues/28)). Seeding and the
+  event side channel move out of the engines and into `run_psa`:
+  - Stochastic engines (`MicrosimModel`, `DESModel`) no longer take
+    `seed_manager` at construction, and `evaluate(draws)` no longer takes a
+    `trace` flag. `evaluate(draws)` returns `Outcomes` only, matching the
+    `ModelEngine` protocol, so the `# type: ignore` the discrete-event example
+    needed is gone.
+  - `run_psa` gains `seed` and `collect` and returns a `RunResult` with
+    `outcomes`, `events`, and `individuals` fields (unset fields are `None`).
+    Read the panel with `run_psa(model, draws, seed=...).outcomes`. `RunResult`
+    is deliberately not iterable, so it cannot be mistaken for the old
+    `(outcomes, trace)` tuple. `collect="events"` gathers the state-change or
+    resource history and `collect="individuals"` the per-individual accruals,
+    working identically for every engine and in parallel.
+  - `run_psa` builds the per-iteration streams from `seed` and hands them to a
+    stochastic engine through the wider `StochasticEngine` protocol
+    (`evaluate_streamed(draws, streams=..., collect=...) -> EngineResult`);
+    deterministic engines keep the plain `ModelEngine` shape and ignore seeding.
+    Because streams stay keyed by iteration index, outcomes and the collected
+    log are invariant to `batch_size` and `n_jobs`. `SeedManager` stays public
+    (it is the record `capture_run` stores) but is no longer a constructor
+    argument. Stream derivation reproduces the previous numbers exactly, so the
+    replication gallery is unchanged.
+
 - One vocabulary across the engines, a clean break with no aliases
   ([#28](https://github.com/pedroliman/heormodel/issues/28)). Every engine now
   spells a shared concept the same way:

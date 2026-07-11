@@ -2,10 +2,11 @@
 
 import io
 
+import numpy as np
 import pandas as pd
 import pytest
 
-from heormodel.models import Outcomes
+from heormodel.models import MicrosimModel, Outcomes
 from heormodel.params import Normal, ParameterSet, Uniform
 from heormodel.run import run_psa
 from heormodel.run._progress import ProgressReporter, resolve_enabled
@@ -25,26 +26,26 @@ def _draws() -> pd.DataFrame:
 class TestNumbersIndependentOfWorkers:
     def test_sequential_n_jobs_one_and_two_are_identical(self):
         draws = _draws()
-        seq = run_psa(_model, draws, sequential=True, progress=False)
-        one = run_psa(_model, draws, n_jobs=1, progress=False)
-        two = run_psa(_model, draws, n_jobs=2, progress=False)
+        seq = run_psa(_model, draws, sequential=True, progress=False).outcomes
+        one = run_psa(_model, draws, n_jobs=1, progress=False).outcomes
+        two = run_psa(_model, draws, n_jobs=2, progress=False).outcomes
         pd.testing.assert_frame_equal(seq.data, one.data)
         pd.testing.assert_frame_equal(seq.data, two.data)
 
     def test_sequential_overrides_n_jobs(self):
         draws = _draws()
-        forced = run_psa(_model, draws, sequential=True, n_jobs=4, progress=False)
-        default = run_psa(_model, draws, progress=False)
+        forced = run_psa(_model, draws, sequential=True, n_jobs=4, progress=False).outcomes
+        default = run_psa(_model, draws, progress=False).outcomes
         pd.testing.assert_frame_equal(forced.data, default.data)
 
     def test_single_iteration_falls_back(self):
         draws = _draws().iloc[[0]]
-        out = run_psa(_model, draws, n_jobs=4, progress=False)
+        out = run_psa(_model, draws, n_jobs=4, progress=False).outcomes
         assert out.n_iterations == 1
 
     def test_default_parallel_matches_reference_numbers(self):
         # The default run is parallel; its summary must match committed numbers.
-        out = run_psa(_model, _draws(), progress=False)
+        out = run_psa(_model, _draws(), progress=False).outcomes
         summary = out.summary()
         assert summary.loc["A", "cost"] == pytest.approx(139.582039, abs=1e-5)
         assert summary.loc["B", "cost"] == pytest.approx(279.164078, abs=1e-5)
@@ -103,3 +104,46 @@ class TestProgressInRun:
         err = capsys.readouterr().err
         assert "running_psa:" in err
         assert "experiments" in err
+
+
+def _stochastic_engine():
+    """A small individual-level engine, seeded by the runner."""
+
+    def transition(params, strategy, state, attrs, rng):
+        probs = np.zeros((len(state), 2))
+        probs[state == 0] = [1 - params["p"], params["p"]]
+        probs[state == 1] = [0.0, 1.0]  # absorbing
+        return probs
+
+    def rewards(params, strategy, state, attrs):
+        alive = (state == 0).astype(float)
+        return alive * 100.0, alive
+
+    return MicrosimModel.discrete(
+        states=("well", "dead"), transition_probabilities=transition,
+        state_rewards=rewards, population=200, strategies=["A", "B"], n_cycles=8,
+    )
+
+
+def _stochastic_draws():
+    return pd.DataFrame(
+        {"p": [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45]},
+        index=pd.RangeIndex(8, name="iteration"),
+    )
+
+
+class TestSeededStochasticRun:
+    def test_outcomes_invariant_to_batch_size_and_n_jobs(self):
+        engine, draws = _stochastic_engine(), _stochastic_draws()
+        base = run_psa(engine, draws, seed=5, sequential=True).outcomes
+        for kwargs in ({"n_jobs": 2}, {"batch_size": 1}, {"batch_size": 3, "n_jobs": 2}):
+            got = run_psa(engine, draws, seed=5, **kwargs).outcomes
+            pd.testing.assert_frame_equal(base.data, got.data)
+
+    def test_collect_events_parallel_equals_sequential(self):
+        engine, draws = _stochastic_engine(), _stochastic_draws()
+        serial = run_psa(engine, draws, seed=5, sequential=True, collect="events").events
+        parallel = run_psa(
+            engine, draws, seed=5, n_jobs=2, batch_size=2, collect="events"
+        ).events
+        pd.testing.assert_frame_equal(serial, parallel)

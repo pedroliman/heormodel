@@ -59,7 +59,7 @@ def analytic_voi(s_conditional: float) -> float:
 def main() -> None:
     params = ParameterSet({"dq": Normal(MU_Q, SD_Q), "dc": Normal(MU_C, SD_C)})
     draws = params.sample(N, seed=2026)
-    outcomes = run_psa(new_drug, draws, sequential=True)
+    outcomes = run_psa(new_drug, draws, sequential=True).outcomes
 
     # --- decision -----------------------------------------------------------
     print(f"Willingness to pay: {WTP:,.0f} per QALY\n")

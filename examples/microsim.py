@@ -132,10 +132,9 @@ def main() -> None:
             "Treatment": {"on_treatment": 1.0},
         },
         n_cycles=HORIZON,
-        seed_manager=seeds,
     )
 
-    outcomes = run_psa(engine, draws)
+    outcomes = run_psa(engine, draws, seed=seeds.entropy).outcomes
     print(outcomes)
     print("\nIncremental analysis:")
     print(icer_table(outcomes).round(3).to_string())

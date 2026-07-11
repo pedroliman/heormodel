@@ -187,7 +187,7 @@ def main() -> None:
     print(f"\nMixed draw matrix: {draws.shape[0]} iterations, columns {list(draws.columns)}")
 
     # --- 4. run the decision model over the mixed draws --------------------
-    outcomes = run_psa(disease_model, draws)
+    outcomes = run_psa(disease_model, draws).outcomes
     print(outcomes)
 
     # --- 5. cost-effectiveness analysis ------------------------------------

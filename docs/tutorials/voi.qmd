@@ -28,7 +28,7 @@ def new_drug(d: pd.DataFrame) -> Outcomes:
 
 params = ParameterSet({"dq": Normal(MU_Q, SD_Q), "dc": Normal(MU_C, SD_C)})
 draws = params.sample(100_000, seed=2026)
-outcomes = run_psa(new_drug, draws, sequential=True)
+outcomes = run_psa(new_drug, draws, sequential=True).outcomes
 ```
 
 The closed forms use the unit normal loss integral: the value of resolving uncertainty is the expected upside minus the current decision's value.

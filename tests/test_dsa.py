@@ -84,7 +84,7 @@ class TestAnalyticSensitivity:
         # Sweeping a, d(NMB)/da = 0.1 w - 10. Check outcome change equals that slope.
         values = [0.0, 1.0, 2.0, 3.0]
         design, _ = one_way(BASE, "a", values)
-        outcomes = run_psa(linear_model, design)
+        outcomes = run_psa(linear_model, design).outcomes
         wtp = 50.0
         nb = wtp * outcomes.effects_wide()["T"] - outcomes.costs_wide()["T"]
         nb = nb.to_numpy()
@@ -96,7 +96,7 @@ class TestAnalyticSensitivity:
         # Cost of T is 10 a + 5 b: exactly bilinear-separable, so the grid
         # reproduces the closed form at every node.
         design, descriptor = grid(BASE, {"a": [0.0, 1.0, 2.0], "b": [4.0, 8.0]})
-        outcomes = run_psa(linear_model, design)
+        outcomes = run_psa(linear_model, design).outcomes
         cost = outcomes.costs_wide()["T"]
         hm = heatmap_data(cost, descriptor, x="a", y="b")
         for a in (0.0, 1.0, 2.0):
@@ -107,7 +107,7 @@ class TestAnalyticSensitivity:
 class TestTornadoFromDsa:
     def test_tornado_reads_swept_extremes(self):
         design, descriptor = one_at_a_time(BASE, {"a": (0.0, 4.0), "b": (0.0, 4.0)})
-        outcomes = run_psa(linear_model, design)
+        outcomes = run_psa(linear_model, design).outcomes
         wtp = 50.0
         td = tornado_data(outcomes, (design, descriptor), wtp=wtp, strategy="T", comparator="S")
         assert set(td.index) == {"a", "b"}
@@ -118,6 +118,6 @@ class TestTornadoFromDsa:
 
     def test_grid_descriptor_rejected_by_tornado(self):
         design, descriptor = grid(BASE, {"a": [0.0, 1.0], "b": [1.0, 2.0]})
-        outcomes = run_psa(linear_model, design)
+        outcomes = run_psa(linear_model, design).outcomes
         with pytest.raises(ValueError, match="one-way"):
             tornado_data(outcomes, (design, descriptor), wtp=50.0, strategy="T")

@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from heormodel.models import MicrosimModel, state_occupancy
-from heormodel.run import SeedManager
+from heormodel.run import run_psa
 
 
 def _survival(occ: pd.DataFrame, dead_state: str) -> pd.Series:
@@ -84,7 +84,7 @@ class TestStateOccupancy:
 
 
 class TestEventTrace:
-    def _continuous_engine(self, population=20_000, seed=5):
+    def _continuous_engine(self, population=20_000):
         lam = 0.1
 
         def event_times(params, strategy, state, attrs, rng):
@@ -104,12 +104,11 @@ class TestEventTrace:
             population=population,
             strategies=["care"],
             horizon=50.0,
-            seed_manager=SeedManager(seed),
         )
 
     def test_continuous_survival_matches_exponential(self):
         engine = self._continuous_engine()
-        _, events = engine.evaluate(_draws(), trace="events")
+        events = run_psa(engine, _draws(), seed=5, collect="events").events
         assert list(events.columns) == [
             "strategy", "iteration", "individual", "time", "from_state", "to_state",
         ]
@@ -122,9 +121,9 @@ class TestEventTrace:
             assert surv.loc[("care", 0, t)] == pytest.approx(np.exp(-0.1 * t), abs=0.01)
 
     def test_events_do_not_change_outcomes(self):
-        plain = self._continuous_engine().evaluate(_draws())
-        with_events, _ = self._continuous_engine().evaluate(_draws(), trace="events")
-        pd.testing.assert_frame_equal(plain.data, with_events.data)
+        plain = run_psa(self._continuous_engine(), _draws(), seed=5).outcomes
+        with_events = run_psa(self._continuous_engine(), _draws(), seed=5, collect="events")
+        pd.testing.assert_frame_equal(plain.data, with_events.outcomes.data)
 
     def test_discrete_clock_logs_state_changes(self):
         def transition(params, strategy, state, attrs, rng):
@@ -144,10 +143,9 @@ class TestEventTrace:
             population=50_000,
             strategies=["care"],
             n_cycles=10,
-            seed_manager=SeedManager(6),
             cycle_correction="none",
         )
-        _, events = engine.evaluate(_draws(), trace="events")
+        events = run_psa(engine, _draws(), seed=6, collect="events").events
         occ = state_occupancy(
             events, states=("alive", "dead"), initial_state="alive",
             n_individuals=50_000, times=[1.0, 3.0],
@@ -155,6 +153,6 @@ class TestEventTrace:
         assert occ.loc[("care", 0, 1.0), "alive"] == pytest.approx(0.7, abs=0.01)
         assert occ.loc[("care", 0, 3.0), "alive"] == pytest.approx(0.7**3, abs=0.01)
 
-    def test_bad_trace_value_rejected(self):
-        with pytest.raises(ValueError, match="trace must be"):
-            self._continuous_engine(population=10).evaluate(_draws(), trace="event")
+    def test_bad_collect_value_rejected(self):
+        with pytest.raises(ValueError, match="collect must be"):
+            run_psa(self._continuous_engine(population=10), _draws(), collect="event")

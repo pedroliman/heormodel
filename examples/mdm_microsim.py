@@ -117,12 +117,12 @@ def main() -> None:
         strategies={"No Treatment": {"on_treatment": 0.0},
                     "Treatment": {"on_treatment": 1.0}},
         n_cycles=HORIZON, discount_rate=0.03,
-        cycle_correction="none", seed_manager=seeds,
+        cycle_correction="none",
         duration_groups={"dur": ("S1", "S2")},
     )
 
     draws = pd.DataFrame([BASE], index=pd.RangeIndex(1, name="iteration"))
-    outcomes = run_psa(engine, draws)
+    outcomes = run_psa(engine, draws, seed=seeds.entropy).outcomes
     print(f"Extended Sick-Sicker microsimulation, {POP:,} individuals:")
     print(icer_table(outcomes).round(2).to_string())
     print(

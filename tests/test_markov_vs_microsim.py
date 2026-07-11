@@ -18,7 +18,7 @@ import pandas as pd
 import pytest
 
 from heormodel.models import CohortSpec, MarkovModel, MicrosimModel
-from heormodel.run import SeedManager, run_psa
+from heormodel.run import run_psa
 
 STATES = ("H", "S1", "S2", "D")
 N_CYCLES = 40
@@ -79,14 +79,14 @@ def _payoffs(p, strategy, state, attrs):
     return COST[state], EFF[state]
 
 
-def _microsim(n, var, seed=1):
+def _microsim(n, var):
     return MicrosimModel.discrete(
         states=STATES,
         transition_probabilities=_transition,
         state_rewards=_payoffs,
         population=_make_pop(var),
         n_individuals=n, strategies=[STRATEGY], n_cycles=N_CYCLES,
-        discount_rate=0.03, cycle_correction="half_cycle", seed_manager=SeedManager(seed),
+        discount_rate=0.03, cycle_correction="half_cycle",
     )
 
 
@@ -98,8 +98,8 @@ def _cohort():
     )
 
 
-def _summary(model):
-    return run_psa(model, _draws(), sequential=True).summary().loc[STRATEGY]
+def _summary(model, seed=1):
+    return run_psa(model, _draws(), seed=seed, sequential=True).outcomes.summary().loc[STRATEGY]
 
 
 def test_homogeneous_microsim_converges_to_cohort():

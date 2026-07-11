@@ -20,7 +20,7 @@ from heormodel.models import (  # noqa: E402
     ModelEngine,
     queue_waits,
 )
-from heormodel.run import SeedManager, run_psa  # noqa: E402
+from heormodel.run import run_psa  # noqa: E402
 
 
 def _draws(n_iter=1):
@@ -52,9 +52,8 @@ class TestMM1Validation:
             resources=resources,
             strategies={"clinic": {}},
             horizon=n / lam * 1.5,  # comfortably past the last arrival
-            seed_manager=SeedManager(3),
         )
-        _, trace = engine.evaluate(_draws(), trace=True)
+        trace = run_psa(engine, _draws(), seed=3, collect="events").events
 
         waits = queue_waits(trace).iloc[1_000:]  # drop the warm-up transient
         wq = (lam / mu) / (mu - lam)  # M/M/1 mean time in queue
@@ -84,7 +83,6 @@ class TestExponentialCohort:
             strategies={"care": {}},
             horizon=horizon,
             discount_rate=self.RATE,
-            seed_manager=SeedManager(7),
         )
 
     def _microsim(self):
@@ -108,18 +106,17 @@ class TestExponentialCohort:
             strategies=["care"],
             horizon=self.HORIZON,
             discount_rate=self.RATE,
-            seed_manager=SeedManager(7),
         )
 
     def test_des_matches_closed_form(self):
         disc_ly = (1 - np.exp(-(self.RATE + self.LAM) * self.HORIZON)) / (self.RATE + self.LAM)
-        got = self._des().evaluate(_draws()).summary().loc["care"]
+        got = run_psa(self._des(), _draws(), seed=7).outcomes.summary().loc["care"]
         assert got["cost"] == pytest.approx(self.COST_YEAR * disc_ly, rel=0.01)
         assert got["qaly"] == pytest.approx(disc_ly, rel=0.01)
 
     def test_des_and_microsim_agree(self):
-        des = self._des().evaluate(_draws()).summary().loc["care"]
-        micro = self._microsim().evaluate(_draws()).summary().loc["care"]
+        des = run_psa(self._des(), _draws(), seed=7).outcomes.summary().loc["care"]
+        micro = run_psa(self._microsim(), _draws(), seed=7).outcomes.summary().loc["care"]
         assert des["cost"] == pytest.approx(micro["cost"], rel=0.01)
         assert des["qaly"] == pytest.approx(micro["qaly"], rel=0.01)
 
@@ -138,7 +135,6 @@ def _small_engine(**overrides):
         population=200,
         strategies={"care": {}},
         horizon=10.0,
-        seed_manager=SeedManager(99),
     )
     kwargs.update(overrides)
     return DESModel(**kwargs)
@@ -147,8 +143,8 @@ def _small_engine(**overrides):
 class TestReproducibility:
     def test_same_seed_identical_across_n_jobs(self):
         draws = _draws(6)
-        serial = run_psa(_small_engine(), draws, sequential=True)
-        parallel = run_psa(_small_engine(), draws, n_jobs=2)
+        serial = run_psa(_small_engine(), draws, seed=99, sequential=True).outcomes
+        parallel = run_psa(_small_engine(), draws, seed=99, n_jobs=2).outcomes
         pd.testing.assert_frame_equal(serial.data, parallel.data)
 
     def test_different_iterations_differ(self):
@@ -185,7 +181,7 @@ class TestContract:
 
     def test_iteration_index_preserved(self):
         draws = _draws(5)
-        out = run_psa(_small_engine(), draws)
+        out = run_psa(_small_engine(), draws).outcomes
         assert out.iterations.equals(draws.index)
 
     def test_strategies_in_declared_order(self):
@@ -212,7 +208,6 @@ class TestAccrualDetails:
             strategies={"care": {}},
             horizon=10.0,
             discount_rate=0.03,
-            seed_manager=SeedManager(1),
         )
         got = engine.evaluate(_draws()).summary().loc["care", "cost"]
         assert got == pytest.approx(100.0 * np.exp(-0.03 * 2.0), rel=1e-9)
@@ -228,7 +223,6 @@ class TestAccrualDetails:
             strategies={"care": {}},
             horizon=10.0,
             discount_rate=0.0,
-            seed_manager=SeedManager(1),
         )
         got = engine.evaluate(_draws()).summary().loc["care"]
         assert got["cost"] == pytest.approx(10.0)  # undiscounted length of the horizon
@@ -246,7 +240,6 @@ class TestAccrualDetails:
             strategies={"care": {}},
             horizon=5.0,
             discount_rate=0.0,
-            seed_manager=SeedManager(1),
         )
         out = engine.evaluate(_draws())
         assert set(out.components) == {"cost_drug", "cost_clinic"}
@@ -268,9 +261,9 @@ class TestTraceAndGuards:
             population=5,
             strategies={"A": {}, "B": {}},
             horizon=5.0,
-            seed_manager=SeedManager(1),
         )
-        out, trace = engine.evaluate(_draws(2), trace=True)
+        result = run_psa(engine, _draws(2), seed=1, collect="events")
+        out, trace = result.outcomes, result.events
         assert out.strategies == ["A", "B"]
         assert set(trace.columns) == {
             "strategy",
@@ -293,7 +286,6 @@ class TestTraceAndGuards:
             population=1,
             strategies={"care": {}},
             horizon=5.0,
-            seed_manager=SeedManager(1),
         )
         with pytest.raises(KeyError, match="missing"):
             engine.evaluate(_draws())

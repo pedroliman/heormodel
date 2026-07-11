@@ -14,7 +14,6 @@ import numpy as np
 import pandas as pd
 
 from heormodel.models import LifeTable, MicrosimModel
-from heormodel.run import SeedManager
 
 EventTimes = Callable[..., np.ndarray]
 Valuation = Callable[..., tuple[np.ndarray, np.ndarray]]
@@ -116,14 +115,13 @@ def build_engine(
     horizon: float,
     discount_rate: float,
     population: int,
-    seed_manager: SeedManager,
     treatment_a_utility_gain: float = 0.20,
 ) -> MicrosimModel:
     """Assemble the continuous-clock `MicrosimModel` from the model functions.
 
     Input: the life table, the model structure and horizon, the discount rate,
-    the population size, and a seed manager. Output: a configured
-    `MicrosimModel` ready to ``evaluate`` a draw matrix.
+    and the population size. Output: a configured `MicrosimModel` ready to run
+    through `heormodel.run.run_psa`, which supplies the seed.
     """
     return MicrosimModel.continuous(
         states=states,
@@ -133,5 +131,4 @@ def build_engine(
         strategies=strategies,
         horizon=horizon,
         discount_rate=discount_rate,
-        seed_manager=seed_manager,
     )

@@ -132,7 +132,7 @@ def disease_model(d):
     }, index=d.index)
     return Outcomes.from_wide(costs, effects)
 
-outcomes = run_psa(disease_model, draws, sequential=True)
+outcomes = run_psa(disease_model, draws, sequential=True).outcomes
 from heormodel.cea import icer_table
 icer_table(outcomes).round(3)
 ```

@@ -129,10 +129,9 @@ def main() -> None:
             "Expanded capacity": {"n_servers": 2},
         },
         horizon=HORIZON,
-        seed_manager=seeds,
     )
 
-    outcomes = run_psa(engine, draws)
+    outcomes = run_psa(engine, draws, seed=seeds.entropy).outcomes
     print(outcomes)
     print("\nMean outcome per patient:")
     print(outcomes.summary().round(3).to_string())
@@ -144,7 +143,7 @@ def main() -> None:
     print(evppi_ranking(outcomes, draws, WTP).round(1).to_string())
 
     # Queueing report from the trace, one iteration at the posterior mean draw.
-    _, trace = engine.evaluate(draws.iloc[[0]], trace=True)
+    trace = run_psa(engine, draws.iloc[[0]], seed=seeds.entropy, collect="events").events
     waits = queue_waits(trace)
     mean_wait = waits.groupby("strategy", sort=False)["wait"].mean() * 365.0
     print("\nMean queue wait (days), first iteration:")

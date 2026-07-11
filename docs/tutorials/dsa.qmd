@@ -56,7 +56,7 @@ from heormodel.dsa import one_way
 from heormodel.run import run_psa
 
 design, _ = one_way(base, "c_trtB", [8_000.0, 13_000.0, 18_000.0])
-nb = nmb(run_psa(engine, design), WTP)
+nb = nmb(run_psa(engine, design).outcomes, WTP)
 (nb["Strategy AB"] - nb["Standard of care"]).round(0)
 ```
 
@@ -70,7 +70,7 @@ from heormodel.report import plot_tornado, tornado_data
 
 ranges = {name: (0.8 * base[name], 1.2 * base[name]) for name in base.index}
 oat = one_at_a_time(base, ranges)
-td = tornado_data(run_psa(engine, oat[0]), oat, wtp=WTP,
+td = tornado_data(run_psa(engine, oat[0]).outcomes, oat, wtp=WTP,
                   strategy="Strategy AB", comparator="Standard of care")
 plot_tornado(td.head(6))
 ```
@@ -87,7 +87,7 @@ from heormodel.report import heatmap_data
 
 gd, gdesc = grid(base, {"c_trtA": [6_000.0, 12_000.0, 18_000.0],
                         "c_trtB": [8_000.0, 13_000.0, 18_000.0]})
-gnb = nmb(run_psa(engine, gd), WTP)
+gnb = nmb(run_psa(engine, gd).outcomes, WTP)
 heatmap_data(gnb["Strategy AB"] - gnb["Standard of care"], gdesc,
              x="c_trtA", y="c_trtB").round(0)
 ```

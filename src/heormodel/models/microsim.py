@@ -38,6 +38,7 @@ from heormodel.models._accrual import accrue, aggregate, integrate_flow
 from heormodel.models._strategies import StrategySpec, merge_overrides, normalize_strategies
 from heormodel.models.markov import gen_wcc
 from heormodel.models.outcomes import ITERATION_LEVEL, STRATEGY_LEVEL, Outcomes
+from heormodel.models.protocol import EngineResult
 from heormodel.run.seeds import SeedManager
 
 PopulationSpec = int | Callable[[np.random.Generator, int], pd.DataFrame] | None
@@ -69,7 +70,6 @@ class _MicrosimBase:
         ],
         population: PopulationSpec,
         strategies: StrategySpec,
-        seed_manager: SeedManager,
         n_individuals: int,
         initial_state: str | int,
         discount_rate: float,
@@ -81,7 +81,6 @@ class _MicrosimBase:
         self._states = tuple(states)
         self._state_rewards = state_rewards
         self._strategies = normalize_strategies(strategies)
-        self._seed_manager = seed_manager
         self._discount_rate = float(discount_rate)
         self._effect = effect
         self._independent_streams = bool(independent_streams)
@@ -128,34 +127,56 @@ class _MicrosimBase:
     ) -> tuple[NDArray[np.float64], NDArray[np.float64], pd.DataFrame | None]:
         raise NotImplementedError
 
-    def evaluate(
-        self, draws: pd.DataFrame, *, trace: bool | str = False
-    ) -> Outcomes | tuple[Outcomes, pd.DataFrame]:
+    def evaluate(self, draws: pd.DataFrame) -> Outcomes:
         """Simulate the population for every draw and average to `Outcomes`.
+
+        This is the narrow `heormodel.models.ModelEngine` entry point: it seeds
+        each iteration from a fixed default stream, so a direct call is
+        reproducible. Run through `heormodel.run.run_psa` to choose the seed, to
+        run in parallel, and to collect the event or individual logs.
 
         Args:
             draws: Parameter draw matrix (rows = iterations). Its index becomes
                 the outcome iteration index.
-            trace: ``True`` also returns per-individual cost and effect as a
-                long ``DataFrame``, the individual-level side channel.
-                ``"events"`` returns the event history instead: one row per
-                state change with columns ``strategy``, ``iteration``,
-                ``individual``, ``time``, ``from_state``, and ``to_state``,
-                the input to `heormodel.models.state_occupancy`.
 
         Returns:
-            `Outcomes`, or ``(Outcomes, trace)`` when ``trace`` is set.
+            `Outcomes` indexed by ``(strategy, draws.index)``.
         """
-        if isinstance(trace, str) and trace != "events":
-            raise ValueError(f"trace must be False, True, or 'events', got {trace!r}.")
-        collect_events = trace == "events"
+        return self.evaluate_streamed(draws, streams=SeedManager(0)).outcomes
+
+    def evaluate_streamed(
+        self, draws: pd.DataFrame, *, streams: SeedManager, collect: str | None = None
+    ) -> EngineResult:
+        """Simulate every draw under ``streams``, collecting the ``collect`` log.
+
+        Args:
+            draws: Parameter draw matrix (rows = iterations).
+            streams: Root of the per-iteration streams; each iteration draws a
+                stream keyed by its index, so results do not depend on how the
+                run is chunked across workers.
+            collect: ``None`` for outcomes only, ``"events"`` for the state-change
+                history (one row per state change with columns ``strategy``,
+                ``iteration``, ``individual``, ``time``, ``from_state``, and
+                ``to_state``, the input to `heormodel.models.state_occupancy`), or
+                ``"individuals"`` for per-individual cost and effect.
+
+        Returns:
+            An `EngineResult` whose ``outcomes`` is always set and whose
+            ``events`` or ``individuals`` is set to match ``collect``.
+        """
+        if collect not in (None, "events", "individuals"):
+            raise ValueError(
+                f"collect must be None, 'events', or 'individuals', got {collect!r}."
+            )
+        collect_events = collect == "events"
+        collect_individuals = collect == "individuals"
         if draws.empty:
             raise ValueError("draws is empty.")
         strategy_names = list(self._strategies)
         rows: list[pd.DataFrame] = []
         traces: list[pd.DataFrame] = []
         for label, (_, raw_params) in zip(draws.index, draws.iterrows(), strict=True):
-            iter_seq = self._seed_manager.child_sequence(_iteration_key(label))
+            iter_seq = streams.child_sequence(_iteration_key(label))
             shared_attrs: pd.DataFrame | None = None
             shared_txn: np.random.SeedSequence | None = None
             if self._independent_streams:
@@ -181,7 +202,7 @@ class _MicrosimBase:
                     events.insert(0, ITERATION_LEVEL, label)
                     events.insert(0, STRATEGY_LEVEL, name)
                     traces.append(events)
-                elif trace:
+                elif collect_individuals:
                     traces.append(
                         pd.DataFrame(
                             {
@@ -198,9 +219,12 @@ class _MicrosimBase:
             [strategy_names, draws.index], names=[STRATEGY_LEVEL, ITERATION_LEVEL]
         )
         outcomes = Outcomes(data.reindex(full_index), effect=self._effect)
-        if trace:
-            return outcomes, pd.concat(traces, ignore_index=True)
-        return outcomes
+        log = pd.concat(traces, ignore_index=True) if traces else None
+        return EngineResult(
+            outcomes,
+            events=log if collect_events else None,
+            individuals=log if collect_individuals else None,
+        )
 
 
 class MicrosimModel(_MicrosimBase):
@@ -236,7 +260,6 @@ class MicrosimModel(_MicrosimBase):
     Example:
         >>> import numpy as np, pandas as pd
         >>> from heormodel.models import MicrosimModel
-        >>> from heormodel.run import SeedManager
         >>> def transition_probabilities(params, strategy, state, attrs, rng):
         ...     probs = np.zeros((len(state), 2))
         ...     probs[state == 0] = [1 - params["p_die"], params["p_die"]]
@@ -250,7 +273,7 @@ class MicrosimModel(_MicrosimBase):
         ...     transition_probabilities=transition_probabilities,
         ...     state_rewards=state_rewards,
         ...     population=500, strategies=["care"], n_cycles=10,
-        ...     seed_manager=SeedManager(0), cycle_correction="none")
+        ...     cycle_correction="none")
         >>> draws = pd.DataFrame({"p_die": [0.1], "cost": [1000.0]},
         ...                      index=pd.RangeIndex(1, name="iteration"))
         >>> engine.evaluate(draws).strategies
@@ -266,7 +289,6 @@ class MicrosimModel(_MicrosimBase):
             ..., tuple[NDArray[np.float64], NDArray[np.float64]]
         ],
         strategies: StrategySpec,
-        seed_manager: SeedManager,
         transition_probabilities: Callable[..., NDArray[np.float64]] | None = None,
         event_times: Callable[..., NDArray[np.float64]] | None = None,
         population: PopulationSpec = None,
@@ -289,7 +311,6 @@ class MicrosimModel(_MicrosimBase):
             state_rewards=state_rewards,
             population=population,
             strategies=strategies,
-            seed_manager=seed_manager,
             n_individuals=n_individuals,
             initial_state=initial_state,
             discount_rate=discount_rate,
@@ -325,7 +346,6 @@ class MicrosimModel(_MicrosimBase):
         transition_probabilities: Callable[..., NDArray[np.float64]],
         state_rewards: Callable[..., tuple[NDArray[np.float64], NDArray[np.float64]]],
         strategies: StrategySpec,
-        seed_manager: SeedManager,
         n_cycles: int,
         population: PopulationSpec = None,
         cycle_length: float = 1.0,
@@ -339,6 +359,9 @@ class MicrosimModel(_MicrosimBase):
     ) -> MicrosimModel:
         """Build a discrete-time microsimulation on a fixed cycle grid.
 
+        Randomness is supplied by `heormodel.run.run_psa` at run time, not at
+        construction; the engine holds no seed of its own.
+
         Args:
             states: State labels; the first is the default starting state.
             transition_probabilities: ``fn(params, strategy, state, attrs, rng)
@@ -349,7 +372,6 @@ class MicrosimModel(_MicrosimBase):
             strategies: Strategy names, or a mapping of name to a
                 parameter-override dict merged into ``params`` for that strategy.
                 Order is preserved in `Outcomes`.
-            seed_manager: Root of all randomness.
             n_cycles: Number of cycles to simulate.
             population: Attribute sampler ``fn(rng, n) -> DataFrame`` for
                 heterogeneity, or an ``int`` count for a featureless population.
@@ -380,7 +402,6 @@ class MicrosimModel(_MicrosimBase):
             transition_probabilities=transition_probabilities,
             state_rewards=state_rewards,
             strategies=strategies,
-            seed_manager=seed_manager,
             n_cycles=n_cycles,
             population=population,
             cycle_length=cycle_length,
@@ -401,7 +422,6 @@ class MicrosimModel(_MicrosimBase):
         event_times: Callable[..., NDArray[np.float64]],
         state_reward_rates: Callable[..., tuple[NDArray[np.float64], NDArray[np.float64]]],
         strategies: StrategySpec,
-        seed_manager: SeedManager,
         horizon: float,
         population: PopulationSpec = None,
         discount_rate: float = 0.03,
@@ -412,6 +432,9 @@ class MicrosimModel(_MicrosimBase):
         max_events: int = 10_000,
     ) -> MicrosimModel:
         """Build a continuous-time microsimulation that races event samplers.
+
+        Randomness is supplied by `heormodel.run.run_psa` at run time, not at
+        construction; the engine holds no seed of its own.
 
         Args:
             states: State labels; the first is the default starting state.
@@ -425,7 +448,6 @@ class MicrosimModel(_MicrosimBase):
             strategies: Strategy names, or a mapping of name to a
                 parameter-override dict merged into ``params`` for that strategy.
                 Order is preserved in `Outcomes`.
-            seed_manager: Root of all randomness.
             horizon: Time horizon in years; trajectories truncate here.
             population: Attribute sampler ``fn(rng, n) -> DataFrame`` for
                 heterogeneity, or an ``int`` count for a featureless population.
@@ -446,7 +468,6 @@ class MicrosimModel(_MicrosimBase):
             event_times=event_times,
             state_rewards=state_reward_rates,
             strategies=strategies,
-            seed_manager=seed_manager,
             horizon=horizon,
             population=population,
             discount_rate=discount_rate,

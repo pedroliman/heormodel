@@ -107,17 +107,17 @@ class TestRunPsa:
         self.draws = ps.sample(40, seed=9)
 
     def test_callable_model_preserves_iteration_index(self):
-        out = run_psa(dummy_model, self.draws)
+        out = run_psa(dummy_model, self.draws).outcomes
         assert out.iterations.equals(self.draws.index)
 
     def test_engine_object_satisfies_protocol(self):
         assert isinstance(DummyEngine(), ModelEngine)
-        out = run_psa(DummyEngine(), self.draws)
+        out = run_psa(DummyEngine(), self.draws).outcomes
         assert out.strategies == ["A", "B"]
 
     def test_parallel_matches_serial(self):
-        serial = run_psa(dummy_model, self.draws, sequential=True)
-        parallel = run_psa(dummy_model, self.draws, n_jobs=2)
+        serial = run_psa(dummy_model, self.draws, sequential=True).outcomes
+        parallel = run_psa(dummy_model, self.draws, n_jobs=2).outcomes
         pd.testing.assert_frame_equal(serial.data, parallel.data)
 
     def test_contract_violation_detected(self):

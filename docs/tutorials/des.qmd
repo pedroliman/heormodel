@@ -66,9 +66,9 @@ engine = DESModel(
     process=clinic, population=patients, n_individuals=30, resources=resources,
     strategies={"Standard capacity": {"n_servers": 1, "c_capacity": 0.0},
                 "Expanded capacity": {"n_servers": 2}},
-    horizon=HORIZON, seed_manager=seeds,
+    horizon=HORIZON,
 )
-outcomes = run_psa(engine, draws, sequential=True)
+outcomes = run_psa(engine, draws, seed=seeds.entropy, sequential=True).outcomes
 outcomes.summary().round(2)
 ```
 
@@ -89,12 +89,12 @@ print(f"EVPI at WTP {WTP:,.0f}: {evpi(outcomes, WTP):,.1f}")
 evppi_ranking(outcomes, draws, WTP).round(1)
 ```
 
-Service time leads the value-of-information ranking: it sets how fast the queue clears, so it determines whether the extra capacity is worth its cost. The `trace` side channel carries the event log, and `queue_waits` turns it into per-request waits without touching engine internals.
+Service time leads the value-of-information ranking: it sets how fast the queue clears, so it determines whether the extra capacity is worth its cost. Passing `collect="events"` to `run_psa` returns the event log alongside the outcomes, and `queue_waits` turns it into per-request waits without touching engine internals.
 
 ```{python}
 from heormodel.models import queue_waits
 
-_, trace = engine.evaluate(draws.iloc[[0]], trace=True)
+trace = run_psa(engine, draws.iloc[[0]], seed=seeds.entropy, collect="events").events
 (queue_waits(trace).groupby("strategy", sort=False)["wait"].mean() * 365).round(1)
 ```
 
