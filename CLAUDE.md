@@ -49,25 +49,26 @@ When asked to implement the next roadmap priority (`devdocs/roadmap/README.md`):
 
 Every development task follows a structured GitHub workflow to maintain clear traceability and avoid duplicating information:
 
-### Task initiation
+### GitHub Issue: the task
 - Create a GitHub Issue at the start of each conversation describing the work to be done.
-- Link all work to this issue throughout the development process.
+- The Issue documents the *problem*, *goal*, and *acceptance criteria*—what needs to be done and why.
+- This is the single source of truth for the task itself.
 
-### Code changes
-- All code changes go through Pull Requests.
-- Open the PR early, linking it to the corresponding GitHub Issue.
+### Pull Request: the solution
+- All code changes go through Pull Requests linked to the corresponding GitHub Issue.
+- The PR title and initial description explain the *approach*—how the issue is being addressed at a high level.
+- Do not duplicate the issue description in the PR; reference the linked Issue instead.
 
-### Commits
+### Commits: the implementation record
 - Every commit message must reference the GitHub Issue using the format: `Closes #<issue-number>`, `Fixes #<issue-number>`, or `Refs #<issue-number>`.
-- Commit messages are the source of truth for *what* changed. Make them clear and descriptive about the actual changes.
+- Commit messages are the source of truth for *what* changed technically. Make them clear and descriptive about the actual changes.
 
-### Plan and status communication
-- Post implementation plans as comments on the Issue or PR.
-- When starting work, post a comment stating only the high-level approach and *why* this approach was chosen—not implementation details.
-- When completing work, post a comment summarizing the *why* (rationale for changes) and high-level *what* (nature of changes).
-- Keep comments concise. Do not duplicate information from commits. Point to commits for implementation details.
+### Status updates: progress without duplication
+- When starting work: post a comment on the Issue or PR stating the high-level approach and *why* this approach was chosen—not implementation details.
+- When completing work: post a comment summarizing the rationale for changes and high-level nature of what was done.
+- Keep comments concise. Do not duplicate information from the Issue (problem/goal), commits (technical changes), or PR description (approach).
 
-This separation ensures commits serve as the detailed change history while Issue/PR comments document rationale, decisions, and progress without redundancy.
+**Summary:** Issue = the problem; PR = the approach; Commits = the implementation details; Comments = progress and rationale. Each layer has one purpose.
 
 ## Git identity
 
