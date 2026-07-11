@@ -28,6 +28,27 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Added
 
+- Ordinary differential equation engine ([#33](https://github.com/pedroliman/heormodel/issues/33)):
+  `heormodel.models.ODEModel` integrates a user-supplied system of ordinary
+  differential equations over population compartments and returns the standard
+  `Outcomes` structure, for transmission models where a force of infection
+  couples the compartments non-linearly. `ODESpec` carries one intervention's
+  right-hand side, initial compartment sizes, per-compartment cost and effect
+  rates, and an optional flow-event channel for one-time costs attached to a
+  rate of movement (a dose administered, an infection treated). The engine
+  augments the system with two accumulator equations and integrates the
+  discounted reward flows with `scipy.integrate.solve_ivp`, reusing
+  `heormodel.models._accrual` for discounting; it is deterministic, so it
+  satisfies `ModelEngine` with no random streams. `ODEModel.trajectory` returns
+  compartment occupancy over time for inspection and plotting.
+  `examples/seir_vaccination.py` and a website tutorial run a
+  susceptible-exposed-infectious-recovered vaccination cost-effectiveness
+  analysis end to end: the program nearly eliminates the modelled epidemic and
+  buys quality-adjusted life-years at an incremental cost-effectiveness ratio
+  around 3,200, and the expected value of perfect information at a 50,000
+  threshold is driven almost entirely by the basic reproduction number. A
+  stochastic compartmental counterpart is planned in
+  [`devdocs/roadmap/16-stochastic-compartmental-engine.md`](https://github.com/pedroliman/heormodel/blob/main/devdocs/roadmap/16-stochastic-compartmental-engine.md).
 - Continuous-time Sick-Sicker replication (roadmap item 13):
   `examples/mdm_des/` (a folder of building blocks composed by `run.py`) and a
   website tutorial reproduce the published figures of the discrete-event

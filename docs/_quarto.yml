@@ -27,6 +27,8 @@ website:
               text: Markov vs microsimulation models
             - href: tutorials/des.qmd
               text: Discrete-event simulation
+            - href: tutorials/seir-vaccination.qmd
+              text: Compartmental transmission model
             - href: tutorials/full-pipeline.qmd
               text: Full pipeline
             - href: tutorials/voi.qmd
@@ -113,7 +115,7 @@ quartodoc:
         - resample_posterior
         - mix_draws
     - title: Models (`heormodel.models`)
-      desc: The `Outcomes` structure every engine returns, the `ModelEngine` contract, the cohort state-transition, microsimulation, and discrete-event engines, and state occupancy over time from an event history.
+      desc: The `Outcomes` structure every engine returns, the `ModelEngine` contract, the cohort state-transition, microsimulation, discrete-event, and ordinary differential equation engines, and state occupancy over time from an event history.
       package: heormodel.models
       contents:
         - Outcomes
@@ -123,6 +125,8 @@ quartodoc:
         - CohortSpec
         - MicrosimModel
         - DESModel
+        - ODEModel
+        - ODESpec
         - queue_waits
         - state_occupancy
         - LifeTable

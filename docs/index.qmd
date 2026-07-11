@@ -91,6 +91,7 @@ fig2.tight_layout()
 ## Where to go next
 
 - [Markov cohort model](tutorials/mdm-cohort.qmd): the standard state-transition model, then the [microsimulation engine](tutorials/microsim.qmd) as the step up in detail.
+- [Compartmental transmission model](tutorials/seir-vaccination.qmd): a susceptible-exposed-infectious-recovered vaccination model written as ordinary differential equations, for infectious-disease cost-effectiveness analysis.
 - [Bring your own outputs](tutorials/byo-outputs.qmd): an external results table through cost-effectiveness analysis, value of information, plots, and a run report.
 - [Full pipeline](tutorials/full-pipeline.qmd): parameters, `run_psa`, cost-effectiveness analysis, and value of information end to end.
 - [Calibration workflow](tutorials/calibration-workflow.qmd): calibrate some parameters, take the rest from the literature, mix both with `mix_draws`, then run the same analyses.
