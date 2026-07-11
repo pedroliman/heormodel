@@ -2,7 +2,7 @@
 
 Each distribution is a small immutable spec object backed by ``scipy.stats``.
 Specs expose the quantile function (``ppf``), which is what the correlated
-Gaussian-copula sampler in `heval.params.sampling` needs, plus direct
+Gaussian-copula sampler in `heormodel.params.sampling` needs, plus direct
 sampling and moments for convenience.
 
 Method-of-moments constructors (``from_mean_se``) build the distribution

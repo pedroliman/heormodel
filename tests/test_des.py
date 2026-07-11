@@ -16,11 +16,12 @@ simpy = pytest.importorskip("simpy")
 
 from heormodel.models import (  # noqa: E402
     DESModel,
+    Intervention,
     MicrosimModel,
     ModelEngine,
     queue_waits,
 )
-from heormodel.run import SeedManager, run_psa  # noqa: E402
+from heormodel.run import run_psa  # noqa: E402
 
 
 def _draws(n_iter=1):
@@ -36,10 +37,10 @@ class TestMM1Validation:
         def entities(rng, n):
             return pd.DataFrame({"arrival": np.cumsum(rng.exponential(1.0 / lam, n))})
 
-        def resources(env, params, strategy):
+        def resources(env, params, intervention):
             return {"clinician": simpy.Resource(env, capacity=1)}
 
-        def process(env, entity, params, strategy, toolkit):
+        def process(env, entity, params, intervention, toolkit):
             yield env.timeout(float(entity["arrival"]))
             with toolkit.request("clinician") as req:
                 yield req
@@ -47,14 +48,13 @@ class TestMM1Validation:
 
         engine = DESModel(
             process=process,
-            entities=entities,
-            n_entities=n,
+            population=entities,
+            n_individuals=n,
             resources=resources,
-            strategies={"clinic": {}},
+            interventions=["clinic"],
             horizon=n / lam * 1.5,  # comfortably past the last arrival
-            seed_manager=SeedManager(3),
         )
-        _, trace = engine.evaluate(_draws(), trace=True)
+        trace = run_psa(engine, _draws(), seed=3, collect="events").events
 
         waits = queue_waits(trace).iloc[1_000:]  # drop the warm-up transient
         wq = (lam / mu) / (mu - lam)  # M/M/1 mean time in queue
@@ -73,54 +73,51 @@ class TestExponentialCohort:
     def _des(self):
         lam, cost_year, horizon = self.LAM, self.COST_YEAR, self.HORIZON
 
-        def process(env, entity, params, strategy, toolkit):
+        def process(env, entity, params, intervention, toolkit):
             tdeath = toolkit.rng.exponential(1.0 / lam)
             toolkit.accrue_rate(cost_year, 1.0, tdeath)  # truncated at the horizon
             yield env.timeout(min(tdeath, horizon))
 
         return DESModel(
             process=process,
-            entities=60_000,
-            strategies={"care": {}},
+            population=60_000,
+            interventions=["care"],
             horizon=horizon,
             discount_rate=self.RATE,
-            seed_manager=SeedManager(7),
         )
 
     def _microsim(self):
         lam, cost_year = self.LAM, self.COST_YEAR
 
-        def hazards(params, state, attrs, rng):
+        def event_times(params, intervention, state, attrs, rng):
             times = np.full((len(state), 2), np.inf)
             alive = state == 0
             times[alive, 1] = rng.exponential(1.0 / lam, int(alive.sum()))
             return times
 
-        def payoffs(params, state, attrs):
+        def reward_rates(params, intervention, state, attrs):
             alive = (state == 0).astype(float)
             return alive * cost_year, alive
 
-        return MicrosimModel(
+        return MicrosimModel.continuous(
             states=("alive", "dead"),
-            clock="continuous",
-            event_times=hazards,
-            state_costs_and_utilities=payoffs,
+            event_times=event_times,
+            state_reward_rates=reward_rates,
             population=60_000,
-            strategies={"care": {}},
+            interventions=["care"],
             horizon=self.HORIZON,
             discount_rate=self.RATE,
-            seed_manager=SeedManager(7),
         )
 
     def test_des_matches_closed_form(self):
         disc_ly = (1 - np.exp(-(self.RATE + self.LAM) * self.HORIZON)) / (self.RATE + self.LAM)
-        got = self._des().evaluate(_draws()).summary().loc["care"]
+        got = run_psa(self._des(), _draws(), seed=7).outcomes.summary().loc["care"]
         assert got["cost"] == pytest.approx(self.COST_YEAR * disc_ly, rel=0.01)
         assert got["qaly"] == pytest.approx(disc_ly, rel=0.01)
 
     def test_des_and_microsim_agree(self):
-        des = self._des().evaluate(_draws()).summary().loc["care"]
-        micro = self._microsim().evaluate(_draws()).summary().loc["care"]
+        des = run_psa(self._des(), _draws(), seed=7).outcomes.summary().loc["care"]
+        micro = run_psa(self._microsim(), _draws(), seed=7).outcomes.summary().loc["care"]
         assert des["cost"] == pytest.approx(micro["cost"], rel=0.01)
         assert des["qaly"] == pytest.approx(micro["qaly"], rel=0.01)
 
@@ -128,7 +125,7 @@ class TestExponentialCohort:
 def _small_engine(**overrides):
     """A tiny stochastic no-resource engine for the behavioural tests."""
 
-    def process(env, entity, params, strategy, toolkit):
+    def process(env, entity, params, intervention, toolkit):
         cost = toolkit.rng.gamma(2.0, params.get("scale", 1_000.0))
         toolkit.accrue_cost(cost)
         toolkit.accrue_rate(0.0, 1.0, toolkit.rng.exponential(5.0))
@@ -136,10 +133,9 @@ def _small_engine(**overrides):
 
     kwargs = dict(
         process=process,
-        entities=200,
-        strategies={"care": {}},
+        population=200,
+        interventions=["care"],
         horizon=10.0,
-        seed_manager=SeedManager(99),
     )
     kwargs.update(overrides)
     return DESModel(**kwargs)
@@ -148,8 +144,8 @@ def _small_engine(**overrides):
 class TestReproducibility:
     def test_same_seed_identical_across_n_jobs(self):
         draws = _draws(6)
-        serial = run_psa(_small_engine(), draws, sequential=True)
-        parallel = run_psa(_small_engine(), draws, n_jobs=2)
+        serial = run_psa(_small_engine(), draws, seed=99, sequential=True).outcomes
+        parallel = run_psa(_small_engine(), draws, seed=99, n_jobs=2).outcomes
         pd.testing.assert_frame_equal(serial.data, parallel.data)
 
     def test_different_iterations_differ(self):
@@ -165,15 +161,15 @@ class TestReproducibility:
 
 
 class TestCommonRandomNumbers:
-    def test_crn_makes_identical_strategies_match(self):
-        engine = _small_engine(strategies={"A": {}, "B": {}})
+    def test_crn_makes_identical_interventions_match(self):
+        engine = _small_engine(interventions=["A", "B"])
         out = engine.evaluate(_draws(4))
         a = out.select(["A"]).data.reset_index(drop=True)
         b = out.select(["B"]).data.reset_index(drop=True)
         pd.testing.assert_frame_equal(a, b)
 
     def test_independent_streams_break_the_tie(self):
-        engine = _small_engine(strategies={"A": {}, "B": {}}, independent_streams=True)
+        engine = _small_engine(interventions=["A", "B"], independent_streams=True)
         out = engine.evaluate(_draws(4))
         a = out.select(["A"]).data.reset_index(drop=True)
         b = out.select(["B"]).data.reset_index(drop=True)
@@ -186,15 +182,15 @@ class TestContract:
 
     def test_iteration_index_preserved(self):
         draws = _draws(5)
-        out = run_psa(_small_engine(), draws)
+        out = run_psa(_small_engine(), draws).outcomes
         assert out.iterations.equals(draws.index)
 
-    def test_strategies_in_declared_order(self):
-        engine = _small_engine(strategies={"Tx": {}, "SoC": {}})
-        assert engine.evaluate(_draws(2)).strategies == ["Tx", "SoC"]
+    def test_interventions_in_declared_order(self):
+        engine = _small_engine(interventions=["Tx", "SoC"])
+        assert engine.evaluate(_draws(2)).interventions == ["Tx", "SoC"]
 
-    def test_overrides_reach_the_model(self):
-        engine = _small_engine(strategies={"base": {}, "double": {"scale": 2_000.0}})
+    def test_decision_levers_reach_the_model(self):
+        engine = _small_engine(interventions=["base", Intervention("double", {"scale": 2_000.0})])
         summary = engine.evaluate(_draws(4)).summary()
         assert summary.loc["double", "cost"] == pytest.approx(
             2.0 * summary.loc["base", "cost"], rel=0.05
@@ -203,51 +199,48 @@ class TestContract:
 
 class TestAccrualDetails:
     def test_point_cost_is_discounted_at_event_time(self):
-        def process(env, entity, params, strategy, toolkit):
+        def process(env, entity, params, intervention, toolkit):
             yield env.timeout(2.0)
             toolkit.accrue_cost(100.0)
 
         engine = DESModel(
             process=process,
-            entities=1,
-            strategies={"care": {}},
+            population=1,
+            interventions=["care"],
             horizon=10.0,
             discount_rate=0.03,
-            seed_manager=SeedManager(1),
         )
         got = engine.evaluate(_draws()).summary().loc["care", "cost"]
         assert got == pytest.approx(100.0 * np.exp(-0.03 * 2.0), rel=1e-9)
 
     def test_rate_accrual_truncates_at_horizon(self):
-        def process(env, entity, params, strategy, toolkit):
+        def process(env, entity, params, intervention, toolkit):
             toolkit.accrue_rate(1.0, 1.0, 1_000.0)  # far past the horizon
             yield env.timeout(1.0)
 
         engine = DESModel(
             process=process,
-            entities=1,
-            strategies={"care": {}},
+            population=1,
+            interventions=["care"],
             horizon=10.0,
             discount_rate=0.0,
-            seed_manager=SeedManager(1),
         )
         got = engine.evaluate(_draws()).summary().loc["care"]
         assert got["cost"] == pytest.approx(10.0)  # undiscounted length of the horizon
         assert got["qaly"] == pytest.approx(10.0)
 
     def test_components_map_to_outcome_columns(self):
-        def process(env, entity, params, strategy, toolkit):
+        def process(env, entity, params, intervention, toolkit):
             toolkit.accrue_cost(100.0, component="cost_drug")
             toolkit.accrue_cost(30.0, component="cost_clinic")
             yield env.timeout(1.0)
 
         engine = DESModel(
             process=process,
-            entities=10,
-            strategies={"care": {}},
+            population=10,
+            interventions=["care"],
             horizon=5.0,
             discount_rate=0.0,
-            seed_manager=SeedManager(1),
         )
         out = engine.evaluate(_draws())
         assert set(out.components) == {"cost_drug", "cost_clinic"}
@@ -259,22 +252,22 @@ class TestAccrualDetails:
 
 class TestTraceAndGuards:
     def test_trace_returns_event_rows(self):
-        def process(env, entity, params, strategy, toolkit):
+        def process(env, entity, params, intervention, toolkit):
             toolkit.state("treated")
             toolkit.accrue_cost(10.0)
             yield env.timeout(1.0)
 
         engine = DESModel(
             process=process,
-            entities=5,
-            strategies={"A": {}, "B": {}},
+            population=5,
+            interventions=["A", "B"],
             horizon=5.0,
-            seed_manager=SeedManager(1),
         )
-        out, trace = engine.evaluate(_draws(2), trace=True)
-        assert out.strategies == ["A", "B"]
+        result = run_psa(engine, _draws(2), seed=1, collect="events")
+        out, trace = result.outcomes, result.events
+        assert out.interventions == ["A", "B"]
         assert set(trace.columns) == {
-            "strategy",
+            "intervention",
             "iteration",
             "entity",
             "t",
@@ -282,19 +275,39 @@ class TestTraceAndGuards:
             "state",
             "resource",
         }
-        assert (trace["event"] == "state").sum() == 2 * 2 * 5  # strategies x iters x entities
+        assert (trace["event"] == "state").sum() == 2 * 2 * 5  # interventions x iters x entities
+
+    def test_individuals_channel_returns_per_entity_rows(self):
+        def process(env, entity, params, intervention, toolkit):
+            toolkit.accrue_cost(10.0)
+            yield env.timeout(1.0)
+
+        engine = DESModel(
+            process=process,
+            population=5,
+            interventions=["A", "B"],
+            horizon=5.0,
+        )
+        result = run_psa(engine, _draws(2), seed=1, collect="individuals", sequential=True)
+        rows = result.individuals
+        assert len(rows) == 2 * 2 * 5  # interventions x iterations x entities
+        assert {"intervention", "iteration", "individual", "cost", "qaly"} <= set(rows.columns)
+        assert result.events is None
+
+    def test_bad_collect_value_rejected(self):
+        with pytest.raises(ValueError, match="collect must be"):
+            run_psa(_small_engine(), _draws(), collect="entities", sequential=True)
 
     def test_unknown_resource_raises(self):
-        def process(env, entity, params, strategy, toolkit):
+        def process(env, entity, params, intervention, toolkit):
             with toolkit.request("missing") as req:
                 yield req
 
         engine = DESModel(
             process=process,
-            entities=1,
-            strategies={"care": {}},
+            population=1,
+            interventions=["care"],
             horizon=5.0,
-            seed_manager=SeedManager(1),
         )
         with pytest.raises(KeyError, match="missing"):
             engine.evaluate(_draws())
@@ -306,3 +319,44 @@ class TestTraceAndGuards:
     def test_rejects_empty_draws(self):
         with pytest.raises(ValueError, match="empty"):
             _small_engine().evaluate(pd.DataFrame(index=pd.RangeIndex(0, name="iteration")))
+
+
+def _noop_process(env, entity, params, intervention, toolkit):
+    yield env.timeout(1.0)
+
+
+class TestPopulationValidation:
+    def test_bool_population_rejected(self):
+        with pytest.raises(TypeError, match="population must be"):
+            DESModel(process=_noop_process, population=True, interventions=["a"], horizon=5.0)
+
+    def test_invalid_population_type_rejected(self):
+        with pytest.raises(TypeError, match="population must be"):
+            DESModel(process=_noop_process, population="many", interventions=["a"], horizon=5.0)
+
+    def test_nonpositive_population_rejected(self):
+        with pytest.raises(ValueError, match="positive"):
+            DESModel(process=_noop_process, population=0, interventions=["a"], horizon=5.0)
+
+    def test_none_population_uses_n_individuals(self):
+        engine = DESModel(
+            process=_noop_process, population=None, n_individuals=3,
+            interventions=["a"], horizon=5.0,
+        )
+        assert engine.evaluate(_draws()).n_iterations == 1
+
+    def test_sampler_must_return_a_dataframe(self):
+        engine = DESModel(
+            process=_noop_process, population=lambda rng, n: [1, 2],
+            n_individuals=2, interventions=["a"], horizon=5.0,
+        )
+        with pytest.raises(TypeError, match="must return a DataFrame"):
+            engine.evaluate(_draws())
+
+    def test_sampler_row_count_is_checked(self):
+        engine = DESModel(
+            process=_noop_process, population=lambda rng, n: pd.DataFrame({"x": [1.0]}),
+            n_individuals=2, interventions=["a"], horizon=5.0,
+        )
+        with pytest.raises(ValueError, match="rows, expected"):
+            engine.evaluate(_draws())

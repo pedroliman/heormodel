@@ -6,7 +6,7 @@ This tutorial shows how to build an individual-level model with `MicrosimModel`,
 
 ## Specifying individual-level transition probabilities and utilities
 
-The model has three states, Healthy, Sick, and Dead, over a 30-year horizon. Two features rule out a single cohort transition matrix: each individual carries a `frailty` attribute that scales their sick-state cost and mortality, and the Sick to Dead risk rises with time already spent sick. The engine maintains `time_in_state` and passes it, alongside the sampled attributes, to the `transition_probabilities` and `state_costs_and_utilities` functions.
+The model has three states, Healthy, Sick, and Dead, over a 30-year horizon. Two features rule out a single cohort transition matrix: each individual carries a `frailty` attribute that scales their sick-state cost and mortality, and the Sick to Dead risk rises with time already spent sick. The engine maintains `time_in_state` and passes it, alongside the sampled attributes, to the `transition_probabilities` and `state_rewards` functions. Both also receive the intervention name as their second argument.
 
 ```{python}
 import numpy as np
@@ -19,10 +19,10 @@ WORSENING = 0.05  # extra Sick -> Dead risk per year already spent sick
 def population(rng, n):
     return pd.DataFrame({"frailty": rng.lognormal(mean=0.0, sigma=0.3, size=n)})
 
-def transition_probabilities(params, state, attrs, rng):
+def transition_probabilities(params, intervention, state, attrs, rng):
     n = len(state)
     probs = np.zeros((n, 3))
-    on_tx = bool(params["on_treatment"])
+    on_tx = intervention == "Treatment"
     p_hs = params["p_hs"] * (params["rr_tx"] if on_tx else 1.0)
     healthy = state == 0
     probs[healthy, 1] = p_hs
@@ -37,11 +37,11 @@ def transition_probabilities(params, state, attrs, rng):
     probs[state == 2, 2] = 1.0  # Dead is absorbing
     return probs
 
-def state_costs_and_utilities(params, state, attrs):
+def state_rewards(params, intervention, state, attrs):
     n = len(state)
     cost, qaly = np.zeros(n), np.zeros(n)
     frailty = attrs["frailty"].to_numpy()
-    tx_cost = params["c_treat"] if bool(params["on_treatment"]) else 0.0
+    tx_cost = params["c_treat"] if intervention == "Treatment" else 0.0
     healthy = state == 0
     cost[healthy] = params["c_well"] + tx_cost
     qaly[healthy] = 1.0
@@ -53,7 +53,7 @@ def state_costs_and_utilities(params, state, attrs):
 
 ## Configuring once, evaluating on draws
 
-The constructor takes the model structure; `evaluate` takes only the draw matrix. Each strategy is a set of parameter overrides merged into each iteration's draw, so the two arms differ by one flag the model reads. The two strategies share one population through common random numbers (the engine default), so the incremental result reflects the treatment effect rather than sampling noise.
+The constructor takes the model structure; `run_psa` takes the draw matrix. The two interventions are bare names, and the model functions branch on the intervention name (`intervention == "Treatment"`) to decide whether treatment is on. The two interventions share one population through common random numbers (the engine default), so the incremental result reflects the treatment effect rather than sampling noise.
 
 ```{python}
 from heormodel.models import MicrosimModel
@@ -72,19 +72,27 @@ parameters = ParameterSet({
 })
 draws = parameters.sample(256, seed=seeds.generator())
 
-engine = MicrosimModel(
+engine = MicrosimModel.discrete(
     states=STATES, transition_probabilities=transition_probabilities,
-    state_costs_and_utilities=state_costs_and_utilities,
+    state_rewards=state_rewards,
     population=population, n_individuals=800,
-    strategies={"Standard care": {"on_treatment": 0.0},
-                "Treatment": {"on_treatment": 1.0}},
-    horizon=30, seed_manager=seeds,
+    interventions=["Standard care", "Treatment"],
+    n_cycles=30,
 )
-outcomes = run_psa(engine, draws, sequential=True)
+outcomes = run_psa(engine, draws, seed=seeds.entropy, sequential=True).outcomes
 outcomes.summary().round(3)
 ```
 
 `run_psa` runs the engine like any other model, and enforces the same contract: the outcome iteration index equals `draws.index`. Because each iteration draws a stream keyed by its index, the result is identical whether the run is parallel or sequential. Runs are parallel by default; this small one passes `sequential=True` to stay in-process.
+
+## Branching on the intervention name versus using decision levers
+
+An intervention carries a name and, optionally, parameter decision levers. Which to use depends on how the arms differ:
+
+- Branch on the name when the arms differ in structure or in which model function runs, as here: treatment changes a utility and a cost, so the model reads `intervention == "Treatment"`. The comparison is not a number that lives in the `ParameterSet`.
+- Use an `Intervention` with decision levers for a numeric scenario knob the model already reads as a parameter, such as a server count `Intervention("Expanded", {"n_servers": 2})`. The discrete-event tutorial does this for clinic capacity.
+
+Encoding an arm as a pseudo-parameter, a flag like `{"on_treatment": 1.0}` read back as a boolean, is the case branch-on-name replaces. That flag is not in the `ParameterSet`, so it is invisible to `evppi_ranking` and to the deterministic sensitivity builders, and a float stands in for a flag. The ranking below therefore reports only genuine parameters.
 
 ## Analyzing cost-effectiveness and value of information
 
@@ -122,14 +130,13 @@ def cohort(horizon=40, rate=0.03):
         p = p @ P
     return total_c, total_e
 
-check = MicrosimModel(
+check = MicrosimModel.discrete(
     states=STATES,
-    transition_probabilities=lambda params, state, attrs, rng: P[state],
-    state_costs_and_utilities=lambda params, state, attrs: (cost_vec[state], eff_vec[state]),
-    population=60_000, strategies={"cohort": {}}, horizon=40,
-    seed_manager=SeedManager(1),
+    transition_probabilities=lambda params, intervention, state, attrs, rng: P[state],
+    state_rewards=lambda params, intervention, state, attrs: (cost_vec[state], eff_vec[state]),
+    population=60_000, interventions=["cohort"], n_cycles=40,
 )
-sim = check.evaluate(draws.iloc[[0]]).summary().loc["cohort"]
+sim = run_psa(check, draws.iloc[[0]], seed=1).outcomes.summary().loc["cohort"]
 ref_cost, ref_eff = cohort()
 pd.DataFrame({
     "microsim": [sim["cost"], sim["qaly"]],
@@ -141,7 +148,7 @@ The two agree to under 1% at 60,000 individuals, and the gap shrinks with the po
 
 ## Switching to a continuous-time clock
 
-`MicrosimModel(clock="continuous")` is set up the same way. Instead of per-cycle probabilities, `hazards` returns sampled times to each competing event; the engine races them, advances to the earliest, and accrues continuously between events. On constant hazards it reproduces the exponential cohort solution. See the [engines](../concepts/engines.qmd) concept page for where both fit in the contract.
+`MicrosimModel.continuous` is set up the same way. Instead of per-cycle probabilities, `event_times` returns sampled times to each competing event; the engine races them, advances to the earliest, and accrues continuously between events, valuing each segment through `state_reward_rates` (per-year flows rather than per-cycle amounts). On constant hazards it reproduces the exponential cohort solution. See the [engines](../concepts/engines.qmd) concept page for where both fit in the contract.
 
 Next: [Markov vs microsimulation models](markov-vs-microsim.qmd) builds this microsimulation and a cohort twin from the same rates, cross-validates them, and shows what the individual model carries that the cohort averages away.
 ```

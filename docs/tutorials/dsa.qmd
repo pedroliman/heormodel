@@ -16,28 +16,28 @@ import pandas as pd
 from heormodel.models import CohortSpec, MarkovModel
 
 STATES = ("H", "S1", "S2", "D")
-STRATEGIES = ("Standard of care", "Strategy A", "Strategy B", "Strategy AB")
+INTERVENTIONS = ("Standard of care", "Intervention A", "Intervention B", "Intervention AB")
 
 def r2p(rate):
     return 1.0 - np.exp(-np.asarray(rate))
 
-def model(p, strategy):
+def model(p, intervention):
     p_HS1, p_S1H, p_S1S2 = r2p(p["r_HS1"]), r2p(p["r_S1H"]), r2p(p["r_S1S2"])
     p_HD, p_S1D, p_S2D = r2p(p["r_HD"]), r2p(p["r_HD"] * p["hr_S1"]), r2p(p["r_HD"] * p["hr_S2"])
-    prog = r2p(p["r_S1S2"] * p["hr_S1S2_trtB"]) if "B" in strategy else p_S1S2
+    prog = r2p(p["r_S1S2"] * p["hr_S1S2_trtB"]) if "B" in intervention else p_S1S2
     P = np.zeros((4, 4))
     P[0, 0], P[0, 1], P[0, 3] = (1 - p_HD) * (1 - p_HS1), (1 - p_HD) * p_HS1, p_HD
     P[1, 0], P[1, 2], P[1, 3] = (1 - p_S1D) * p_S1H, (1 - p_S1D) * prog, p_S1D
     P[1, 1] = (1 - p_S1D) * (1 - p_S1H - prog)
     P[2, 2], P[2, 3], P[3, 3] = 1 - p_S2D, p_S2D, 1.0
-    add = {"Standard of care": 0.0, "Strategy A": p["c_trtA"],
-           "Strategy B": p["c_trtB"], "Strategy AB": p["c_trtA"] + p["c_trtB"]}[strategy]
+    add = {"Standard of care": 0.0, "Intervention A": p["c_trtA"],
+           "Intervention B": p["c_trtB"], "Intervention AB": p["c_trtA"] + p["c_trtB"]}[intervention]
     cost = np.array([p["c_H"], p["c_S1"] + add, p["c_S2"] + add, 0.0])
-    u_s1 = p["u_trtA"] if strategy in ("Strategy A", "Strategy AB") else p["u_S1"]
+    u_s1 = p["u_trtA"] if intervention in ("Intervention A", "Intervention AB") else p["u_S1"]
     return CohortSpec(P, cost, np.array([p["u_H"], u_s1, p["u_S2"], 0.0]))
 
-engine = MarkovModel(states=STATES, strategies=STRATEGIES, model_fn=model,
-                     n_cycles=75, start="H", half_cycle_correction="simpson")
+engine = MarkovModel(states=STATES, interventions=INTERVENTIONS, transitions_and_rewards=model,
+                     n_cycles=75, initial_state="H", cycle_correction="simpson")
 
 base = pd.Series(dict(
     r_HD=0.002, r_HS1=0.15, r_S1H=0.5, r_S1S2=0.105, hr_S1=3.0, hr_S2=10.0,
@@ -48,7 +48,7 @@ WTP = 100_000.0
 
 ## Running a one-way sweep
 
-`one_way` varies a single parameter across the listed values, holding the rest at base. The result runs through `run_psa` like any draw matrix. Here the incremental net monetary benefit of Strategy AB over standard of care falls as the treatment-B cost rises, crossing zero near its base value.
+`one_way` varies a single parameter across the listed values, holding the rest at base. The result runs through `run_psa` like any draw matrix. Here the incremental net monetary benefit of Intervention AB over standard of care falls as the treatment-B cost rises, crossing zero near its base value.
 
 ```{python}
 from heormodel.cea import nmb
@@ -56,8 +56,8 @@ from heormodel.dsa import one_way
 from heormodel.run import run_psa
 
 design, _ = one_way(base, "c_trtB", [8_000.0, 13_000.0, 18_000.0])
-nb = nmb(run_psa(engine, design), WTP)
-(nb["Strategy AB"] - nb["Standard of care"]).round(0)
+nb = nmb(run_psa(engine, design).outcomes, WTP)
+(nb["Intervention AB"] - nb["Standard of care"]).round(0)
 ```
 
 ## Building a one-at-a-time tornado
@@ -70,8 +70,8 @@ from heormodel.report import plot_tornado, tornado_data
 
 ranges = {name: (0.8 * base[name], 1.2 * base[name]) for name in base.index}
 oat = one_at_a_time(base, ranges)
-td = tornado_data(run_psa(engine, oat[0]), oat, wtp=WTP,
-                  strategy="Strategy AB", comparator="Standard of care")
+td = tornado_data(run_psa(engine, oat[0]).outcomes, oat, wtp=WTP,
+                  intervention="Intervention AB", comparator="Standard of care")
 plot_tornado(td.head(6))
 ```
 
@@ -79,7 +79,7 @@ The utility of the treated Sick state (`u_trtA`) and the progression hazard rati
 
 ## Sweeping a two-way grid
 
-`grid` takes the full factorial of two or more parameters. `heatmap_data` reshapes a per-scenario outcome into a matrix over two of them. Here the incremental net monetary benefit of Strategy AB spans positive to negative across the two treatment costs.
+`grid` takes the full factorial of two or more parameters. `heatmap_data` reshapes a per-scenario outcome into a matrix over two of them. Here the incremental net monetary benefit of Intervention AB spans positive to negative across the two treatment costs.
 
 ```{python}
 from heormodel.dsa import grid
@@ -87,8 +87,8 @@ from heormodel.report import heatmap_data
 
 gd, gdesc = grid(base, {"c_trtA": [6_000.0, 12_000.0, 18_000.0],
                         "c_trtB": [8_000.0, 13_000.0, 18_000.0]})
-gnb = nmb(run_psa(engine, gd), WTP)
-heatmap_data(gnb["Strategy AB"] - gnb["Standard of care"], gdesc,
+gnb = nmb(run_psa(engine, gd).outcomes, WTP)
+heatmap_data(gnb["Intervention AB"] - gnb["Standard of care"], gdesc,
              x="c_trtA", y="c_trtB").round(0)
 ```
 

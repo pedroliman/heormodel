@@ -53,7 +53,8 @@ def population(rng: np.random.Generator, n: int) -> pd.DataFrame:
 
 
 def transition_probabilities(
-    params: pd.Series, state: np.ndarray, attrs: pd.DataFrame, rng: np.random.Generator
+    params: pd.Series, intervention: str, state: np.ndarray, attrs: pd.DataFrame,
+    rng: np.random.Generator,
 ) -> np.ndarray:
     """Per-cycle transition probabilities with duration-dependent mortality."""
     n = len(state)
@@ -79,8 +80,8 @@ def transition_probabilities(
     return probs
 
 
-def state_costs_and_utilities(
-    params: pd.Series, state: np.ndarray, attrs: pd.DataFrame
+def state_rewards(
+    params: pd.Series, intervention: str, state: np.ndarray, attrs: pd.DataFrame
 ) -> tuple[np.ndarray, np.ndarray]:
     """Per-cycle cost and utility, with a duration-decaying treatment utility."""
     n = len(state)
@@ -88,7 +89,7 @@ def state_costs_and_utilities(
     util = np.zeros(n)
     dur = attrs["dur"].to_numpy()  # cycles already spent sick
     x = attrs["x"].to_numpy()
-    on_tx = bool(params["on_treatment"])
+    on_tx = intervention == "Treatment"
     tx_cost = params["c_Trt"] if on_tx else 0.0
 
     h = state == 0
@@ -109,19 +110,18 @@ def state_costs_and_utilities(
 def main() -> None:
     OUT.mkdir(exist_ok=True)
     seeds = SeedManager(1)
-    engine = MicrosimModel(
+    engine = MicrosimModel.discrete(
         states=STATES, transition_probabilities=transition_probabilities,
-        state_costs_and_utilities=state_costs_and_utilities, population=population,
+        state_rewards=state_rewards, population=population,
         n_individuals=POP,
-        strategies={"No Treatment": {"on_treatment": 0.0},
-                    "Treatment": {"on_treatment": 1.0}},
-        horizon=HORIZON, discount_rate=0.03,
-        half_cycle_correction=False, seed_manager=seeds,
+        interventions=["No Treatment", "Treatment"],
+        n_cycles=HORIZON, discount_rate=0.03,
+        cycle_correction="none",
         duration_groups={"dur": ("S1", "S2")},
     )
 
     draws = pd.DataFrame([BASE], index=pd.RangeIndex(1, name="iteration"))
-    outcomes = run_psa(engine, draws)
+    outcomes = run_psa(engine, draws, seed=seeds.entropy).outcomes
     print(f"Extended Sick-Sicker microsimulation, {POP:,} individuals:")
     print(icer_table(outcomes).round(2).to_string())
     print(
@@ -146,7 +146,7 @@ def main() -> None:
         ),
     )
     (OUT / "run_report_microsim_mdm.md").write_text(
-        record.to_markdown("heval Sick-Sicker microsimulation run report")
+        record.to_markdown("heormodel Sick-Sicker microsimulation run report")
     )
     print(f"\nWrote plots and run report to {OUT}/")
 

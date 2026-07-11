@@ -1,13 +1,13 @@
 """Model calibration via approximate Bayesian computation (pyabc).
 
-Bridges ``heval`` parameter specs to ``pyabc`` priors, runs ABC-SMC against
+Bridges ``heormodel`` parameter specs to ``pyabc`` priors, runs ABC-SMC against
 observed calibration targets, and returns the posterior as an
 equally-weighted parameter draw matrix carrying the standard ``iteration``
-index, so calibrated draws flow through `heval.run.run_psa` and the
-analysis layer exactly like draws from `heval.params.ParameterSet.sample`.
+index, so calibrated draws flow through `heormodel.run.run_psa` and the
+analysis layer exactly like draws from `heormodel.params.ParameterSet.sample`.
 
 ``pyabc`` is an optional dependency: install with ``uv pip install
-'heval[calibration]'``.
+'heormodel[calibration]'``.
 """
 
 from __future__ import annotations
@@ -40,13 +40,13 @@ def _require_pyabc() -> Any:
         import pyabc
     except ImportError as err:  # pragma: no cover
         raise ImportError(
-            "Calibration requires pyabc; install it with uv pip install 'heval[calibration]'."
+            "Calibration requires pyabc; install it with uv pip install 'heormodel[calibration]'."
         ) from err
     return pyabc
 
 
 def to_pyabc_prior(distributions: Mapping[str, Distribution | Dirichlet]) -> Any:
-    """Translate ``heval`` distribution specs into a ``pyabc`` prior.
+    """Translate ``heormodel`` distribution specs into a ``pyabc`` prior.
 
     Supported: `Beta`, `Gamma`, `LogNormal`,
     `Normal`, `Uniform`. Dirichlet and Fixed parameters cannot
@@ -85,7 +85,7 @@ class CalibrationResult:
     Attributes:
         posterior: Equally-weighted posterior draw matrix with a
             ``RangeIndex`` named ``iteration``, ready for
-            `heval.run.run_psa`.
+            `heormodel.run.run_psa`.
         weighted: The raw weighted particle population (columns = parameters,
             plus a ``weight`` column).
         n_populations: Number of ABC-SMC populations run.
@@ -115,7 +115,7 @@ def abc_calibrate(
     Args:
         simulator: Maps a parameter dict to simulated calibration targets
             (same keys as ``observed``).
-        priors: Parameter priors as ``heval`` distribution specs.
+        priors: Parameter priors as ``heormodel`` distribution specs.
         observed: Observed calibration target values.
         population_size: Particles per ABC-SMC population.
         max_populations: Maximum number of populations.
@@ -158,7 +158,7 @@ def abc_calibrate(
         sampler=SingleCoreSampler(),
     )
     if db_path is None:
-        db_file = Path(tempfile.mkdtemp()) / "heval_abc.db"
+        db_file = Path(tempfile.mkdtemp()) / "heormodel_abc.db"
     else:
         db_file = Path(db_path)
     abc.new("sqlite:///" + str(db_file), {k: float(observed[k]) for k in keys})

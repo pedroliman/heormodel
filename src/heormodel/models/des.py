@@ -1,13 +1,13 @@
 """Discrete-event simulation engine, a thin wrapper around SimPy.
 
-`DESModel` runs a SimPy model once per parameter draw and strategy and returns
+`DESModel` runs a SimPy model once per parameter draw and intervention and returns
 the standard `Outcomes` structure. It is not a new discrete-event kernel: the SimPy
 ``Environment``, the process functions, and the ``Resource`` objects stay the
-user's own code. `heval` adds only what SimPy leaves out for a health economic
+user's own code. `heormodel` adds only what SimPy leaves out for a health economic
 model:
 
 - a per-entity `_DESToolkit` for cost and utility accrual with discounting,
-  reusing `heval.models._accrual` between events exactly as the continuous-time
+  reusing `heormodel.models._accrual` between events exactly as the continuous-time
   microsimulation engine does,
 - per-iteration seeding from a `SeedManager`, so results do not depend on how a
   run is chunked across workers,
@@ -22,7 +22,7 @@ discount through the shared `_accrual` module. Discounting is continuous
 (``exp(-rate * t)``), matching `MicrosimModel(clock="continuous")`, because a DES runs
 in continuous time.
 
-``simpy`` is an optional dependency: install with ``uv pip install 'heval[des]'``.
+``simpy`` is an optional dependency: install with ``uv pip install 'heormodel[des]'``.
 """
 
 from __future__ import annotations
@@ -36,23 +36,29 @@ import pandas as pd
 from numpy.typing import NDArray
 
 from heormodel.models._accrual import aggregate, discount_factor, integrate_flow
+from heormodel.models._interventions import (
+    InterventionSpec,
+    comparator_of,
+    merge_decision_levers,
+    normalize_interventions,
+)
 from heormodel.models.outcomes import (
+    INTERVENTION_LEVEL,
     ITERATION_LEVEL,
-    STRATEGY_LEVEL,
     Outcomes,
 )
+from heormodel.models.protocol import EngineResult
 from heormodel.run.seeds import SeedManager
 
 if TYPE_CHECKING:
     import simpy
 
-EntitySpec = int | Callable[[np.random.Generator, int], pd.DataFrame] | None
+PopulationSpec = int | Callable[[np.random.Generator, int], pd.DataFrame] | None
 ResourceFn = Callable[[Any, pd.Series, str], Mapping[str, Any]]
 ProcessFn = Callable[..., Any]
-StrategySpec = Mapping[str, Mapping[str, Any]]
 
 # Event-log column names, the columns of the optional trace side channel.
-_LOG_COLS = ("strategy", "iteration", "entity", "t", "event", "state", "resource")
+_LOG_COLS = ("intervention", "iteration", "entity", "t", "event", "state", "resource")
 
 
 def _require_simpy() -> Any:
@@ -61,7 +67,7 @@ def _require_simpy() -> Any:
     except ImportError as err:  # pragma: no cover
         raise ImportError(
             "The discrete-event engine requires simpy; install it with "
-            "uv pip install 'heval[des]'."
+            "uv pip install 'heormodel[des]'."
         ) from err
     return simpy
 
@@ -76,11 +82,13 @@ def _iteration_key(label: Any) -> int:
 
 
 class _DESToolkit:
-    """What `heval` adds on top of SimPy, one instance per entity per run.
+    """What `heormodel` adds on top of SimPy, one instance per entity per run.
 
     Handed to each process as ``toolkit``. It accrues discounted cost and effect
     for its entity, marks trajectory segments and resource events in the shared
-    event log, and exposes the entity's derived generator as ``rng``.
+    event log, exposes the entity's derived generator as ``rng``, and exposes the
+    run's time horizon as ``horizon`` so a process need not duplicate it as a
+    module constant.
     """
 
     def __init__(
@@ -96,9 +104,9 @@ class _DESToolkit:
     ) -> None:
         self.env = env
         self.rng = rng
+        self.horizon = horizon
         self._resources = resources
         self._entity_id = entity_id
-        self._horizon = horizon
         self._rate = discount_rate
         self._log = log
         self.cost = 0.0
@@ -145,7 +153,7 @@ class _DESToolkit:
             component: Optional label for the cost subtotal.
         """
         a = max(0.0, float(start))
-        b = min(self._horizon, float(end))
+        b = min(self.horizon, float(end))
         dur = max(0.0, b - a)
         cost = float(cost_rate) * float(integrate_flow(a, dur, self._rate))
         self.effect += float(effect_rate) * float(integrate_flow(a, dur, self._rate))
@@ -241,50 +249,53 @@ class DESModel:
     """Discrete-event simulation engine wrapping SimPy.
 
     Each process is the user's own SimPy code with signature
-    ``process(env, entity, params, strategy, toolkit)``. ``entity`` is that
+    ``process(env, entity, params, intervention, toolkit)``. ``entity`` is that
     individual's attribute row, ``params`` the iteration's draw merged with the
-    strategy overrides, ``strategy`` the strategy name, and ``toolkit`` the
+    intervention decision levers, ``intervention`` the intervention name, and ``toolkit`` the
     `_DESToolkit` that accrues cost and effect and logs the trajectory. Per
-    iteration and strategy the engine builds the environment, samples entities,
+    iteration and intervention the engine builds the environment, samples entities,
     creates the shared resources, runs every process to ``horizon``, collects the
     per-entity discounted accruals, averages them, and writes one `Outcomes` row.
 
     Args:
-        process: The SimPy process factory, ``fn(env, entity, params, strategy,
+        process: The SimPy process factory, ``fn(env, entity, params, intervention,
             toolkit)`` returning a generator.
-        entities: Attribute sampler ``fn(rng, n) -> DataFrame``, an ``int`` count
-            for a featureless population, or ``None`` to use ``n_entities`` with
-            no attributes.
-        strategies: Map of strategy name to a parameter-override dict merged into
-            ``params`` for that strategy. Order is preserved in `Outcomes`.
-        seed_manager: Root of all randomness. Each iteration draws a stream keyed
-            by its index; entity streams derive from it.
-        resources: ``fn(env, params, strategy) -> dict[str, simpy.Resource]``,
+        population: Attribute sampler ``fn(rng, n) -> DataFrame``, an ``int``
+            count for a featureless population, or ``None`` to use
+            ``n_individuals`` with no attributes.
+        interventions: A sequence of intervention names or `heormodel.models.Intervention`
+            objects; an `Intervention` may carry parameter decision levers merged into
+            ``params`` for that intervention. Order is preserved in `Outcomes`.
+        resources: ``fn(env, params, intervention) -> dict[str, simpy.Resource]``,
             built fresh for each run and shared by every entity in it. ``None``
             for a model with no constrained resources.
-        horizon: Time horizon in the environment's unit; the run stops here.
+        horizon: Time horizon in the environment's unit; the run stops here. Each
+            process reads it back as ``toolkit.horizon``.
         discount_rate: Annual (per-unit-time) discount rate for costs and
             effects (0.03 by default). Discounting is continuous
             (``exp(-rate * t)``).
-        n_entities: Population size when ``entities`` is a sampler or ``None``.
+        n_individuals: Population size when ``population`` is a sampler or
+            ``None``.
         effect: Name of the effect column (QALYs by default).
-        independent_streams: Give each strategy its own entities and streams
+        independent_streams: Give each intervention its own population and streams
             instead of common random numbers.
+
+    Randomness is supplied by `heormodel.run.run_psa` at run time, not at
+    construction; the engine holds no seed of its own.
 
     Example:
         >>> import numpy as np, pandas as pd
         >>> from heormodel.models import DESModel
-        >>> from heormodel.run import SeedManager
-        >>> def process(env, entity, params, strategy, toolkit):
+        >>> def process(env, entity, params, intervention, toolkit):
         ...     wait = toolkit.rng.exponential(params["los"])
         ...     toolkit.accrue_rate(params["day_cost"], 1.0, wait)
         ...     yield env.timeout(wait)
         >>> engine = DESModel(
-        ...     process=process, entities=200, strategies={"ward": {}},
-        ...     horizon=30.0, seed_manager=SeedManager(0))
+        ...     process=process, population=200, interventions=["ward"],
+        ...     horizon=30.0)
         >>> draws = pd.DataFrame({"los": [3.0], "day_cost": [500.0]},
         ...                      index=pd.RangeIndex(1, name="iteration"))
-        >>> engine.evaluate(draws).strategies
+        >>> engine.evaluate(draws).interventions
         ['ward']
     """
 
@@ -292,77 +303,68 @@ class DESModel:
         self,
         *,
         process: ProcessFn,
-        entities: EntitySpec = None,
-        strategies: StrategySpec,
-        seed_manager: SeedManager,
+        population: PopulationSpec = None,
+        interventions: InterventionSpec,
         resources: ResourceFn | None = None,
         horizon: float,
         discount_rate: float = 0.03,
-        n_entities: int = 1_000,
+        n_individuals: int = 1_000,
         effect: str = "qaly",
         independent_streams: bool = False,
     ) -> None:
         _require_simpy()
-        if not strategies:
-            raise ValueError("Provide at least one strategy.")
         if horizon <= 0:
             raise ValueError("horizon must be positive.")
         self._process = process
         self._resources_fn = resources
-        self._strategies = {name: dict(overrides) for name, overrides in strategies.items()}
-        self._seed_manager = seed_manager
+        self._interventions = normalize_interventions(interventions)
+        self._comparator = comparator_of(interventions)
         self._horizon = float(horizon)
         self._discount_rate = float(discount_rate)
         self._effect = effect
         self._independent_streams = bool(independent_streams)
-        if isinstance(entities, bool):  # bool is an int subclass; reject it explicitly
-            raise TypeError("entities must be an int, a callable, or None.")
-        if isinstance(entities, int):
-            self._n = entities
-            self._entities_fn: Callable[..., pd.DataFrame] | None = None
-        elif entities is None:
-            self._n = n_entities
-            self._entities_fn = None
-        elif callable(entities):
-            self._n = n_entities
-            self._entities_fn = entities
+        if isinstance(population, bool):  # bool is an int subclass; reject it explicitly
+            raise TypeError("population must be an int, a callable, or None.")
+        if isinstance(population, int):
+            self._n = population
+            self._population_fn: Callable[..., pd.DataFrame] | None = None
+        elif population is None:
+            self._n = n_individuals
+            self._population_fn = None
+        elif callable(population):
+            self._n = n_individuals
+            self._population_fn = population
         else:
-            raise TypeError("entities must be an int, a callable, or None.")
+            raise TypeError("population must be an int, a callable, or None.")
         if self._n <= 0:
             raise ValueError("Population size must be positive.")
 
     def _sample_entities(self, rng: np.random.Generator) -> pd.DataFrame:
-        if self._entities_fn is None:
+        if self._population_fn is None:
             return pd.DataFrame(index=pd.RangeIndex(self._n))
-        attrs = self._entities_fn(rng, self._n)
+        attrs = self._population_fn(rng, self._n)
         if not isinstance(attrs, pd.DataFrame):
-            raise TypeError("entities sampler must return a DataFrame.")
+            raise TypeError("population sampler must return a DataFrame.")
         if len(attrs) != self._n:
             raise ValueError(
-                f"entities sampler returned {len(attrs)} rows, expected {self._n}."
+                f"population sampler returned {len(attrs)} rows, expected {self._n}."
             )
         return attrs.reset_index(drop=True)
-
-    def _merge_overrides(self, params: pd.Series, overrides: Mapping[str, Any]) -> pd.Series:
-        if not overrides:
-            return params
-        merged = params.copy()
-        for key, value in overrides.items():
-            merged[key] = value
-        return merged
 
     def _run_once(
         self,
         params: pd.Series,
         attrs: pd.DataFrame,
         entity_seqs: list[np.random.SeedSequence],
-        strategy: str,
+        intervention: str,
         log: list[dict[str, Any]] | None,
     ) -> dict[str, NDArray[np.float64]]:
-        """Simulate one (iteration, strategy) and return per-entity accruals."""
+        """Simulate one (iteration, intervention) and return per-entity accruals."""
         simpy = _require_simpy()
         env = simpy.Environment()
-        resources = dict(self._resources_fn(env, params, strategy)) if self._resources_fn else {}
+        resources = (
+            dict(self._resources_fn(env, params, intervention)) if self._resources_fn else {}
+        )
         toolkits: list[_DESToolkit] = []
         for i in range(self._n):
             toolkit = _DESToolkit(
@@ -375,7 +377,7 @@ class DESModel:
                 log=log,
             )
             toolkits.append(toolkit)
-            env.process(self._process(env, attrs.iloc[i], params, strategy, toolkit))
+            env.process(self._process(env, attrs.iloc[i], params, intervention, toolkit))
         env.run(until=self._horizon)
         cost = np.array([tk.cost for tk in toolkits], dtype=np.float64)
         eff = np.array([tk.effect for tk in toolkits], dtype=np.float64)
@@ -385,53 +387,80 @@ class DESModel:
             result[name] = np.array([tk.components.get(name, 0.0) for tk in toolkits])
         return result
 
-    def evaluate(
-        self, draws: pd.DataFrame, *, trace: bool = False
-    ) -> Outcomes | tuple[Outcomes, pd.DataFrame]:
-        """Simulate every draw and strategy, averaging entities to `Outcomes`.
+    def evaluate(self, draws: pd.DataFrame) -> Outcomes:
+        """Simulate every draw and intervention, averaging entities to `Outcomes`.
+
+        This is the narrow `heormodel.models.ModelEngine` entry point: it seeds
+        each iteration from a fixed default stream, so a direct call is
+        reproducible. Run through `heormodel.run.run_psa` to choose the seed, to
+        run in parallel, and to collect the event or individual logs.
 
         Args:
             draws: Parameter draw matrix (rows = iterations). Its index becomes
                 the outcome iteration index.
-            trace: Also return the per-entity event log as a long ``DataFrame``
-                with columns ``strategy, iteration, entity, t, event, state,
-                resource``, the optional individual-level side channel.
 
         Returns:
-            `Outcomes`, or ``(Outcomes, trace)`` when ``trace`` is set.
+            `Outcomes` indexed by ``(intervention, draws.index)``.
 
         Example:
             >>> import pandas as pd
             >>> from heormodel.models import DESModel
-            >>> from heormodel.run import SeedManager
-            >>> def process(env, entity, params, strategy, toolkit):
+            >>> def process(env, entity, params, intervention, toolkit):
             ...     toolkit.accrue_cost(params["visit"])
             ...     yield env.timeout(1.0)
             >>> engine = DESModel(
-            ...     process=process, entities=50, strategies={"clinic": {}},
-            ...     horizon=5.0, seed_manager=SeedManager(1))
+            ...     process=process, population=50, interventions=["clinic"],
+            ...     horizon=5.0)
             >>> draws = pd.DataFrame({"visit": [200.0, 210.0]},
             ...                      index=pd.RangeIndex(2, name="iteration"))
             >>> engine.evaluate(draws).n_iterations
             2
         """
+        return self.evaluate_streamed(draws, streams=SeedManager(0)).outcomes
+
+    def evaluate_streamed(
+        self, draws: pd.DataFrame, *, streams: SeedManager, collect: str | None = None
+    ) -> EngineResult:
+        """Simulate every draw under ``streams``, collecting the ``collect`` log.
+
+        Args:
+            draws: Parameter draw matrix (rows = iterations).
+            streams: Root of the per-iteration streams; each iteration draws a
+                stream keyed by its index, so results do not depend on how the
+                run is chunked across workers.
+            collect: ``None`` for outcomes only, ``"events"`` for the per-entity
+                event log (columns ``intervention``, ``iteration``, ``entity``,
+                ``t``, ``event``, ``state``, ``resource``), or ``"individuals"``
+                for per-entity cost and effect.
+
+        Returns:
+            An `EngineResult` whose ``outcomes`` is always set and whose
+            ``events`` or ``individuals`` is set to match ``collect``.
+        """
+        if collect not in (None, "events", "individuals"):
+            raise ValueError(
+                f"collect must be None, 'events', or 'individuals', got {collect!r}."
+            )
         if draws.empty:
             raise ValueError("draws is empty.")
-        strategy_names = list(self._strategies)
+        collect_events = collect == "events"
+        collect_individuals = collect == "individuals"
+        intervention_names = list(self._interventions)
         rows: list[pd.DataFrame] = []
-        traces: list[pd.DataFrame] = []
+        event_frames: list[pd.DataFrame] = []
+        individual_frames: list[pd.DataFrame] = []
         for label, (_, raw_params) in zip(draws.index, draws.iterrows(), strict=True):
-            iter_seq = self._seed_manager.child_sequence(_iteration_key(label))
+            iter_seq = streams.child_sequence(_iteration_key(label))
             shared_attrs: pd.DataFrame | None = None
             shared_entity_seqs: list[np.random.SeedSequence] | None = None
             if self._independent_streams:
-                sub = iter_seq.spawn(2 * len(strategy_names))
+                sub = iter_seq.spawn(2 * len(intervention_names))
             else:
                 pop_seq, entity_root = iter_seq.spawn(2)
                 shared_attrs = self._sample_entities(np.random.default_rng(pop_seq))
                 shared_entity_seqs = list(entity_root.spawn(self._n))
-            for j, (name, overrides) in enumerate(self._strategies.items()):
-                params = self._merge_overrides(raw_params, overrides)
+            for j, (name, decision_levers) in enumerate(self._interventions.items()):
+                params = merge_decision_levers(raw_params, decision_levers)
                 if self._independent_streams:
                     attrs = self._sample_entities(np.random.default_rng(sub[2 * j]))
                     entity_seqs = list(sub[2 * j + 1].spawn(self._n))
@@ -439,39 +468,50 @@ class DESModel:
                     assert shared_attrs is not None and shared_entity_seqs is not None
                     attrs = shared_attrs.copy()
                     entity_seqs = shared_entity_seqs  # common random numbers
-                log: list[dict[str, Any]] | None = [] if trace else None
+                log: list[dict[str, Any]] | None = [] if collect_events else None
                 accruals = self._run_once(params, attrs, entity_seqs, name, log)
                 rows.append(aggregate(accruals, name, label))
-                if trace and log is not None:
+                if collect_events and log is not None:
                     frame = pd.DataFrame(log, columns=list(_LOG_COLS[2:]))
                     frame.insert(0, ITERATION_LEVEL, label)
-                    frame.insert(0, STRATEGY_LEVEL, name)
-                    traces.append(frame)
+                    frame.insert(0, INTERVENTION_LEVEL, name)
+                    event_frames.append(frame)
+                elif collect_individuals:
+                    frame = pd.DataFrame(accruals)
+                    frame.insert(0, "individual", np.arange(len(frame)))
+                    frame.insert(0, ITERATION_LEVEL, label)
+                    frame.insert(0, INTERVENTION_LEVEL, name)
+                    individual_frames.append(frame)
         data = pd.concat(rows).fillna(0.0)
         full_index = pd.MultiIndex.from_product(
-            [strategy_names, draws.index], names=[STRATEGY_LEVEL, ITERATION_LEVEL]
+            [intervention_names, draws.index], names=[INTERVENTION_LEVEL, ITERATION_LEVEL]
         )
-        outcomes = Outcomes(data.reindex(full_index), effect=self._effect)
-        if trace:
-            trace_df = (
-                pd.concat(traces, ignore_index=True)
-                if traces
+        outcomes = Outcomes(
+            data.reindex(full_index), effect=self._effect, comparator=self._comparator
+        )
+        events = None
+        individuals = None
+        if collect_events:
+            events = (
+                pd.concat(event_frames, ignore_index=True)
+                if event_frames
                 else pd.DataFrame(columns=list(_LOG_COLS))
             )
-            return outcomes, trace_df
-        return outcomes
+        elif collect_individuals:
+            individuals = pd.concat(individual_frames, ignore_index=True)
+        return EngineResult(outcomes, events=events, individuals=individuals)
 
 
 def queue_waits(trace: pd.DataFrame) -> pd.DataFrame:
     """Per-request waiting times, derived from a `DESModel` trace.
 
-    Pairs each ``request`` event with its ``grant`` for the same entity, strategy,
+    Pairs each ``request`` event with its ``grant`` for the same entity, intervention,
     iteration, and resource, and reports the wait between them. This is the
     pattern the design intends: queueing reports come from the event log, so
     analysis code never reaches into the engine.
 
     Args:
-        trace: The event log returned by ``DESModel.evaluate(..., trace=True)``.
+        trace: The event log from ``run_psa(engine, draws, collect="events").events``.
 
     Returns:
         One row per served request with a ``wait`` column.
@@ -480,13 +520,13 @@ def queue_waits(trace: pd.DataFrame) -> pd.DataFrame:
         >>> import pandas as pd
         >>> from heormodel.models.des import queue_waits
         >>> trace = pd.DataFrame({
-        ...     "strategy": ["s", "s"], "iteration": [0, 0], "entity": [0, 0],
+        ...     "intervention": ["s", "s"], "iteration": [0, 0], "entity": [0, 0],
         ...     "t": [1.0, 4.0], "event": ["request", "grant"],
         ...     "state": [None, None], "resource": ["clinic", "clinic"]})
         >>> float(queue_waits(trace)["wait"].iloc[0])
         3.0
     """
-    keys = [STRATEGY_LEVEL, ITERATION_LEVEL, "entity", "resource"]
+    keys = [INTERVENTION_LEVEL, ITERATION_LEVEL, "entity", "resource"]
     reqs = trace[trace["event"] == "request"].copy()
     grants = trace[trace["event"] == "grant"].copy()
     # Pair the k-th request with the k-th grant, so repeat requests do not cross.

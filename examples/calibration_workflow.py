@@ -4,7 +4,7 @@ literature, then mix both into one PSA that flows through CEA and VoI.
 This is the workflow most applied models need. A natural-history model has
 transition rates that no single study reports, so they are calibrated to
 observed prevalence. Utilities and costs come from the literature as
-mean/SE distributions. `heval.params.mix_draws` joins the calibrated
+mean/SE distributions. `heormodel.params.mix_draws` joins the calibrated
 posterior and the literature draws into one matrix, and from that point the
 analysis layer does not care where a parameter came from.
 
@@ -117,7 +117,7 @@ def _occupancy(onset: np.ndarray, progression: np.ndarray) -> tuple[np.ndarray, 
 
 
 def disease_model(draws: pd.DataFrame) -> Outcomes:
-    """Map the mixed draw matrix to per-strategy costs and QALYs.
+    """Map the mixed draw matrix to per-intervention costs and QALYs.
 
     Standard care lets the disease progress at the calibrated rate.
     Treatment scales the progression hazard by ``rr_progression``, extending
@@ -187,7 +187,7 @@ def main() -> None:
     print(f"\nMixed draw matrix: {draws.shape[0]} iterations, columns {list(draws.columns)}")
 
     # --- 4. run the decision model over the mixed draws --------------------
-    outcomes = run_psa(disease_model, draws)
+    outcomes = run_psa(disease_model, draws).outcomes
     print(outcomes)
 
     # --- 5. cost-effectiveness analysis ------------------------------------
@@ -213,7 +213,7 @@ def main() -> None:
         OUT / "ceac_calib.png", dpi=150, bbox_inches="tight"
     )
     plot_frontier(outcomes).figure.savefig(OUT / "frontier_calib.png", dpi=150, bbox_inches="tight")
-    td = tornado_data(outcomes, draws, WTP, strategy="Treatment", comparator="Standard care")
+    td = tornado_data(outcomes, draws, WTP, intervention="Treatment", comparator="Standard care")
     plot_tornado(td).figure.savefig(OUT / "tornado_calib.png", dpi=150, bbox_inches="tight")
 
     calibrated = {name: "ABC posterior" for name in posterior.columns}
@@ -230,7 +230,7 @@ def main() -> None:
     )
     record.to_json(OUT / "run_record_calib.json")
     (OUT / "run_report_calib.md").write_text(
-        record.to_markdown("heval calibration workflow run report")
+        record.to_markdown("heormodel calibration workflow run report")
     )
     print(f"\nWrote plots, run report, and run record to {OUT}/")
 

@@ -37,8 +37,8 @@ from heormodel.cea import icer_table
 from heormodel.voi import evpi
 
 # define your model.
-def model(p, strategy):
-    p_progress = p["p_progress"] * (p["rr_treat"] if strategy == "Treatment" else 1.0)
+def model(p, intervention):
+    p_progress = p["p_progress"] * (p["rr_treat"] if intervention == "Treatment" else 1.0)
     # Transition matrix. Rows: Current state. Columns: Next state.
     P = np.array([
         [1 - p_progress - p["p_die"], p_progress, p["p_die"]],
@@ -46,14 +46,14 @@ def model(p, strategy):
         [0.0, 0.0, 1.0],
     ])
     cost = np.array([0.0, p["c_sick"], 0.0])
-    if strategy == "Treatment":
+    if intervention == "Treatment":
         cost[:2] += p["c_treat"]
     return CohortSpec(P, cost, np.array([1.0, p["u_sick"], 0.0]))
 
 # create the MarkovModel engine.
 engine = MarkovModel(states=("Healthy", "Sick", "Dead"),
-                     strategies=("Standard care", "Treatment"),
-                     model_fn=model, n_cycles=40)
+                     interventions=("Standard care", "Treatment"),
+                     transitions_and_rewards=model, n_cycles=40)
 
 # Define your parameters:
 params = ParameterSet({
@@ -67,12 +67,12 @@ params = ParameterSet({
 draws = params.sample(1000, seed=SeedManager(1).generator())
 
 # run your model over your parameters.
-outcomes = run_psa(engine, draws)
+outcomes = run_psa(engine, draws).outcomes
 
 # Get the ICER table.
 icer_table(outcomes).round(1)
 #                    cost  effect  inc_cost  inc_effect     icer status
-# strategy
+# intervention
 # Standard care  142910.9    11.2       NaN         NaN      NaN     ND
 # Treatment      233676.2    13.4   90765.3         2.2  41130.9     ND
 

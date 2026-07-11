@@ -23,7 +23,7 @@ from heormodel.params import (
 from heormodel.run import run_psa
 
 
-def _two_strategy_model(draws: pd.DataFrame) -> Outcomes:
+def _two_intervention_model(draws: pd.DataFrame) -> Outcomes:
     costs = pd.DataFrame({"A": draws["c"], "B": draws["c"] + 10.0}, index=draws.index)
     effects = pd.DataFrame({"A": draws["c"] * 0.0, "B": draws["c"] * 0.0 + 0.1}, index=draws.index)
     return Outcomes.from_wide(costs, effects)
@@ -211,7 +211,7 @@ class TestSingleDraw:
 
     def test_run_psa_accepts_it(self):
         m = single_draw({"c": 100.0})
-        out = run_psa(_two_strategy_model, m)
+        out = run_psa(_two_intervention_model, m).outcomes
         assert out.n_iterations == 1
 
     def test_at_means_matches_single_draw(self):
@@ -235,7 +235,7 @@ class TestReadDraws:
 
     def test_run_psa_accepts_it(self):
         df = pd.DataFrame({"c": [100.0, 110.0, 120.0]})
-        out = run_psa(_two_strategy_model, read_draws(df))
+        out = run_psa(_two_intervention_model, read_draws(df)).outcomes
         assert out.n_iterations == 3
 
     def test_reads_csv_path(self, tmp_path):
@@ -276,7 +276,7 @@ class TestResamplePosterior:
 
     def test_run_psa_accepts_it(self):
         post = pd.DataFrame({"c": [100.0, 110.0], "weight": [1.0, 1.0]})
-        out = run_psa(_two_strategy_model, resample_posterior(post, n=50, seed=1))
+        out = run_psa(_two_intervention_model, resample_posterior(post, n=50, seed=1)).outcomes
         assert out.n_iterations == 50
 
     def test_recovers_weighted_means(self):

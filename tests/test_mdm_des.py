@@ -21,9 +21,9 @@ import pytest
 from mdm_des.model import build_engine
 from mdm_des.transitions import with_transition_costs_and_utilities
 
-from heormodel.models import LifeTable
+from heormodel.models import Intervention, LifeTable
 from heormodel.params import single_draw
-from heormodel.run import SeedManager
+from heormodel.run import run_psa
 
 MORTALITY_RATE = 0.01
 DISCOUNT = 0.03
@@ -40,11 +40,11 @@ BASE = dict(
 )
 
 
-def _engine(strategies: dict, population: int, seed: int):
+def _engine(interventions: list[Intervention], population: int):
     return build_engine(
-        life_table=LIFE_TABLE, states=STATES, strategies=strategies,
+        life_table=LIFE_TABLE, states=STATES, interventions=interventions,
         age_start=0.0, horizon=HORIZON, discount_rate=DISCOUNT,
-        population=population, seed_manager=SeedManager(seed),
+        population=population,
     )
 
 
@@ -86,20 +86,20 @@ def ctmc_value(p: dict, *, trt_a: bool, trt_b: bool) -> tuple[float, float]:
     return cost, eff
 
 
-@pytest.mark.parametrize("strategy,overrides", [
+@pytest.mark.parametrize("intervention,decision_levers", [
     ("Standard of care", {"trtA": 0.0, "trtB": 0.0}),
-    ("Strategy AB", {"trtA": 1.0, "trtB": 1.0}),
+    ("Intervention AB", {"trtA": 1.0, "trtB": 1.0}),
 ])
-def test_engine_matches_ctmc_closed_form(strategy, overrides):
-    engine = _engine({strategy: overrides}, population=120_000, seed=13)
+def test_engine_matches_ctmc_closed_form(intervention, decision_levers):
+    engine = _engine([Intervention(intervention, decision_levers)], population=120_000)
     draws = single_draw(BASE)
-    outcomes, events = engine.evaluate(draws, trace="events")
+    result = run_psa(engine, draws, seed=13, collect="events")
     outcomes = with_transition_costs_and_utilities(
-        outcomes, events, draws, n_individuals=120_000, discount_rate=DISCOUNT
+        result.outcomes, result.events, draws, n_individuals=120_000, discount_rate=DISCOUNT
     )
-    got = outcomes.summary().loc[strategy]
-    want_cost, want_eff = ctmc_value(BASE, trt_a=bool(overrides["trtA"]),
-                                     trt_b=bool(overrides["trtB"]))
+    got = outcomes.summary().loc[intervention]
+    want_cost, want_eff = ctmc_value(BASE, trt_a=bool(decision_levers["trtA"]),
+                                     trt_b=bool(decision_levers["trtB"]))
     assert got["cost"] == pytest.approx(want_cost, rel=0.01)
     assert got["qaly"] == pytest.approx(want_eff, rel=0.01)
 
@@ -108,14 +108,13 @@ def test_common_random_numbers_tie_equivalent_dynamics():
     # A shares SoC's transition dynamics; with common random numbers their event
     # histories are identical, so survival curves coincide exactly.
     engine = _engine(
-        {
-            "Standard of care": {"trtA": 0.0, "trtB": 0.0},
-            "Strategy A": {"trtA": 1.0, "trtB": 0.0},
-        },
+        [
+            Intervention("Standard of care", {"trtA": 0.0, "trtB": 0.0}),
+            Intervention("Intervention A", {"trtA": 1.0, "trtB": 0.0}),
+        ],
         population=2_000,
-        seed=21,
     )
-    _, events = engine.evaluate(single_draw(BASE), trace="events")
-    soc = events[events["strategy"] == "Standard of care"].drop(columns="strategy")
-    a = events[events["strategy"] == "Strategy A"].drop(columns="strategy")
+    events = run_psa(engine, single_draw(BASE), seed=21, collect="events").events
+    soc = events[events["intervention"] == "Standard of care"].drop(columns="intervention")
+    a = events[events["intervention"] == "Intervention A"].drop(columns="intervention")
     pd.testing.assert_frame_equal(soc.reset_index(drop=True), a.reset_index(drop=True))

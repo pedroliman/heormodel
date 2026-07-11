@@ -21,7 +21,7 @@ Keep the old names as thin subclasses that emit a `DeprecationWarning` pointing 
 
 ## Rename the `build` parameter
 
-`MarkovModel` takes `build=fn`, where `fn(params, strategy)` returns the `CohortSpec` (transition matrix and reward arrays) for one parameter row and one strategy. The word `build` reads as a lifecycle hook, not as "the function that produces the model". Rename it to `model_fn`: the argument holds the function that maps parameters to the model's structure, and the `_fn` suffix matches the existing `ModelFn` type in `heormodel.models`. The callback's signature and return type are unchanged. Apply the same name if any other engine grows an equivalent structure callback; the microsimulation `transition`/`payoffs` and DES `process` callbacks already name what they return and stay as they are.
+`MarkovModel` takes `build=fn`, where `fn(params, intervention)` returns the `CohortSpec` (transition matrix and reward arrays) for one parameter row and one intervention. The word `build` reads as a lifecycle hook, not as "the function that produces the model". Rename it to `model_fn`: the argument holds the function that maps parameters to the model's structure, and the `_fn` suffix matches the existing `ModelFn` type in `heormodel.models`. The callback's signature and return type are unchanged. Apply the same name if any other engine grows an equivalent structure callback; the microsimulation `transition`/`payoffs` and DES `process` callbacks already name what they return and stay as they are.
 
 ## One discount rate
 

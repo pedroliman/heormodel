@@ -8,7 +8,7 @@ from heormodel.models.outcomes import Outcomes
 
 
 def nmb(outcomes: Outcomes, wtp: float, *, effect: str | None = None) -> pd.DataFrame:
-    """Net monetary benefit per iteration and strategy: ``wtp * effect - cost``.
+    """Net monetary benefit per iteration and intervention: ``wtp * effect - cost``.
 
     Args:
         outcomes: Outcomes from a probabilistic sensitivity analysis.
@@ -16,7 +16,7 @@ def nmb(outcomes: Outcomes, wtp: float, *, effect: str | None = None) -> pd.Data
         effect: Effect column (default: the primary effect).
 
     Returns:
-        DataFrame (iterations x strategies) of NMB values.
+        DataFrame (iterations x interventions) of NMB values.
 
     Example:
         >>> import pandas as pd
@@ -31,7 +31,7 @@ def nmb(outcomes: Outcomes, wtp: float, *, effect: str | None = None) -> pd.Data
 
 
 def nhb(outcomes: Outcomes, wtp: float, *, effect: str | None = None) -> pd.DataFrame:
-    """Net health benefit per iteration and strategy: ``effect - cost / wtp``.
+    """Net health benefit per iteration and intervention: ``effect - cost / wtp``.
 
     Example:
         >>> import pandas as pd
@@ -48,7 +48,7 @@ def nhb(outcomes: Outcomes, wtp: float, *, effect: str | None = None) -> pd.Data
 
 
 def expected_nmb(outcomes: Outcomes, wtp: float, *, effect: str | None = None) -> pd.Series:
-    """Expected (mean over iterations) NMB per strategy.
+    """Expected (mean over iterations) NMB per intervention.
 
     Example:
         >>> import pandas as pd

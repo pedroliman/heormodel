@@ -7,15 +7,15 @@ matrix each cycle. Transitions may be constant or vary by cycle, which is how
 age-dependent mortality enters.
 
 The engine configures once and evaluates on draws. The constructor takes the
-model structure (states, strategies, a ``model_fn`` function, cycle count,
-discounting, within-cycle correction); ``evaluate`` takes only the parameter
+model structure (states, interventions, a ``transitions_and_rewards`` function,
+cycle count, discounting, within-cycle correction); ``evaluate`` takes only the parameter
 draw matrix and returns `Outcomes` indexed by ``draws.index``. Cohort models
 are deterministic given a parameter set, so no random streams are involved.
 
 Rewards follow the transition-dynamics convention. State rewards accrue on the
 occupancy trace. Optional transition rewards accrue on the flow between states,
 so a one-time cost of dying or a disutility of onset attaches to the transition
-rather than to a state. Discounting reuses `heval.models._accrual`, and the
+rather than to a state. Discounting reuses `heormodel.models._accrual`, and the
 within-cycle correction offers Simpson's 1/3 rule, the half-cycle weights, or
 none.
 """
@@ -30,17 +30,23 @@ import pandas as pd
 from numpy.typing import NDArray
 
 from heormodel.models._accrual import discount_factor
-from heormodel.models.outcomes import ITERATION_LEVEL, STRATEGY_LEVEL, Outcomes
+from heormodel.models._interventions import (
+    InterventionSpec,
+    comparator_of,
+    merge_decision_levers,
+    normalize_interventions,
+)
+from heormodel.models.outcomes import INTERVENTION_LEVEL, ITERATION_LEVEL, Outcomes
 
 _PROB_TOL = 1e-8
 
 
 @dataclass
 class CohortSpec:
-    """One strategy's matrices for a single parameter set.
+    """One intervention's matrices for a single parameter set.
 
-    Returned by the engine's ``model_fn`` function. Arrays are plain ``numpy``
-    arrays over the engine's state order.
+    Returned by the engine's ``transitions_and_rewards`` function. Arrays are
+    plain ``numpy`` arrays over the engine's state order.
 
     Args:
         transition: Transition-probability matrix, shape ``(n_states,
@@ -70,7 +76,7 @@ def gen_wcc(n_cycles: int, method: str = "simpson") -> NDArray[np.float64]:
 
     Args:
         n_cycles: Number of cycles (transitions) in the model horizon.
-        method: ``"simpson"`` for Simpson's 1/3 rule, ``"half-cycle"`` for
+        method: ``"simpson"`` for Simpson's 1/3 rule, ``"half_cycle"`` for
             half weights on the first and last point, or ``"none"`` for unit
             weights.
 
@@ -79,7 +85,7 @@ def gen_wcc(n_cycles: int, method: str = "simpson") -> NDArray[np.float64]:
 
     Example:
         >>> from heormodel.models.markov import gen_wcc
-        >>> gen_wcc(4, "half-cycle").tolist()
+        >>> gen_wcc(4, "half_cycle").tolist()
         [0.5, 1.0, 1.0, 1.0, 0.5]
         >>> [round(float(w), 3) for w in gen_wcc(4, "simpson")]
         [0.333, 0.667, 1.333, 0.667, 0.333]
@@ -91,7 +97,7 @@ def gen_wcc(n_cycles: int, method: str = "simpson") -> NDArray[np.float64]:
         positions = np.arange(n_points)
         wcc = np.where(positions % 2 == 1, 2.0 / 3.0, 4.0 / 3.0)
         wcc[0] = wcc[-1] = 1.0 / 3.0
-    elif method == "half-cycle":
+    elif method == "half_cycle":
         wcc = np.ones(n_points)
         wcc[0] = wcc[-1] = 0.5
     elif method == "none":
@@ -110,36 +116,39 @@ class MarkovModel:
 
     Args:
         states: State labels; their order fixes every array's axis order.
-        strategies: Strategy names, in the order they appear in `Outcomes`.
-        model_fn: ``fn(params, strategy) -> CohortSpec`` returning the
-            transition matrix and reward arrays for one strategy under one
+        interventions: A sequence of intervention names or `heormodel.models.Intervention`
+            objects, in the order they appear in `Outcomes`. A `Intervention` may
+            carry parameter decision levers merged into ``params`` for that intervention.
+        transitions_and_rewards: ``fn(params, intervention) -> CohortSpec`` returning
+            the transition matrix and reward arrays for one intervention under one
             parameter set. ``params`` is a draw-matrix row (a ``pandas.Series``);
-            ``strategy`` is one of ``strategies``.
+            ``intervention`` is the intervention name.
         n_cycles: Number of cycles in the time horizon.
-        start: Initial state distribution: a state label (all mass there), a
-            mapping of state label to probability, or a length-``n_states``
-            array. Defaults to all mass in the first state.
+        initial_state: Initial state distribution: a state label (all mass
+            there), a mapping of state label to probability, or a
+            length-``n_states`` array. Defaults to all mass in the first state.
         cycle_length: Years per cycle; scales the discount clock.
         discount_rate: Annual discount rate for costs and effects (0.03 by
             default).
-        half_cycle_correction: ``"simpson"`` (default), ``"half-cycle"``, or
+        cycle_correction: ``"simpson"`` (default), ``"half_cycle"``, or
             ``"none"``; see `gen_wcc`.
         effect: Name of the primary effect column (QALYs by default).
 
     Example:
         >>> import numpy as np, pandas as pd
         >>> from heormodel.models.markov import CohortSpec, MarkovModel
-        >>> def model(params, strategy):
+        >>> def transitions_and_rewards(params, intervention):
         ...     p = params["p_die"]
         ...     P = np.array([[1 - p, p], [0.0, 1.0]])
         ...     return CohortSpec(P, np.array([params["cost"], 0.0]),
         ...                       np.array([1.0, 0.0]))
         >>> engine = MarkovModel(
-        ...     states=("alive", "dead"), strategies=("care",), model_fn=model,
-        ...     n_cycles=10, half_cycle_correction="none")
+        ...     states=("alive", "dead"), interventions=("care",),
+        ...     transitions_and_rewards=transitions_and_rewards,
+        ...     n_cycles=10, cycle_correction="none")
         >>> draws = pd.DataFrame({"p_die": [0.1], "cost": [1000.0]},
         ...                      index=pd.RangeIndex(1, name="iteration"))
-        >>> engine.evaluate(draws).strategies
+        >>> engine.evaluate(draws).interventions
         ['care']
     """
 
@@ -147,53 +156,56 @@ class MarkovModel:
         self,
         *,
         states: Sequence[str],
-        strategies: Sequence[str],
-        model_fn: Callable[[pd.Series, str], CohortSpec],
+        interventions: InterventionSpec,
+        transitions_and_rewards: Callable[[pd.Series, str], CohortSpec],
         n_cycles: int,
-        start: str | Mapping[str, float] | Sequence[float] | None = None,
+        initial_state: str | Mapping[str, float] | Sequence[float] | None = None,
         cycle_length: float = 1.0,
         discount_rate: float = 0.03,
-        half_cycle_correction: str = "simpson",
+        cycle_correction: str = "simpson",
         effect: str = "qaly",
     ) -> None:
         if len(states) < 2:
             raise ValueError("Provide at least two states.")
-        if not strategies:
-            raise ValueError("Provide at least one strategy.")
         if n_cycles < 1:
             raise ValueError("n_cycles must be at least one.")
         self._states = tuple(states)
         self._n_states = len(self._states)
-        self._strategies = tuple(strategies)
-        self._model_fn = model_fn
+        self._interventions = normalize_interventions(interventions)
+        self._comparator = comparator_of(interventions)
+        self._transitions_and_rewards = transitions_and_rewards
         self._n_cycles = int(n_cycles)
         self._cycle_length = float(cycle_length)
         self._discount_rate = float(discount_rate)
         self._effect = effect
-        self._start = self._resolve_start(start)
+        self._start = self._resolve_start(initial_state)
         times = np.arange(self._n_cycles + 1, dtype=np.float64) * self._cycle_length
         self._disc = discount_factor(times, self._discount_rate)
-        self._wcc = gen_wcc(self._n_cycles, half_cycle_correction)
+        self._wcc = gen_wcc(self._n_cycles, cycle_correction)
 
     def _resolve_start(
-        self, start: str | Mapping[str, float] | Sequence[float] | None
+        self, initial_state: str | Mapping[str, float] | Sequence[float] | None
     ) -> NDArray[np.float64]:
         vec = np.zeros(self._n_states, dtype=np.float64)
-        if start is None:
+        if initial_state is None:
             vec[0] = 1.0
-        elif isinstance(start, str):
-            if start not in self._states:
-                raise ValueError(f"Unknown start state {start!r}; states are {self._states}.")
-            vec[self._states.index(start)] = 1.0
-        elif isinstance(start, Mapping):
-            for name, prob in start.items():
+        elif isinstance(initial_state, str):
+            if initial_state not in self._states:
+                raise ValueError(
+                    f"Unknown initial_state {initial_state!r}; states are {self._states}."
+                )
+            vec[self._states.index(initial_state)] = 1.0
+        elif isinstance(initial_state, Mapping):
+            for name, prob in initial_state.items():
                 if name not in self._states:
-                    raise ValueError(f"Unknown start state {name!r}; states are {self._states}.")
+                    raise ValueError(
+                        f"Unknown initial_state {name!r}; states are {self._states}."
+                    )
                 vec[self._states.index(name)] = float(prob)
         else:
-            vec = np.asarray(start, dtype=np.float64)
+            vec = np.asarray(initial_state, dtype=np.float64)
             if vec.shape != (self._n_states,):
-                raise ValueError(f"start array must have length {self._n_states}.")
+                raise ValueError(f"initial_state array must have length {self._n_states}.")
         if not np.isclose(vec.sum(), 1.0, atol=_PROB_TOL):
             raise ValueError("Initial state distribution must sum to 1.")
         return vec
@@ -269,30 +281,31 @@ class MarkovModel:
         return total_cost, total_effect
 
     def evaluate(self, draws: pd.DataFrame) -> Outcomes:
-        """Evaluate every strategy on every draw and return `Outcomes`.
+        """Evaluate every intervention on every draw and return `Outcomes`.
 
         Args:
             draws: Parameter draw matrix (rows = iterations). Its index becomes
                 the outcome iteration index.
 
         Returns:
-            `Outcomes` indexed by ``(strategy, draws.index)``.
+            `Outcomes` indexed by ``(intervention, draws.index)``.
         """
         if draws.empty:
             raise ValueError("draws is empty.")
         costs: list[float] = []
         effects: list[float] = []
         keys: list[tuple[str, object]] = []
-        for label, (_, params) in zip(draws.index, draws.iterrows(), strict=True):
-            for name in self._strategies:
-                spec = self._model_fn(params, name)
+        for label, (_, raw_params) in zip(draws.index, draws.iterrows(), strict=True):
+            for name, decision_levers in self._interventions.items():
+                params = merge_decision_levers(raw_params, decision_levers)
+                spec = self._transitions_and_rewards(params, name)
                 cost, effect = self._accrue(spec)
                 costs.append(cost)
                 effects.append(effect)
                 keys.append((name, label))
-        index = pd.MultiIndex.from_tuples(keys, names=[STRATEGY_LEVEL, ITERATION_LEVEL])
+        index = pd.MultiIndex.from_tuples(keys, names=[INTERVENTION_LEVEL, ITERATION_LEVEL])
         data = pd.DataFrame({"cost": costs, self._effect: effects}, index=index)
         full_index = pd.MultiIndex.from_product(
-            [self._strategies, draws.index], names=[STRATEGY_LEVEL, ITERATION_LEVEL]
+            [self._interventions, draws.index], names=[INTERVENTION_LEVEL, ITERATION_LEVEL]
         )
-        return Outcomes(data.reindex(full_index), effect=self._effect)
+        return Outcomes(data.reindex(full_index), effect=self._effect, comparator=self._comparator)

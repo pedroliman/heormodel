@@ -61,7 +61,7 @@ class SeedManager:
         this manager's seed, not on call order. Keying by iteration index
         gives per-iteration streams that stay identical however a run is
         chunked across workers. Spawn from the sequence for sub-streams
-        (population sampling, per-strategy randomness).
+        (population sampling, per-intervention randomness).
 
         Example:
             >>> from heormodel.run import SeedManager

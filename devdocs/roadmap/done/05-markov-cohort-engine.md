@@ -6,7 +6,7 @@ Implement `MarkovCohortEngine` in `heormodel/models/markov.py`, a cohort state-t
 
 The same three commitments as items 3 and 4, the same shapes:
 
-1. Configure once, evaluate on draws. `MarkovCohortEngine(...)` takes the states, strategies, and a `build` callback; `evaluate(draws)` returns `Outcomes` indexed by `draws.index`.
+1. Configure once, evaluate on draws. `MarkovCohortEngine(...)` takes the states, interventions, and a `build` callback; `evaluate(draws)` returns `Outcomes` indexed by `draws.index`.
 2. No hidden randomness. A cohort trace is deterministic given a parameter row, so the engine draws no random numbers; reproducibility follows from the draw matrix alone.
 3. Accrual reuse. Per-cycle discount factors and the reduction to `Outcomes` rows come from `heormodel/models/_accrual.py`.
 
@@ -15,8 +15,8 @@ The same three commitments as items 3 and 4, the same shapes:
 ```python
 MarkovCohortEngine(
     states=("H", "S", "D"),
-    strategies=("SoC", "Tx"),
-    build=fn,             # fn(params, strategy) -> CohortSpec
+    interventions=("SoC", "Tx"),
+    build=fn,             # fn(params, intervention) -> CohortSpec
     n_cycles=60,
     start="H",
     cycle_length=1.0,
@@ -26,9 +26,9 @@ MarkovCohortEngine(
 )
 ```
 
-`CohortSpec` carries one strategy's transition matrix (one array, or a per-cycle stack of arrays for age-varying rates) and its reward arrays: a per-state cost and effect, and optional per-transition rewards for one-time events such as the cost of dying or the disutility of onset. `build` returns one `CohortSpec` per (params, strategy) pair.
+`CohortSpec` carries one intervention's transition matrix (one array, or a per-cycle stack of arrays for age-varying rates) and its reward arrays: a per-state cost and effect, and optional per-transition rewards for one-time events such as the cost of dying or the disutility of onset. `build` returns one `CohortSpec` per (params, intervention) pair.
 
-Per iteration and strategy, `evaluate` advances the state occupancy vector across `n_cycles`, accrues discounted per-state and per-transition rewards with the within-cycle correction weights, and writes one `Outcomes` row.
+Per iteration and intervention, `evaluate` advances the state occupancy vector across `n_cycles`, accrues discounted per-state and per-transition rewards with the within-cycle correction weights, and writes one `Outcomes` row.
 
 ## Within-cycle correction
 

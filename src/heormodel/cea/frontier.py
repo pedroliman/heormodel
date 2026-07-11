@@ -1,9 +1,9 @@
 """Incremental cost-effectiveness analysis on the efficiency frontier.
 
-Implements the standard decision-analytic algorithm: order strategies by
-cost, remove strongly dominated strategies (more costly and no more
+Implements the standard decision-analytic algorithm: order interventions by
+cost, remove strongly dominated interventions (more costly and no more
 effective than another), then iteratively remove extendedly dominated
-strategies (whose ICER exceeds that of the next more effective strategy)
+interventions (whose ICER exceeds that of the next more effective intervention)
 until ICERs increase monotonically along the frontier.
 """
 
@@ -37,18 +37,18 @@ def icer_table(source: Outcomes | pd.DataFrame, *, effect: str | None = None) ->
     """Full incremental analysis: dominance, extended dominance, and ICERs.
 
     Args:
-        source: probabilistic `Outcomes` (means are taken per strategy) or a
-            per-strategy mean table indexed by strategy with columns
+        source: probabilistic `Outcomes` (means are taken per intervention) or a
+            per-intervention mean table indexed by intervention with columns
             ``cost`` and the effect column.
         effect: Effect column name (defaults to the outcomes' primary
             effect, or ``"effect"`` for plain tables).
 
     Returns:
-        DataFrame indexed by strategy, sorted by cost, with columns
+        DataFrame indexed by intervention, sorted by cost, with columns
         ``cost``, ``effect``, ``inc_cost``, ``inc_effect``, ``icer`` and
         ``status`` (``"ND"`` on the frontier, ``"D"`` strongly dominated,
         ``"ED"`` extendedly dominated). ICERs are computed between adjacent
-        frontier strategies; the cheapest frontier strategy has no ICER.
+        frontier interventions; the cheapest frontier intervention has no ICER.
 
     Example:
         >>> import pandas as pd
@@ -68,7 +68,7 @@ def icer_table(source: Outcomes | pd.DataFrame, *, effect: str | None = None) ->
     n = len(means)
     status = np.array([STATUS_ND] * n, dtype=object)
 
-    # strong dominance: another strategy is no more costly and no less
+    # strong dominance: another intervention is no more costly and no less
     # effective, strictly better on at least one axis; exact duplicates keep
     # only the first occurrence in cost order
     for i in range(n):
@@ -82,7 +82,7 @@ def icer_table(source: Outcomes | pd.DataFrame, *, effect: str | None = None) ->
                 status[i] = STATUS_D
                 break
 
-    # extended dominance: remove strategies until ICERs are monotone
+    # extended dominance: remove interventions until ICERs are monotone
     while True:
         nd = [i for i in range(n) if status[i] == STATUS_ND]
         if len(nd) < 3:
@@ -113,12 +113,12 @@ def icer_table(source: Outcomes | pd.DataFrame, *, effect: str | None = None) ->
     result["inc_effect"] = inc_eff
     result["icer"] = icer
     result["status"] = status
-    result.index.name = "strategy"
+    result.index.name = "intervention"
     return result
 
 
 def frontier(source: Outcomes | pd.DataFrame, *, effect: str | None = None) -> list[str]:
-    """Strategies on the cost-effectiveness efficiency frontier, cheapest first.
+    """Interventions on the cost-effectiveness efficiency frontier, cheapest first.
 
     Example:
         >>> import pandas as pd

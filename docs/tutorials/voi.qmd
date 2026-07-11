@@ -6,7 +6,7 @@ This tutorial shows how to run the full value-of-information workflow, expected 
 
 ## Specifying the decision model
 
-Two strategies, standard care and a new drug, differ by an uncertain incremental effect `dq` (quality-adjusted life-years, QALYs) and an uncertain incremental cost `dc`, both Normal. At a 30,000-per-QALY threshold the drug is cost-effective on the means, so value of information asks not which strategy to pick but the value of more evidence to reduce the decision uncertainty.
+Two interventions, standard care and a new drug, differ by an uncertain incremental effect `dq` (quality-adjusted life-years, QALYs) and an uncertain incremental cost `dc`, both Normal. At a 30,000-per-QALY threshold the drug is cost-effective on the means, so value of information asks not which intervention to pick but the value of more evidence to reduce the decision uncertainty.
 
 ```{python}
 import numpy as np
@@ -28,7 +28,7 @@ def new_drug(d: pd.DataFrame) -> Outcomes:
 
 params = ParameterSet({"dq": Normal(MU_Q, SD_Q), "dc": Normal(MU_C, SD_C)})
 draws = params.sample(100_000, seed=2026)
-outcomes = run_psa(new_drug, draws, sequential=True)
+outcomes = run_psa(new_drug, draws, sequential=True).outcomes
 ```
 
 The closed forms use the unit normal loss integral: the value of resolving uncertainty is the expected upside minus the current decision's value.

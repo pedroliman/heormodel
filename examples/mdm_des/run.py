@@ -41,7 +41,7 @@ from heormodel.voi import evpi
 from model import build_engine
 from mortality import load_life_table
 from outcomes import dwell_times, survival_and_prevalence
-from parameters import base_case, parameter_set, states, strategies
+from parameters import base_case, interventions, parameter_set, states
 from plots import plot_epidemiology
 from transitions import costs_and_utilities_model, with_transition_costs_and_utilities
 
@@ -63,23 +63,25 @@ def main() -> None:
     wtp_grid = np.arange(0.0, 200_001.0, 1_000.0)  # $1,000 steps, matching the article
 
     state_labels = states()
-    strategy_defs = strategies()
+    intervention_defs = interventions()
+    intervention_names = [s.name for s in intervention_defs]
     life_table = load_life_table(DATA)
     seeds = SeedManager(2)
 
     # Base case: one deterministic run with the event history. The transition
     # amounts accrue over the preceding sojourn, folded in from that history.
     engine = build_engine(
-        life_table=life_table, states=state_labels, strategies=strategy_defs,
+        life_table=life_table, states=state_labels, interventions=intervention_defs,
         age_start=age_start, horizon=horizon, discount_rate=discount_rate,
-        population=n_base, seed_manager=seeds,
+        population=n_base,
     )
     base = single_draw(base_case())
-    outcomes, events = engine.evaluate(base, trace="events")
+    base_run = run_psa(engine, base, seed=seeds.entropy, collect="events")
+    outcomes, events = base_run.outcomes, base_run.events
     outcomes = with_transition_costs_and_utilities(
         outcomes, events, base, n_individuals=n_base, discount_rate=discount_rate
     )
-    print(f"Base case, {n_base:,} individuals per strategy, ages 25 to 100:")
+    print(f"Base case, {n_base:,} individuals per intervention, ages 25 to 100:")
     print(icer_table(outcomes).round(2).to_string())
     print(
         "\nThe frontier runs standard of care, then B, then AB; A is dominated"
@@ -88,11 +90,11 @@ def main() -> None:
     )
 
     survival, prevalence = survival_and_prevalence(
-        events, states=state_labels, strategies=strategy_defs, initial_state="H",
+        events, states=state_labels, interventions=intervention_names, initial_state="H",
         dead_state="D", disease_states=("S1", "S2"), n_individuals=n_base, horizon=horizon,
     )
     plot_epidemiology(
-        survival, prevalence, strategies=strategy_defs, age_start=age_start,
+        survival, prevalence, interventions=intervention_names, age_start=age_start,
         path=OUT / "epi_des_mdm.png",
     )
     print("\nMean completed dwell time by state (years):")
@@ -108,13 +110,13 @@ def main() -> None:
     draws = params.sample(n_psa_draws, seed=seeds.generator())
     model = costs_and_utilities_model(
         build_engine(
-            life_table=life_table, states=state_labels, strategies=strategy_defs,
+            life_table=life_table, states=state_labels, interventions=intervention_defs,
             age_start=age_start, horizon=horizon, discount_rate=discount_rate,
-            population=n_psa_individuals, seed_manager=seeds,
+            population=n_psa_individuals,
         ),
         n_individuals=n_psa_individuals, discount_rate=discount_rate,
     )
-    psa = run_psa(model, draws, batch_size=1)
+    psa = run_psa(model, draws, seed=seeds.entropy, batch_size=1).outcomes
     print(f"\nProbabilistic analysis, {n_psa_draws:,} parameter sets:")
     print(icer_table(psa).round(2).to_string())
 
@@ -138,14 +140,16 @@ def main() -> None:
     ax.figure.savefig(OUT / "evpi_des_mdm.png", dpi=150, bbox_inches="tight")
     plt.close("all")
 
-    switches = front["strategy"].ne(front["strategy"].shift()) & front.index.to_series().gt(0)
+    switches = (
+        front["intervention"].ne(front["intervention"].shift()) & front.index.to_series().gt(0)
+    )
     switch_points = [float(w) for w in front.index[switches]]
     at_switches = ", ".join(f"{evpi_curve.loc[w]:,.0f} at {w:,.0f}" for w in switch_points)
     print(
         f"\nThe acceptability frontier switches at {switch_points} dollars per QALY,"
         f"\nwith EVPI peaks (dollars per person) of {at_switches}, matching the two"
         "\nswitch points and the small EVPI peaks of the article's figure 4. Holding"
-        "\nthe six companion-fixed parameters at base case keeps the strategy"
+        "\nthe six companion-fixed parameters at base case keeps the intervention"
         "\ncomparisons near-certain. The only remaining difference is Monte Carlo"
         "\nerror: the companion drives every parameter set from one shared"
         "\nrandom-number stream, while this run keeps the framework's per-iteration"

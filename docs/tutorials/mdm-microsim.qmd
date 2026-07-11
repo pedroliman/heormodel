@@ -12,14 +12,14 @@ Two features rule out a cohort average: mortality rises with the number of conse
 import numpy as np
 import pandas as pd
 from heormodel.models import MicrosimModel
-from heormodel.run import SeedManager, run_psa
+from heormodel.run import run_psa
 
 STATES = ("H", "S1", "S2", "D")
 
 def population(rng, n):
     return pd.DataFrame({"x": rng.uniform(0.95, 1.05, n)})
 
-def transition_probabilities(p, state, attrs, rng):
+def transition_probabilities(p, intervention, state, attrs, rng):
     n = len(state); probs = np.zeros((n, 4))
     mult = 1.0 + (attrs["dur"].to_numpy() + 1.0) * p["rp_S1S2"]
     r_HD = -np.log(1 - p["p_HD"])
@@ -35,9 +35,9 @@ def transition_probabilities(p, state, attrs, rng):
     probs[state == 3, 3] = 1.0
     return probs
 
-def state_costs_and_utilities(p, state, attrs):
+def state_rewards(p, intervention, state, attrs):
     n = len(state); cost = np.zeros(n); util = np.zeros(n)
-    dur, x, tx = attrs["dur"].to_numpy(), attrs["x"].to_numpy(), bool(p["on_treatment"])
+    dur, x, tx = attrs["dur"].to_numpy(), attrs["x"].to_numpy(), intervention == "Treatment"
     tx_cost = p["c_Trt"] if tx else 0.0
     util[state == 0] = p["u_H"]; cost[state == 0] = p["c_H"]
     s1 = state == 1
@@ -48,7 +48,7 @@ def state_costs_and_utilities(p, state, attrs):
     return cost, util
 ```
 
-## Running the base case and comparing strategies
+## Running the base case and comparing interventions
 
 The base-case parameters drive both arms through common random numbers, with 50,000 individuals rather than the source's 100,000, which trades some Monte Carlo precision for a faster run.
 
@@ -57,16 +57,17 @@ from heormodel.cea import icer_table
 base = dict(p_HD=0.005, p_HS1=0.15, p_S1H=0.5, p_S1S2=0.105, rr_S1=3.0, rr_S2=10.0,
             rp_S1S2=0.2, c_H=2000.0, c_S1=4000.0, c_S2=15000.0, c_Trt=12000.0,
             u_H=1.0, u_S1=0.75, u_S2=0.5, u_Trt=0.95, ru_S1S2=0.03)
-engine = MicrosimModel(
+engine = MicrosimModel.discrete(
     states=STATES, transition_probabilities=transition_probabilities,
-    state_costs_and_utilities=state_costs_and_utilities, population=population,
-    n_individuals=50_000, seed_manager=SeedManager(1),
-    strategies={"No Treatment": {"on_treatment": 0.0}, "Treatment": {"on_treatment": 1.0}},
-    horizon=30, discount_rate=0.03,
-    half_cycle_correction=False, duration_groups={"dur": ("S1", "S2")})
+    state_rewards=state_rewards, population=population,
+    n_individuals=50_000,
+    interventions=["No Treatment", "Treatment"],
+    n_cycles=30, discount_rate=0.03,
+    cycle_correction="none", duration_groups={"dur": ("S1", "S2")})
 outcomes = run_psa(
-    engine, pd.DataFrame([base], index=pd.RangeIndex(1, name="iteration")), sequential=True
-)
+    engine, pd.DataFrame([base], index=pd.RangeIndex(1, name="iteration")),
+    seed=1, sequential=True,
+).outcomes
 icer_table(outcomes).round(2)
 ```
 

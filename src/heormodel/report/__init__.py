@@ -1,4 +1,4 @@
-"""Reporting (`heval.report`).
+"""Reporting (`heormodel.report`).
 
 Standard cost-effectiveness plots (CE plane, CEAC/CEAF, efficiency
 frontier, tornado) and reproducibility scaffolding (seed logging,
@@ -8,12 +8,12 @@ parameter provenance, run reports).
 from heormodel.report.plots import (
     PALETTE,
     heatmap_data,
+    intervention_colors,
     plot_ce_plane,
     plot_ceac,
     plot_expected_loss,
     plot_frontier,
     plot_tornado,
-    strategy_colors,
     tornado_data,
 )
 from heormodel.report.provenance import RunRecord, capture_run
@@ -28,6 +28,6 @@ __all__ = [
     "plot_expected_loss",
     "plot_frontier",
     "plot_tornado",
-    "strategy_colors",
+    "intervention_colors",
     "tornado_data",
 ]

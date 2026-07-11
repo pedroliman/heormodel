@@ -19,10 +19,10 @@ The same three commitments, the same shapes:
 
 ```python
 DESEngine(
-    process=fn,           # fn(env, entity, params, strategy, toolkit) -> SimPy process
+    process=fn,           # fn(env, entity, params, intervention, toolkit) -> SimPy process
     entities=fn | int,    # attribute sampler fn(rng, n) -> DataFrame, or a count
-    resources=fn,         # fn(env, params, strategy) -> dict[str, simpy.Resource]
-    strategies={"SoC": {...}, "Fast track": {...}},
+    resources=fn,         # fn(env, params, intervention) -> dict[str, simpy.Resource]
+    interventions={"SoC": {...}, "Fast track": {...}},
     horizon=10.0,
     discount_cost=0.03,
     discount_effect=0.03,
@@ -37,7 +37,7 @@ The `toolkit` handed to each process is what `heormodel` adds on top of SimPy:
 - `toolkit.request(resource_name)`: a context manager around `resource.request()` that logs queueing time. Waiting-time and utilization reports come from the event log, so analysis code never touches engine internals.
 - `toolkit.rng`: the entity's derived generator.
 
-Per iteration and strategy, `evaluate` builds the environment, resources, and entities, runs processes to `horizon`, collects per-entity discounted accruals, averages within the iteration, and emits `Outcomes` rows. Disaggregated costs (per resource, for example) map onto the schema's component columns.
+Per iteration and intervention, `evaluate` builds the environment, resources, and entities, runs processes to `horizon`, collects per-entity discounted accruals, averages within the iteration, and emits `Outcomes` rows. Disaggregated costs (per resource, for example) map onto the schema's component columns.
 
 ## Dependencies
 

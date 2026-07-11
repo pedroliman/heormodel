@@ -12,10 +12,10 @@ The model is three states, Healthy, Sick, Dead, over a 30-year horizon:
     Sick -> Dead        p_sd, scaled by frailty and rising with time in Sick
     Healthy/Sick -> Dead background mortality
 
-Two strategies share one population through common random numbers (the engine
+Two interventions share one population through common random numbers (the engine
 default), so the incremental result reflects the treatment effect rather than
 sampling noise. `MicrosimModel.evaluate` conforms to the model
-contract, so `run_psa`, `heval.cea`, and `heval.voi` treat it like any engine.
+contract, so `run_psa`, `heormodel.cea`, and `heormodel.voi` treat it like any engine.
 
 Run it with::
 
@@ -59,12 +59,13 @@ def population(rng: np.random.Generator, n: int) -> pd.DataFrame:
 
 
 def transition_probabilities(
-    params: pd.Series, state: np.ndarray, attrs: pd.DataFrame, rng: np.random.Generator
+    params: pd.Series, intervention: str, state: np.ndarray, attrs: pd.DataFrame,
+    rng: np.random.Generator,
 ) -> np.ndarray:
     """Per-cycle transition probabilities, with history and heterogeneity."""
     n = len(state)
     probs = np.zeros((n, 3))
-    on_tx = bool(params["on_treatment"])
+    on_tx = intervention == "Treatment"
     p_hs = params["p_hs"] * (params["rr_tx"] if on_tx else 1.0)
 
     healthy = state == 0
@@ -83,15 +84,15 @@ def transition_probabilities(
     return probs
 
 
-def state_costs_and_utilities(
-    params: pd.Series, state: np.ndarray, attrs: pd.DataFrame
+def state_rewards(
+    params: pd.Series, intervention: str, state: np.ndarray, attrs: pd.DataFrame
 ) -> tuple[np.ndarray, np.ndarray]:
     """Per-cycle cost and QALY of each individual's current state."""
     n = len(state)
     cost = np.zeros(n)
     qaly = np.zeros(n)
     frailty = attrs["frailty"].to_numpy()
-    tx_cost = params["c_treat"] if bool(params["on_treatment"]) else 0.0
+    tx_cost = params["c_treat"] if intervention == "Treatment" else 0.0
 
     healthy = state == 0
     cost[healthy] = params["c_well"] + tx_cost
@@ -120,21 +121,17 @@ def main() -> None:
     )
     draws = parameters.sample(N, seed=seeds.generator())
 
-    engine = MicrosimModel(
+    engine = MicrosimModel.discrete(
         states=STATES,
         transition_probabilities=transition_probabilities,
-        state_costs_and_utilities=state_costs_and_utilities,
+        state_rewards=state_rewards,
         population=population,
         n_individuals=POP,
-        strategies={
-            "Standard care": {"on_treatment": 0.0},
-            "Treatment": {"on_treatment": 1.0},
-        },
-        horizon=HORIZON,
-        seed_manager=seeds,
+        interventions=["Standard care", "Treatment"],
+        n_cycles=HORIZON,
     )
 
-    outcomes = run_psa(engine, draws)
+    outcomes = run_psa(engine, draws, seed=seeds.entropy).outcomes
     print(outcomes)
     print("\nIncremental analysis:")
     print(icer_table(outcomes).round(3).to_string())
@@ -160,10 +157,12 @@ def main() -> None:
         draw_sources=dict.fromkeys(draws.columns, "literature (mean/SE)"),
         note=(
             f"Discrete-time microsimulation, {POP} individuals over {HORIZON} "
-            "cycles per iteration, common random numbers across strategies."
+            "cycles per iteration, common random numbers across interventions."
         ),
     )
-    (OUT / "run_report_micro.md").write_text(record.to_markdown("heval microsimulation run report"))
+    (OUT / "run_report_micro.md").write_text(
+        record.to_markdown("heormodel microsimulation run report")
+    )
     print(f"\nWrote plots and run report to {OUT}/")
 
 

@@ -1,8 +1,8 @@
 """Scenario designs for deterministic sensitivity analysis.
 
 Each builder takes a base case (a `pandas.Series` of point values, e.g. from
-`heval.params.ParameterSet.means`) and returns a ``(design, descriptor)``
-pair. The ``design`` is a draw matrix ready for `heval.run.run_psa`: rows are
+`heormodel.params.ParameterSet.means`) and returns a ``(design, descriptor)``
+pair. The ``design`` is a draw matrix ready for `heormodel.run.run_psa`: rows are
 scenarios, its index is named ``"iteration"``, and it carries every base
 parameter as a column so any engine can evaluate it. The ``descriptor`` is a
 tidy table with the same index, one row per scenario, recording what each

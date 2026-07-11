@@ -71,4 +71,9 @@ pythonpath = ["examples"]
 source = ["src/heormodel"]
 
 [tool.coverage.report]
-exclude_lines = ["pragma: no cover"]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]
+exclude_also = ["if TYPE_CHECKING:"]

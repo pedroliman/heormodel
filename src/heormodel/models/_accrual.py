@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
-from heormodel.models.outcomes import ITERATION_LEVEL, STRATEGY_LEVEL
+from heormodel.models.outcomes import INTERVENTION_LEVEL, ITERATION_LEVEL
 
 
 def discount_factor(
@@ -113,17 +113,17 @@ def integrate_flow(
 
 def aggregate(
     per_individual: dict[str, NDArray[np.float64]],
-    strategy: str,
+    intervention: str,
     iteration: object,
 ) -> pd.DataFrame:
-    """Average per-individual accruals into one ``(strategy, iteration)`` row.
+    """Average per-individual accruals into one ``(intervention, iteration)`` row.
 
-    Population averaging happens here: `Outcomes` stays at the strategy and
+    Population averaging happens here: `Outcomes` stays at the intervention and
     iteration grain, and individual-level detail never crosses into it.
 
     Args:
         per_individual: Column name to per-individual accrual array.
-        strategy: Strategy label for the row.
+        intervention: Intervention label for the row.
         iteration: Iteration index value for the row.
 
     Example:
@@ -137,6 +137,6 @@ def aggregate(
     """
     means = {col: float(np.mean(v)) for col, v in per_individual.items()}
     index = pd.MultiIndex.from_tuples(
-        [(strategy, iteration)], names=[STRATEGY_LEVEL, ITERATION_LEVEL]
+        [(intervention, iteration)], names=[INTERVENTION_LEVEL, ITERATION_LEVEL]
     )
     return pd.DataFrame([means], index=index)

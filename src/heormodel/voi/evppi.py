@@ -1,6 +1,6 @@
 """Expected value of partial perfect information via metamodeling.
 
-Uses the nonparametric-regression estimator: regress each strategy's net
+Uses the nonparametric-regression estimator: regress each intervention's net
 benefit on the parameter subset of interest with a flexible metamodel; the
 fitted values estimate the conditional expected NB given those parameters,
 and EVPPI is ``E[max_d g_d(x)] - max_d E[g_d(x)]`` (Strong, Oakley &
@@ -43,7 +43,7 @@ def evppi(
         wtp: Willingness to pay per unit of effect.
         effect: Effect column (default: the primary effect).
         method: ``"spline"`` (default) or ``"gp"`` metamodel; see
-            `heval.voi._metamodel.fitted_conditional_means`.
+            `heormodel.voi._metamodel.fitted_conditional_means`.
         n_knots: Spline knot count.
         degree: Spline degree.
         seed: Subsample seed for the GP method.

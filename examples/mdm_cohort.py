@@ -7,10 +7,10 @@ then runs the probabilistic sensitivity analysis on the same parameters through
 the analysis layer.
 
 The Sick-Sicker model has four states (Healthy, Sick, Sicker, Dead) over 75
-annual cycles from age 25. Four strategies compare standard of care with a
+annual cycles from age 25. Four interventions compare standard of care with a
 treatment A that improves the quality of life of the Sick, a treatment B that
 slows progression from Sick to Sicker, and their combination AB. `model`
-constructs each strategy's transition matrix and per-state payoffs from a
+constructs each intervention's transition matrix and per-state payoffs from a
 parameter row; `MarkovModel` sweeps the cohort and emits `Outcomes`.
 
 Run it with::
@@ -40,7 +40,7 @@ HERE = Path(__file__).parent
 OUT = HERE / "output"
 
 STATES = ("H", "S1", "S2", "D")
-STRATEGIES = ("Standard of care", "Strategy A", "Strategy B", "Strategy AB")
+INTERVENTIONS = ("Standard of care", "Intervention A", "Intervention B", "Intervention AB")
 N_CYCLES = 75  # ages 25 to 100, annual cycles
 WTP = 100_000.0  # willingness-to-pay threshold used in the tutorial
 N_SIM = 1_000
@@ -58,8 +58,8 @@ def rate_to_prob(rate: float | np.ndarray, t: float = 1.0) -> np.ndarray:
     return 1.0 - np.exp(-np.asarray(rate) * t)
 
 
-def model(params: pd.Series, strategy: str) -> CohortSpec:
-    """Transition matrix and per-state payoffs for one strategy and draw."""
+def model(params: pd.Series, intervention: str) -> CohortSpec:
+    """Transition matrix and per-state payoffs for one intervention and draw."""
     p_HS1 = rate_to_prob(params["r_HS1"])
     p_S1H = rate_to_prob(params["r_S1H"])
     p_S1S2 = rate_to_prob(params["r_S1S2"])
@@ -67,7 +67,7 @@ def model(params: pd.Series, strategy: str) -> CohortSpec:
     p_S1D = rate_to_prob(params["r_HD"] * params["hr_S1"])
     p_S2D = rate_to_prob(params["r_HD"] * params["hr_S2"])
     # treatment B slows progression from Sick to Sicker
-    treats_b = strategy in ("Strategy B", "Strategy AB")
+    treats_b = intervention in ("Intervention B", "Intervention AB")
     p_prog = rate_to_prob(params["r_S1S2"] * params["hr_S1S2_trtB"]) if treats_b else p_S1S2
 
     P = np.zeros((4, 4))
@@ -85,13 +85,13 @@ def model(params: pd.Series, strategy: str) -> CohortSpec:
     # treatment cost is added in the Sick and Sicker states
     add = {
         "Standard of care": 0.0,
-        "Strategy A": params["c_trtA"],
-        "Strategy B": params["c_trtB"],
-        "Strategy AB": params["c_trtA"] + params["c_trtB"],
-    }[strategy]
+        "Intervention A": params["c_trtA"],
+        "Intervention B": params["c_trtB"],
+        "Intervention AB": params["c_trtA"] + params["c_trtB"],
+    }[intervention]
     cost = np.array([params["c_H"], params["c_S1"] + add, params["c_S2"] + add, 0.0])
     # treatment A raises the Sick-state utility
-    treats_a = strategy in ("Strategy A", "Strategy AB")
+    treats_a = intervention in ("Intervention A", "Intervention AB")
     u_s1 = params["u_trtA"] if treats_a else params["u_S1"]
     effect = np.array([params["u_H"], u_s1, params["u_S2"], 0.0])
     return CohortSpec(P, cost, effect)
@@ -125,9 +125,10 @@ def main() -> None:
     OUT.mkdir(exist_ok=True)
     seeds = SeedManager(20260705)
     engine = MarkovModel(
-        states=STATES, strategies=STRATEGIES, model_fn=model, n_cycles=N_CYCLES,
-        start="H", discount_rate=0.03,
-        half_cycle_correction="simpson",
+        states=STATES, interventions=INTERVENTIONS, transitions_and_rewards=model,
+        n_cycles=N_CYCLES,
+        initial_state="H", discount_rate=0.03,
+        cycle_correction="simpson",
     )
 
     # Deterministic base case reproduces the tutorial's CEA table.
@@ -137,7 +138,7 @@ def main() -> None:
 
     # Probabilistic sensitivity analysis on the same model.
     draws = parameters().sample(N_SIM, seed=seeds.generator())
-    outcomes = run_psa(engine, draws)
+    outcomes = run_psa(engine, draws).outcomes
     print("\nProbabilistic CEA (mean over draws):")
     print(icer_table(outcomes).round(2).to_string())
     print(f"\nEVPI at WTP {WTP:,.0f}: {evpi(outcomes, WTP):,.1f}")
@@ -161,11 +162,11 @@ def main() -> None:
         draw_sources=dict.fromkeys(draws.columns, "Sick-Sicker tutorial (MDM 2023)"),
         note=(
             f"Cohort state-transition Sick-Sicker model, {N_CYCLES} annual cycles, "
-            "Simpson's 1/3 within-cycle correction, four strategies."
+            "Simpson's 1/3 within-cycle correction, four interventions."
         ),
     )
     (OUT / "run_report_cohort.md").write_text(
-        record.to_markdown("heval cohort Sick-Sicker run report")
+        record.to_markdown("heormodel cohort Sick-Sicker run report")
     )
     print(f"\nWrote plots and run report to {OUT}/")
 

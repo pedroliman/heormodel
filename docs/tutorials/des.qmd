@@ -19,33 +19,34 @@ ARRIVAL_RATE = 15.0  # patients per year
 def patients(rng, n):
     return pd.DataFrame({"arrival": np.cumsum(rng.exponential(1.0 / ARRIVAL_RATE, n))})
 
-def resources(env, params, strategy):
+def resources(env, params, intervention):
     return {"specialist": simpy.Resource(env, capacity=int(params["n_servers"]))}
 
-def clinic(env, patient, params, strategy, toolkit):
+def clinic(env, patient, params, intervention, toolkit):
     arrival = float(patient["arrival"])
-    if arrival >= HORIZON:
+    if arrival >= toolkit.horizon:
         return
     yield env.timeout(arrival)
     toolkit.state("waiting")
     with toolkit.request("specialist") as slot:
-        result = yield slot | env.timeout(HORIZON - env.now)  # race the horizon
+        result = yield slot | env.timeout(toolkit.horizon - env.now)  # race the horizon
         served = slot in result
         toolkit.accrue_over(arrival, env.now, params["c_wait_year"], params["u_wait"])
         if served:
             toolkit.accrue_cost(params["c_treat"] + params["c_capacity"])
-            toolkit.accrue_over(env.now, HORIZON, params["c_followup_year"], params["u_treated"])
+            toolkit.accrue_over(env.now, toolkit.horizon, params["c_followup_year"],
+                                params["u_treated"])
             yield env.timeout(toolkit.rng.gamma(2.0, params["service_time"] / 2.0))
 ```
 
-`toolkit.accrue_over(start, end, cost_rate, utility_rate)` integrates and discounts a flow over an absolute interval, so billing the queueing time a patient just endured is one call once the specialist is granted. A patient still waiting at the horizon is never seen: the request loses the race and only the waiting segment is billed.
+`toolkit.accrue_over(start, end, cost_rate, utility_rate)` integrates and discounts a flow over an absolute interval, so billing the queueing time a patient just endured is one call once the specialist is granted. The process reads the run's time horizon back as `toolkit.horizon`, so it need not repeat the value the constructor already holds. A patient still waiting at the horizon is never seen: the request loses the race and only the waiting segment is billed.
 
 ## Configuring once, evaluating on draws
 
-The constructor takes the model; `evaluate` takes only the draw matrix. The two strategies differ only in capacity, `n_servers`, and a per-patient overhead `c_capacity` for the expanded arm. They see the same patients and service draws through common random numbers, so the incremental result reflects the capacity change, not sampling noise.
+The constructor takes the model; `run_psa` takes the draw matrix. The two interventions differ only in capacity, so each is an `Intervention` carrying the numeric knobs that arm sets: `n_servers`, and a per-patient overhead `c_capacity` for the expanded arm. This is the right use of decision levers, a scenario knob the model already reads as a parameter, rather than a flag standing in for which arm is which. They see the same patients and service draws through common random numbers, so the incremental result reflects the capacity change, not sampling noise.
 
 ```{python}
-from heormodel.models import DESModel
+from heormodel.models import DESModel, Intervention
 from heormodel.params import Beta, Gamma, ParameterSet
 from heormodel.run import SeedManager, run_psa
 
@@ -62,12 +63,12 @@ parameters = ParameterSet({
 draws = parameters.sample(128, seed=seeds.generator())
 
 engine = DESModel(
-    process=clinic, entities=patients, n_entities=30, resources=resources,
-    strategies={"Standard capacity": {"n_servers": 1, "c_capacity": 0.0},
-                "Expanded capacity": {"n_servers": 2}},
-    horizon=HORIZON, seed_manager=seeds,
+    process=clinic, population=patients, n_individuals=30, resources=resources,
+    interventions=[Intervention("Standard capacity", {"n_servers": 1, "c_capacity": 0.0}),
+                Intervention("Expanded capacity", {"n_servers": 2})],
+    horizon=HORIZON,
 )
-outcomes = run_psa(engine, draws, sequential=True)
+outcomes = run_psa(engine, draws, seed=seeds.entropy, sequential=True).outcomes
 outcomes.summary().round(2)
 ```
 
@@ -88,13 +89,13 @@ print(f"EVPI at WTP {WTP:,.0f}: {evpi(outcomes, WTP):,.1f}")
 evppi_ranking(outcomes, draws, WTP).round(1)
 ```
 
-Service time leads the value-of-information ranking: it sets how fast the queue clears, so it determines whether the extra capacity is worth its cost. The `trace` side channel carries the event log, and `queue_waits` turns it into per-request waits without touching engine internals.
+Service time leads the value-of-information ranking: it sets how fast the queue clears, so it determines whether the extra capacity is worth its cost. Passing `collect="events"` to `run_psa` returns the event log alongside the outcomes, and `queue_waits` turns it into per-request waits without touching engine internals.
 
 ```{python}
 from heormodel.models import queue_waits
 
-_, trace = engine.evaluate(draws.iloc[[0]], trace=True)
-(queue_waits(trace).groupby("strategy", sort=False)["wait"].mean() * 365).round(1)
+trace = run_psa(engine, draws.iloc[[0]], seed=seeds.entropy, collect="events").events
+(queue_waits(trace).groupby("intervention", sort=False)["wait"].mean() * 365).round(1)
 ```
 
 The single specialist leaves patients waiting weeks; the second clears the queue to about a day. See the [engines](../concepts/engines.qmd) concept page for where the engine sits in the contract.

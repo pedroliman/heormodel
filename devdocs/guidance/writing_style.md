@@ -4,7 +4,7 @@ Applies to everything written in this repository: README, roadmap, docstrings, c
 
 ## Be concise, not clipped
 
-Concise means every sentence earns its place, not that sentences lose their verbs. Write full sentences: a subject and a verb, every time. "Three strategies for a chronic disease: standard of care, a new drug, and drug plus monitoring" is a fragment, a label standing in for a sentence. "Three strategies compete for a chronic disease: standard of care, a new drug, and drug plus monitoring" is a sentence, and no longer than the fragment was. If trimming a sentence would strip its verb, the sentence was doing real work; cut a different sentence instead, or leave it whole.
+Concise means every sentence earns its place, not that sentences lose their verbs. Write full sentences: a subject and a verb, every time. "Three interventions for a chronic disease: standard of care, a new drug, and drug plus monitoring" is a fragment, a label standing in for a sentence. "Three interventions compete for a chronic disease: standard of care, a new drug, and drug plus monitoring" is a sentence, and no longer than the fragment was. If trimming a sentence would strip its verb, the sentence was doing real work; cut a different sentence instead, or leave it whole.
 
 - Lead with the point. Cut warm-up sentences, not verbs.
 - One idea per sentence. Prefer short sentences over long ones, never over incomplete ones. Keep every paragraph under 5 sentences.
@@ -16,7 +16,7 @@ Concise means every sentence earns its place, not that sentences lose their verb
 
 A tutorial's job is to let a reader replicate the analysis on their own problem, not just to prove the package runs. That means the reasoning behind a choice matters as much as the code: which distribution, which sample size, which comparator, and why that one rather than the obvious alternative.
 
-Open with a sentence that states what the tutorial teaches, in those terms: "This tutorial shows how to compare three strategies with probabilistic sensitivity analysis" or "This tutorial introduces `MicrosimModel`, the engine for representing patient history and heterogeneity that a cohort model averages away." Naming the goal is not a warm-up sentence to cut; it is the one sentence that tells the reader whether this is the page they need, and "lead with the point" means this sentence, stated plainly, rather than an inventory of function calls ("this page installs X and runs Y"). A list of actions is not the same as a statement of purpose: a reader can see the actions in the code below; what they cannot see is why this page exists or what they will be able to do afterward.
+Open with a sentence that states what the tutorial teaches, in those terms: "This tutorial shows how to compare three interventions with probabilistic sensitivity analysis" or "This tutorial introduces `MicrosimModel`, the engine for representing patient history and heterogeneity that a cohort model averages away." Naming the goal is not a warm-up sentence to cut; it is the one sentence that tells the reader whether this is the page they need, and "lead with the point" means this sentence, stated plainly, rather than an inventory of function calls ("this page installs X and runs Y"). A list of actions is not the same as a statement of purpose: a reader can see the actions in the code below; what they cannot see is why this page exists or what they will be able to do afterward.
 
 After that opening, structure every section the same way:
 
@@ -28,7 +28,7 @@ Keep the headings on a page grammatically parallel. The tutorials name each sect
 
 Separate the values a reader will change from the logic they copy unchanged. Lift the decision inputs, the willingness-to-pay threshold, the seed, the iteration count, the time horizon, to named constants near the top of the first code block. A reader adapting the tutorial to their own problem then edits those in one place rather than hunting for them inside the model function.
 
-Show the result the reader is working toward, and confirm they reached it. State the number or table the analysis produces ("the frontier runs standard of care, then Strategy B at about 73,000 per QALY"), and when a tutorial reproduces a published result, say plainly whether it matched ("the result should match the published table exactly. It does."). A reader needs both to see where a section is headed and to have a way to tell that their own run landed in the same place.
+Show the result the reader is working toward, and confirm they reached it. State the number or table the analysis produces ("the frontier runs standard of care, then Intervention B at about 73,000 per QALY"), and when a tutorial reproduces a published result, say plainly whether it matched ("the result should match the published table exactly. It does."). A reader needs both to see where a section is headed and to have a way to tell that their own run landed in the same place.
 
 Do not narrate self-evident code line by line ("first we import pandas, then we define a function"), and do not let the drive for brevity turn an explanation, or the opening statement of purpose, into a fragment or a bare action list. A tutorial section that is a few sentences longer because it explains a genuinely non-obvious choice is better than one that hits a word target by cutting that explanation.
 
@@ -54,7 +54,7 @@ Only explain what you can actually verify. A "why" sentence earns its place when
 
 Use the field's terms:
 
-- strategy, comparator, willingness-to-pay threshold, incremental cost-effectiveness ratio (ICER), quality-adjusted life-year (QALY), net monetary benefit, net health benefit, efficiency frontier, dominance, extended dominance, cost-effectiveness acceptability curve
+- intervention, comparator, willingness-to-pay threshold, incremental cost-effectiveness ratio (ICER), quality-adjusted life-year (QALY), net monetary benefit, net health benefit, efficiency frontier, dominance, extended dominance, cost-effectiveness acceptability curve
 - probabilistic sensitivity analysis, parameter draw, iteration
 - cohort model, state-transition model, microsimulation, discrete-event simulation, cycle, half-cycle correction, discounting, time horizon
 - calibration target, prior, posterior, expected value of perfect information (EVPI), expected value of partial perfect information (EVPPI), expected value of sample information (EVSI)
@@ -65,7 +65,7 @@ No computer science jargon in documentation. The reader is a health economist wh
 
 Avoid vocabulary that pattern-matches to generated text and does not belong in health economics writing: leverage, delve, seamless, comprehensive, robust (unless statistical robustness is meant), crucial, empower, journey, cutting-edge, holistic, streamline, unlock.
 
-Avoid startup and business-strategy jargon for the same reason: wedge, adoption wedge, go-to-market, north star, growth loop, and similar terms describe product strategy, not a cost-effectiveness analysis. If a plain description ("this tutorial covers the same analysis") says the same thing, use that instead.
+Avoid startup and business-intervention jargon for the same reason: wedge, adoption wedge, go-to-market, north star, growth loop, and similar terms describe product intervention, not a cost-effectiveness analysis. If a plain description ("this tutorial covers the same analysis") says the same thing, use that instead.
 
 Do not describe a tutorial or example script as "narrated" (a "narrated version", "narrated analysis," and so on). Say what the page actually does instead: "walks through `examples/x.py` step by step", or link the script and say nothing more.
 

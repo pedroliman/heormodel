@@ -3,11 +3,11 @@
 Companion to ``examples/mdm_cohort.py``. Where that script runs a
 probabilistic sensitivity analysis, this one runs the deterministic forms:
 a one-way sweep, a one-at-a-time tornado, and a two-way grid. All three feed
-`heval.dsa` designs through the same `run_psa` loop the PSA uses, then read
+`heormodel.dsa` designs through the same `run_psa` loop the PSA uses, then read
 the results with the report layer.
 
 The base case is the tutorial's Table 1 point estimates. The outcome of
-interest is the incremental net monetary benefit of Strategy AB over standard
+interest is the incremental net monetary benefit of Intervention AB over standard
 of care at a willingness-to-pay threshold of 100,000 per QALY.
 
 Run it with::
@@ -36,7 +36,7 @@ HERE = Path(__file__).parent
 OUT = HERE / "output"
 
 STATES = ("H", "S1", "S2", "D")
-STRATEGIES = ("Standard of care", "Strategy A", "Strategy B", "Strategy AB")
+INTERVENTIONS = ("Standard of care", "Intervention A", "Intervention B", "Intervention AB")
 N_CYCLES = 75
 WTP = 100_000.0
 
@@ -67,15 +67,15 @@ def rate_to_prob(rate: float | np.ndarray) -> np.ndarray:
     return 1.0 - np.exp(-np.asarray(rate))
 
 
-def model(params: pd.Series, strategy: str) -> CohortSpec:
-    """Transition matrix and per-state payoffs for one strategy and draw."""
+def model(params: pd.Series, intervention: str) -> CohortSpec:
+    """Transition matrix and per-state payoffs for one intervention and draw."""
     p_HS1 = rate_to_prob(params["r_HS1"])
     p_S1H = rate_to_prob(params["r_S1H"])
     p_S1S2 = rate_to_prob(params["r_S1S2"])
     p_HD = rate_to_prob(params["r_HD"])
     p_S1D = rate_to_prob(params["r_HD"] * params["hr_S1"])
     p_S2D = rate_to_prob(params["r_HD"] * params["hr_S2"])
-    treats_b = strategy in ("Strategy B", "Strategy AB")
+    treats_b = intervention in ("Intervention B", "Intervention AB")
     p_prog = rate_to_prob(params["r_S1S2"] * params["hr_S1S2_trtB"]) if treats_b else p_S1S2
 
     P = np.zeros((4, 4))
@@ -92,32 +92,32 @@ def model(params: pd.Series, strategy: str) -> CohortSpec:
 
     add = {
         "Standard of care": 0.0,
-        "Strategy A": params["c_trtA"],
-        "Strategy B": params["c_trtB"],
-        "Strategy AB": params["c_trtA"] + params["c_trtB"],
-    }[strategy]
+        "Intervention A": params["c_trtA"],
+        "Intervention B": params["c_trtB"],
+        "Intervention AB": params["c_trtA"] + params["c_trtB"],
+    }[intervention]
     cost = np.array([params["c_H"], params["c_S1"] + add, params["c_S2"] + add, 0.0])
-    treats_a = strategy in ("Strategy A", "Strategy AB")
+    treats_a = intervention in ("Intervention A", "Intervention AB")
     u_s1 = params["u_trtA"] if treats_a else params["u_S1"]
     effect = np.array([params["u_H"], u_s1, params["u_S2"], 0.0])
     return CohortSpec(P, cost, effect)
 
 
 def incremental_nmb(design: pd.DataFrame) -> pd.Series:
-    """Incremental NMB of Strategy AB over standard of care, per scenario."""
-    outcomes = run_psa(engine, design)
+    """Incremental NMB of Intervention AB over standard of care, per scenario."""
+    outcomes = run_psa(engine, design).outcomes
     nb = nmb(outcomes, WTP)
-    return nb["Strategy AB"] - nb["Standard of care"]
+    return nb["Intervention AB"] - nb["Standard of care"]
 
 
 engine = MarkovModel(
     states=STATES,
-    strategies=STRATEGIES,
-    model_fn=model,
+    interventions=INTERVENTIONS,
+    transitions_and_rewards=model,
     n_cycles=N_CYCLES,
-    start="H",
+    initial_state="H",
     discount_rate=0.03,
-    half_cycle_correction="simpson",
+    cycle_correction="simpson",
 )
 
 
@@ -134,12 +134,12 @@ def main() -> None:
     # One-at-a-time tornado: each parameter to +/- 20% of its base value.
     ranges = {name: (0.8 * BASE[name], 1.2 * BASE[name]) for name in BASE.index}
     oat_design, oat_descriptor = one_at_a_time(BASE, ranges)
-    oat_outcomes = run_psa(engine, oat_design)
+    oat_outcomes = run_psa(engine, oat_design).outcomes
     td = tornado_data(
         oat_outcomes,
         (oat_design, oat_descriptor),
         wtp=WTP,
-        strategy="Strategy AB",
+        intervention="Intervention AB",
         comparator="Standard of care",
     )
     print("\nTornado table (+/- 20% one-at-a-time, incremental NMB of AB):")
@@ -161,7 +161,7 @@ def main() -> None:
     ax.set_yticks(range(len(b_values)), [f"{v:,.0f}" for v in b_values])
     ax.set_xlabel("c_trtA")
     ax.set_ylabel("c_trtB")
-    ax.set_title("Incremental NMB of Strategy AB")
+    ax.set_title("Incremental NMB of Intervention AB")
     fig.colorbar(im, ax=ax, label="Net monetary benefit")
     fig.savefig(OUT / "heatmap_dsa.png", dpi=150, bbox_inches="tight")
 

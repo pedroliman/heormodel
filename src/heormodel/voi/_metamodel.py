@@ -1,7 +1,7 @@
 """Shared metamodel machinery for regression-based VoI estimators.
 
 Both EVPPI and regression-based EVSI reduce to the same computation: for
-each strategy, regress net benefit on some conditioning variables (parameter
+each intervention, regress net benefit on some conditioning variables (parameter
 draws for EVPPI, simulated study summaries for EVSI), then compare the
 expected maximum of the fitted conditional means with the maximum of their
 expectations.
@@ -38,11 +38,11 @@ def fitted_conditional_means(
     degree: int = 3,
     seed: int | None = None,
 ) -> NDArray[np.float64]:
-    """Fit a flexible regression of each strategy's NB on ``x``.
+    """Fit a flexible regression of each intervention's NB on ``x``.
 
     Args:
         x: Conditioning variables, one row per iteration.
-        nb: Net benefit (iterations x strategies), aligned with ``x``.
+        nb: Net benefit (iterations x interventions), aligned with ``x``.
         method: ``"spline"`` (additive cubic-spline basis + linear model,
             fast, default) or ``"gp"`` (Gaussian-process regression fitted
             on a subsample of at most 500 points, then evaluated on all).
@@ -50,7 +50,7 @@ def fitted_conditional_means(
         seed: Subsample seed (``method="gp"``).
 
     Returns:
-        Array (iterations x strategies) of fitted conditional-mean NB.
+        Array (iterations x interventions) of fitted conditional-mean NB.
     """
     if len(x) != len(nb):
         raise ValueError("x and nb must have the same number of rows.")

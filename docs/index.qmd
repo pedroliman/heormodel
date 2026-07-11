@@ -31,9 +31,9 @@ from heormodel.voi import evpi
 WTP = 50_000.0
 
 
-def model(p, strategy):
-    rr = {"Standard care": 1.0, "Treatment A": p["rr_a"], "Treatment B": p["rr_b"]}[strategy]
-    add_cost = {"Standard care": 0.0, "Treatment A": p["c_a"], "Treatment B": p["c_b"]}[strategy]
+def model(p, intervention):
+    rr = {"Standard care": 1.0, "Treatment A": p["rr_a"], "Treatment B": p["rr_b"]}[intervention]
+    add_cost = {"Standard care": 0.0, "Treatment A": p["c_a"], "Treatment B": p["c_b"]}[intervention]
     p_progress = p["p_progress"] * rr
     # Transition matrix. Rows: current state. Columns: next state.
     P = np.array([
@@ -47,8 +47,8 @@ def model(p, strategy):
 
 
 engine = MarkovModel(states=("Healthy", "Sick", "Dead"),
-                     strategies=("Standard care", "Treatment A", "Treatment B"),
-                     model_fn=model, n_cycles=40)
+                     interventions=("Standard care", "Treatment A", "Treatment B"),
+                     transitions_and_rewards=model, n_cycles=40)
 
 params = ParameterSet({
     "p_progress": Beta(20, 180), "rr_a": Beta(75, 25), "rr_b": Beta(45, 55),
@@ -58,11 +58,11 @@ params = ParameterSet({
 })
 
 draws = params.sample(2_000, seed=SeedManager(1).generator())
-outcomes = run_psa(engine, draws)
+outcomes = run_psa(engine, draws).outcomes
 icer_table(outcomes).round(1)
 ```
 
-The `icer_table` orders strategies by cost and reports incremental cost-effectiveness ratios along the efficiency frontier; the `status` column flags dominated (`D`) and extended-dominated (`ED`) strategies. All three strategies sit on the frontier here, with Treatment A entering near 11,000 per quality-adjusted life-year (QALY) and Treatment B near 52,000. `plot_ce_plane` scatters every iteration's incremental cost and effect against standard care, and `plot_ceac` reports the share of iterations in which each strategy has the highest net benefit, across a grid of willingness-to-pay thresholds:
+The `icer_table` orders interventions by cost and reports incremental cost-effectiveness ratios along the efficiency frontier; the `status` column flags dominated (`D`) and extended-dominated (`ED`) interventions. All three interventions sit on the frontier here, with Treatment A entering near 11,000 per quality-adjusted life-year (QALY) and Treatment B near 52,000. `plot_ce_plane` scatters every iteration's incremental cost and effect against standard care, and `plot_ceac` reports the share of iterations in which each intervention has the highest net benefit, across a grid of willingness-to-pay thresholds:
 
 ```{python}
 grid = np.linspace(0, 100_000, 41)

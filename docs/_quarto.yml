@@ -188,7 +188,7 @@ quartodoc:
         - tornado_data
         - plot_tornado
         - heatmap_data
-        - strategy_colors
+        - intervention_colors
         - PALETTE
         - capture_run
         - RunRecord

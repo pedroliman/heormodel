@@ -1,6 +1,6 @@
 """Tests for value-of-information analysis.
 
-Includes the phase-1 validation check: a two-strategy model with Gaussian
+Includes the phase-1 validation check: a two-intervention model with Gaussian
 costs and effects, for which EVPI, EVPPI, and EVSI have closed-form values
 via the unit normal loss integral (the standard analytic benchmark for
 regression-based VoI estimators, cf. Strong, Oakley & Brennan 2014). The
@@ -122,7 +122,7 @@ class TestCalibrationWorkflowVoi:
 
 # Second published reference point, the examples/voi_tutorial.py model: the
 # Gaussian linear decision model of Strong, Oakley & Brennan (2014) framed as a
-# two-strategy cost-effectiveness decision at a 30,000-per-QALY threshold.
+# two-intervention cost-effectiveness decision at a 30,000-per-QALY threshold.
 T_WTP = 30_000.0
 T_MU_Q, T_SD_Q = 0.20, 0.30
 T_MU_C, T_SD_C = 4_000.0, 8_000.0

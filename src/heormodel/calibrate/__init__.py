@@ -1,7 +1,7 @@
-"""Model calibration (`heval.calibrate`).
+"""Model calibration (`heormodel.calibrate`).
 
 Approximate Bayesian computation via ``pyabc`` (optional dependency):
-translate ``heval`` priors, calibrate a simulator to observed targets, and
+translate ``heormodel`` priors, calibrate a simulator to observed targets, and
 get back a posterior parameter draw matrix that flows into the standard
 probabilistic analysis through the shared iteration index.
 """

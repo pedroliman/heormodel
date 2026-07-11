@@ -28,7 +28,7 @@ from heormodel.models import Outcomes
 
 @pytest.fixture
 def reference_means() -> pd.DataFrame:
-    """Five strategies with every dominance situation, verified by hand.
+    """Five interventions with every dominance situation, verified by hand.
 
     Sorted by cost: A(0, 0), B(100, 0.5), E(250, 0.4), C(300, 0.6), D(400, 1.0).
 
@@ -78,13 +78,13 @@ class TestValidationIncrementalAnalysis:
 
 
 class TestIcerEdgeCases:
-    def test_duplicate_strategies_keep_first(self):
+    def test_duplicate_interventions_keep_first(self):
         means = pd.DataFrame({"cost": [10.0, 10.0], "effect": [1.0, 1.0]}, index=["A", "A2"])
         table = icer_table(means)
         assert table.loc["A", "status"] == STATUS_ND
         assert table.loc["A2", "status"] == STATUS_D
 
-    def test_two_strategies_no_extended_dominance_possible(self):
+    def test_two_interventions_no_extended_dominance_possible(self):
         means = pd.DataFrame({"cost": [0.0, 50.0], "effect": [0.0, 1.0]}, index=["A", "B"])
         table = icer_table(means)
         assert list(table["status"]) == [STATUS_ND, STATUS_ND]
@@ -142,21 +142,31 @@ class TestCeacCeaf:
         assert curve.loc[100.0, "B"] == 0.75
         np.testing.assert_allclose(curve.sum(axis=1), 1.0)
 
-    def test_ceaf_reports_max_expected_nmb_strategy(self, simple_outcomes):
+    def test_ceaf_reports_max_expected_nmb_intervention(self, simple_outcomes):
         # At wtp=200: E[NMB_B] = (150*3 - 250)/4 = 50 > 0 so B is optimal,
         # though it wins in only 75% of iterations.
         f = ceaf(simple_outcomes, wtp=[200.0])
-        assert f.loc[200.0, "strategy"] == "B"
+        assert f.loc[200.0, "intervention"] == "B"
         assert f.loc[200.0, "prob"] == 0.75
 
     def test_ce_plane_incrementals(self, simple_outcomes):
         plane = ce_plane(simple_outcomes)
-        assert set(plane["strategy"]) == {"B"}
+        assert set(plane["intervention"]) == {"B"}
         assert plane["inc_cost"].tolist() == [50.0] * 4
 
     def test_ce_plane_unknown_comparator(self, simple_outcomes):
         with pytest.raises(KeyError):
             ce_plane(simple_outcomes, comparator="Z")
+
+    def test_ce_plane_defaults_to_outcomes_comparator(self, simple_outcomes):
+        flagged = Outcomes(simple_outcomes.data, effect=simple_outcomes.effect, comparator="B")
+        plane = ce_plane(flagged)
+        assert set(plane["intervention"]) == {"A"}
+
+    def test_ce_plane_argument_overrides_outcomes_comparator(self, simple_outcomes):
+        flagged = Outcomes(simple_outcomes.data, effect=simple_outcomes.effect, comparator="B")
+        plane = ce_plane(flagged, comparator="A")
+        assert set(plane["intervention"]) == {"B"}
 
 
 class TestExpectedLoss:

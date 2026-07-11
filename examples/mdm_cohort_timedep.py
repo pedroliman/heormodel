@@ -38,7 +38,7 @@ HERE = Path(__file__).parent
 OUT = HERE / "output"
 
 STATES = ("H", "S1", "S2", "D")
-STRATEGIES = ("Standard of care", "Strategy A", "Strategy B", "Strategy AB")
+INTERVENTIONS = ("Standard of care", "Intervention A", "Intervention B", "Intervention AB")
 N_CYCLES = 75  # ages 25 to 100, annual cycles
 WTP = 100_000.0
 N_SIM = 1_000
@@ -70,7 +70,7 @@ def rate_to_prob(rate: float | np.ndarray, t: float = 1.0) -> np.ndarray:
     return 1.0 - np.exp(-np.asarray(rate) * t)
 
 
-def model(params: pd.Series, strategy: str) -> CohortSpec:
+def model(params: pd.Series, intervention: str) -> CohortSpec:
     """Per-cycle transition array, state payoffs, and transition rewards."""
     p_HS1 = rate_to_prob(params["r_HS1"])
     p_S1H = rate_to_prob(params["r_S1H"])
@@ -78,7 +78,7 @@ def model(params: pd.Series, strategy: str) -> CohortSpec:
     v_p_HD = rate_to_prob(MORTALITY_BY_AGE)  # age-varying, length N_CYCLES
     v_p_S1D = rate_to_prob(MORTALITY_BY_AGE * params["hr_S1"])
     v_p_S2D = rate_to_prob(MORTALITY_BY_AGE * params["hr_S2"])
-    treats_b = strategy in ("Strategy B", "Strategy AB")
+    treats_b = intervention in ("Intervention B", "Intervention AB")
     p_prog = rate_to_prob(params["r_S1S2"] * params["hr_S1S2_trtB"]) if treats_b else p_S1S2
 
     P = np.zeros((N_CYCLES, 4, 4))
@@ -95,12 +95,12 @@ def model(params: pd.Series, strategy: str) -> CohortSpec:
 
     add = {
         "Standard of care": 0.0,
-        "Strategy A": params["c_trtA"],
-        "Strategy B": params["c_trtB"],
-        "Strategy AB": params["c_trtA"] + params["c_trtB"],
-    }[strategy]
+        "Intervention A": params["c_trtA"],
+        "Intervention B": params["c_trtB"],
+        "Intervention AB": params["c_trtA"] + params["c_trtB"],
+    }[intervention]
     cost = np.array([params["c_H"], params["c_S1"] + add, params["c_S2"] + add, 0.0])
-    treats_a = strategy in ("Strategy A", "Strategy AB")
+    treats_a = intervention in ("Intervention A", "Intervention AB")
     u_s1 = params["u_trtA"] if treats_a else params["u_S1"]
     effect = np.array([params["u_H"], u_s1, params["u_S2"], 0.0])
 
@@ -144,9 +144,10 @@ def main() -> None:
     OUT.mkdir(exist_ok=True)
     seeds = SeedManager(20260705)
     engine = MarkovModel(
-        states=STATES, strategies=STRATEGIES, model_fn=model, n_cycles=N_CYCLES,
-        start="H", discount_rate=0.03,
-        half_cycle_correction="simpson",
+        states=STATES, interventions=INTERVENTIONS, transitions_and_rewards=model,
+        n_cycles=N_CYCLES,
+        initial_state="H", discount_rate=0.03,
+        cycle_correction="simpson",
     )
 
     base_draws = pd.DataFrame([BASE], index=pd.RangeIndex(1, name="iteration"))
@@ -154,7 +155,7 @@ def main() -> None:
     print(icer_table(engine.evaluate(base_draws)).round(2).to_string())
 
     draws = parameters().sample(N_SIM, seed=seeds.generator())
-    outcomes = run_psa(engine, draws)
+    outcomes = run_psa(engine, draws).outcomes
     print("\nProbabilistic CEA (mean over draws):")
     print(icer_table(outcomes).round(2).to_string())
     print(f"\nEVPI at WTP {WTP:,.0f}: {evpi(outcomes, WTP):,.1f}")
@@ -182,7 +183,7 @@ def main() -> None:
         ),
     )
     (OUT / "run_report_timedep.md").write_text(
-        record.to_markdown("heval time-dependent Sick-Sicker run report")
+        record.to_markdown("heormodel time-dependent Sick-Sicker run report")
     )
     print(f"\nWrote plots and run report to {OUT}/")
 

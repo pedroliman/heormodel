@@ -12,11 +12,11 @@ from heormodel.report import (
     PALETTE,
     RunRecord,
     capture_run,
+    intervention_colors,
     plot_ce_plane,
     plot_ceac,
     plot_frontier,
     plot_tornado,
-    strategy_colors,
     tornado_data,
 )
 from heormodel.run import SeedManager
@@ -52,7 +52,7 @@ class TestPlots:
 
     def test_tornado(self, psa):
         outcomes, draws = psa
-        td = tornado_data(outcomes, draws, wtp=500.0, strategy="B", comparator="A")
+        td = tornado_data(outcomes, draws, wtp=500.0, intervention="B", comparator="A")
         assert set(td.index) == {"c_b", "e_b"}
         # at wtp=500, sd(500*e) = 100 > sd(c) = 30: effect must rank first
         assert td.index[0] == "e_b"
@@ -63,11 +63,11 @@ class TestPlots:
         with pytest.raises(ValueError, match="iteration index"):
             tornado_data(outcomes, draws.iloc[:10], wtp=500.0)
 
-    def test_strategy_colors_fixed_order_and_capped(self):
-        colors = strategy_colors(["X", "Y"])
+    def test_intervention_colors_fixed_order_and_capped(self):
+        colors = intervention_colors(["X", "Y"])
         assert colors["X"] == PALETTE[0] and colors["Y"] == PALETTE[1]
         with pytest.raises(ValueError, match="Other"):
-            strategy_colors([f"s{i}" for i in range(9)])
+            intervention_colors([f"s{i}" for i in range(9)])
 
 
 class TestProvenance:
@@ -77,7 +77,7 @@ class TestProvenance:
         record = capture_run(seed=SeedManager(99), params=ps, outcomes=outcomes, note="t")
         assert record.seed_entropy == 99
         assert record.n_iterations == 300
-        assert record.strategies == ["A", "B"]
+        assert record.interventions == ["A", "B"]
         assert "Normal" in record.parameters["x"]
         assert "numpy" in record.versions
 

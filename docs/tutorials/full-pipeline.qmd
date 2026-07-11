@@ -28,7 +28,7 @@ draws.head(3).round(3)
 
 ## Writing a model as a plain function
 
-An engine is anything that maps draws to `Outcomes`. A plain function satisfying `ModelFn` is enough; the one below is a two-strategy decision tree evaluated over one year. `Outcomes.from_wide` assembles the structure from per-strategy cost and effect columns.
+An engine is anything that maps draws to `Outcomes`. A plain function satisfying `ModelFn` is enough; the one below is a two-intervention decision tree evaluated over one year. `Outcomes.from_wide` assembles the structure from per-intervention cost and effect columns.
 
 ```{python}
 import pandas as pd
@@ -54,7 +54,7 @@ def decision_tree(d: pd.DataFrame) -> Outcomes:
 ```{python}
 from heormodel.run import run_psa
 
-outcomes = run_psa(decision_tree, draws, sequential=True)
+outcomes = run_psa(decision_tree, draws, sequential=True).outcomes
 outcomes.summary().round(3)
 ```
 
@@ -70,7 +70,7 @@ from heormodel.voi import evpi, evppi_ranking
 icer_table(outcomes).round(3)
 ```
 
-Treatment is the more expensive, more effective strategy; whether its incremental cost-effectiveness ratio stays below a given willingness-to-pay threshold, and how much resolving that uncertainty would be worth, are what EVPI and the per-parameter ranking answer next.
+Treatment is the more expensive, more effective intervention; whether its incremental cost-effectiveness ratio stays below a given willingness-to-pay threshold, and how much resolving that uncertainty would be worth, are what EVPI and the per-parameter ranking answer next.
 
 ```{python}
 WTP = 50_000.0
@@ -80,7 +80,7 @@ evppi_ranking(outcomes, draws, WTP).round(2)
 
 ## Checking convergence with running means
 
-`running_means` tracks the running mean of an outcome column per strategy as iterations accumulate; flat traces at the right edge suggest the iteration count is adequate for the means (value-of-information estimates typically need more).
+`running_means` tracks the running mean of an outcome column per intervention as iterations accumulate; flat traces at the right edge suggest the iteration count is adequate for the means (value-of-information estimates typically need more).
 
 ```{python}
 from heormodel.run import running_means

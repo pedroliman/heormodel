@@ -20,7 +20,7 @@ from heormodel.models.outcomes import Outcomes
 from heormodel.params.sampling import ParameterSet
 from heormodel.run.seeds import SeedManager
 
-_TRACKED_PACKAGES = ("heval", "numpy", "scipy", "pandas", "joblib", "scikit-learn")
+_TRACKED_PACKAGES = ("heormodel", "numpy", "scipy", "pandas", "joblib", "scikit-learn")
 
 
 def _versions() -> dict[str, str]:
@@ -48,7 +48,7 @@ class RunRecord:
     created: str
     seed_entropy: int | None
     n_iterations: int | None
-    strategies: list[str] | None
+    interventions: list[str] | None
     parameters: dict[str, str] | None
     draw_sources: dict[str, str] | None = None
     versions: dict[str, str] = field(default_factory=_versions)
@@ -87,8 +87,8 @@ class RunRecord:
         lines.append(f"- **Root seed entropy:** {seed}")
         if self.n_iterations is not None:
             lines.append(f"- **Iterations:** {self.n_iterations}")
-        if self.strategies:
-            lines.append(f"- **Strategies:** {', '.join(self.strategies)}")
+        if self.interventions:
+            lines.append(f"- **Interventions:** {', '.join(self.interventions)}")
         if self.parameters:
             lines += ["", "## Parameters", "", "| Parameter | Distribution |", "|---|---|"]
             lines += [f"| {name} | `{spec}` |" for name, spec in self.parameters.items()]
@@ -115,7 +115,7 @@ def capture_run(
         params: The sampled `ParameterSet`, if any.
         outcomes: The resulting outcomes, if available.
         draw_sources: Where each parameter's draws came from, for analyses
-            that mix sources with `heval.params.mix_draws` (for example,
+            that mix sources with `heormodel.params.mix_draws` (for example,
             ``{"beta": "ABC posterior", "u_healthy": "literature"}``).
         note: Free-text description of the analysis.
 
@@ -134,7 +134,7 @@ def capture_run(
         created=datetime.now(UTC).isoformat(timespec="seconds"),
         seed_entropy=entropy,
         n_iterations=outcomes.n_iterations if outcomes is not None else None,
-        strategies=outcomes.strategies if outcomes is not None else None,
+        interventions=outcomes.interventions if outcomes is not None else None,
         parameters=params.spec() if params is not None else None,
         draw_sources=dict(draw_sources) if draw_sources is not None else None,
         note=note,

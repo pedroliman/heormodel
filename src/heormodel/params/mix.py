@@ -4,8 +4,8 @@ Applied models mix parameter sources: some columns are calibrated to
 observed targets (a posterior draw matrix), the rest come from the
 literature (a `ParameterSet.sample` matrix). `mix_draws` joins
 them into a single matrix that carries the standard ``iteration`` index, so
-the mixed draws flow through `heval.run.run_psa`, `heval.cea`, and
-`heval.voi` exactly like any other draw matrix.
+the mixed draws flow through `heormodel.run.run_psa`, `heormodel.cea`, and
+`heormodel.voi` exactly like any other draw matrix.
 
 The join resamples whole rows within each source, never column by column,
 so a posterior's joint correlation survives. Sources are resampled
@@ -32,7 +32,7 @@ def mix_draws(
     Args:
         sources: Two or more draw matrices with disjoint column names. Valid
             inputs are `ParameterSet.sample` output,
-            `heval.calibrate.CalibrationResult.posterior`, or any
+            `heormodel.calibrate.CalibrationResult.posterior`, or any
             external draw matrix indexed by iteration.
         n: Rows in the mixed matrix. Defaults to the shortest source's
             length. Sources shorter than ``n`` are resampled with

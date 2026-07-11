@@ -42,9 +42,10 @@ HERE = Path(__file__).parent
 OUT = HERE / "output"
 
 STATES = ("H", "S1", "S2", "D")
-STRATEGY = "Standard of care"
+INTERVENTION = "Standard of care"
 N_CYCLES = 40  # annual cycles, ages 40 to 80
 DISCOUNT = 0.03
+SEED = 20260705  # root seed for the microsimulation streams, passed to run_psa
 
 # One base-case parameter set drives both engines. Rates are annual hazards.
 BASE = dict(
@@ -99,7 +100,7 @@ def _hazards_from(params: pd.Series, state: np.ndarray, z: np.ndarray) -> np.nda
     return haz
 
 
-def cohort_model(params: pd.Series, strategy: str) -> CohortSpec:
+def cohort_model(params: pd.Series, intervention: str) -> CohortSpec:
     """Transition matrix and per-state rewards for the cohort trace (z = 1)."""
     state = np.arange(4)
     P = _competing_risks(_hazards_from(params, state, np.ones(4)))
@@ -125,7 +126,8 @@ def make_population(frailty_var: float):
 
 
 def micro_transition(
-    params: pd.Series, state: np.ndarray, attrs: pd.DataFrame, rng: np.random.Generator
+    params: pd.Series, intervention: str, state: np.ndarray, attrs: pd.DataFrame,
+    rng: np.random.Generator,
 ) -> np.ndarray:
     """Per-individual transition rows, frailty read from the ``z`` attribute."""
     z = attrs["z"].to_numpy()
@@ -137,7 +139,7 @@ def micro_transition(
 
 
 def micro_payoffs(
-    params: pd.Series, state: np.ndarray, attrs: pd.DataFrame
+    params: pd.Series, intervention: str, state: np.ndarray, attrs: pd.DataFrame
 ) -> tuple[np.ndarray, np.ndarray]:
     """Per-cycle cost and utility of each individual's current state."""
     cost_vec = np.array([params["c_H"], params["c_S1"], params["c_S2"], 0.0])
@@ -146,21 +148,20 @@ def micro_payoffs(
 
 
 def build_microsim(
-    n_individuals: int, frailty_var: float, seeds: SeedManager,
+    n_individuals: int, frailty_var: float,
     *, transition_probabilities=micro_transition, **kwargs,
 ) -> MicrosimModel:
     """A microsimulation twin of the cohort model at one population size."""
-    return MicrosimModel(
+    return MicrosimModel.discrete(
         states=STATES,
         transition_probabilities=transition_probabilities,
-        state_costs_and_utilities=micro_payoffs,
+        state_rewards=micro_payoffs,
         population=make_population(frailty_var),
         n_individuals=n_individuals,
-        strategies={STRATEGY: {}},
-        horizon=N_CYCLES,
+        interventions=[INTERVENTION],
+        n_cycles=N_CYCLES,
         discount_rate=DISCOUNT,
-        half_cycle_correction=True,
-        seed_manager=seeds,
+        cycle_correction="half_cycle",
         **kwargs,
     )
 
@@ -174,11 +175,11 @@ def main() -> None:
     draws = _draws()
 
     cohort = MarkovModel(
-        states=STATES, strategies=(STRATEGY,), model_fn=cohort_model,
-        n_cycles=N_CYCLES, start="H", discount_rate=DISCOUNT,
-        half_cycle_correction="half-cycle",
+        states=STATES, interventions=(INTERVENTION,), transitions_and_rewards=cohort_model,
+        n_cycles=N_CYCLES, initial_state="H", discount_rate=DISCOUNT,
+        cycle_correction="half_cycle",
     )
-    cohort_out = cohort.evaluate(draws).summary().loc[STRATEGY]
+    cohort_out = cohort.evaluate(draws).summary().loc[INTERVENTION]
     c_cost, c_qaly = float(cohort_out["cost"]), float(cohort_out["qaly"])
     print("Cohort trace (Markov):")
     print(f"  cost {c_cost:,.1f}  QALYs {c_qaly:.4f}")
@@ -189,18 +190,16 @@ def main() -> None:
     print(f"  {'n':>8}  {'cost':>12}  {'QALYs':>9}  {'QALY gap %':>11}")
     micro_cost, micro_qaly = [], []
     for n in sizes:
-        seeds = SeedManager(20260705)
-        out = run_psa(build_microsim(n, 0.0, seeds), draws, sequential=True)
-        row = out.summary().loc[STRATEGY]
+        out = run_psa(build_microsim(n, 0.0), draws, seed=SEED, sequential=True).outcomes
+        row = out.summary().loc[INTERVENTION]
         micro_cost.append(float(row["cost"]))
         micro_qaly.append(float(row["qaly"]))
         gap = 100.0 * (micro_qaly[-1] - c_qaly) / c_qaly
         print(f"  {n:>8,}  {micro_cost[-1]:>12,.1f}  {micro_qaly[-1]:>9.4f}  {gap:>10.2f}%")
 
     # 2. Heterogeneity: a mean-1 frailty moves the microsimulation off the cohort.
-    seeds = SeedManager(20260705)
-    het = run_psa(build_microsim(80_000, FRAILTY_VAR, seeds), draws, sequential=True)
-    h_row = het.summary().loc[STRATEGY]
+    het = run_psa(build_microsim(80_000, FRAILTY_VAR), draws, seed=SEED, sequential=True).outcomes
+    h_row = het.summary().loc[INTERVENTION]
     h_cost, h_qaly = float(h_row["cost"]), float(h_row["qaly"])
     print(f"\nHeterogeneous microsimulation (frailty variance {FRAILTY_VAR}, n=80,000):")
     print(f"  cost {h_cost:,.1f}  QALYs {h_qaly:.4f}")
@@ -209,9 +208,7 @@ def main() -> None:
 
     # 3. History dependence: mortality rising with time spent sick, cohort cannot
     #    hold it without tunnel states.
-    seeds = SeedManager(20260705)
-
-    def hist_transition(params, state, attrs, rng):
+    def hist_transition(params, intervention, state, attrs, rng):
         z = attrs["z"].to_numpy()
         tis = attrs["tis"].to_numpy()
         haz = _hazards_from(params, state, z)
@@ -223,11 +220,11 @@ def main() -> None:
         return probs
 
     hist = build_microsim(
-        80_000, FRAILTY_VAR, seeds,
+        80_000, FRAILTY_VAR,
         transition_probabilities=hist_transition, duration_groups={"tis": ("S1", "S2")},
     )
-    hist_out = run_psa(hist, draws, sequential=True)
-    hist_row = hist_out.summary().loc[STRATEGY]
+    hist_out = run_psa(hist, draws, seed=SEED, sequential=True).outcomes
+    hist_row = hist_out.summary().loc[INTERVENTION]
     print(f"\nWith duration-dependent mortality (n=80,000, frailty {FRAILTY_VAR}):")
     print(f"  cost {float(hist_row['cost']):,.1f}  QALYs {float(hist_row['qaly']):.4f}")
 

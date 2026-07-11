@@ -18,11 +18,11 @@ import pandas as pd
 import pytest
 
 from heormodel.models import CohortSpec, MarkovModel, MicrosimModel
-from heormodel.run import SeedManager, run_psa
+from heormodel.run import run_psa
 
 STATES = ("H", "S1", "S2", "D")
 N_CYCLES = 40
-STRATEGY = "Standard of care"
+INTERVENTION = "Standard of care"
 BASE = dict(
     r_HS1=0.12, r_S1S2=0.10, r_HD=0.010, hr_S1=3.0, hr_S2=10.0,
     c_H=1_000.0, c_S1=4_000.0, c_S2=15_000.0, u_H=1.0, u_S1=0.75, u_S2=0.5,
@@ -53,7 +53,7 @@ def _rows_from(haz):
     return (1.0 - np.exp(-total))[:, None] * share
 
 
-def _cohort_model(p, strategy):
+def _cohort_model(p, intervention):
     P = _rows_from(_hazards(p, np.arange(4), np.ones(4)))
     P[np.arange(4), np.arange(4)] += 1.0 - P.sum(axis=1)
     P[3] = [0.0, 0.0, 0.0, 1.0]
@@ -68,43 +68,43 @@ def _make_pop(var):
     return population
 
 
-def _transition(p, state, attrs, rng):
+def _transition(p, intervention, state, attrs, rng):
     probs = _rows_from(_hazards(p, state, attrs["z"].to_numpy()))
     probs[np.arange(len(state)), state] += 1.0 - probs.sum(axis=1)
     probs[state == 3] = [0.0, 0.0, 0.0, 1.0]
     return probs
 
 
-def _payoffs(p, state, attrs):
+def _payoffs(p, intervention, state, attrs):
     return COST[state], EFF[state]
 
 
-def _microsim(n, var, seed=1):
-    return MicrosimModel(
+def _microsim(n, var):
+    return MicrosimModel.discrete(
         states=STATES,
         transition_probabilities=_transition,
-        state_costs_and_utilities=_payoffs,
+        state_rewards=_payoffs,
         population=_make_pop(var),
-        n_individuals=n, strategies={STRATEGY: {}}, horizon=N_CYCLES,
-        discount_rate=0.03, half_cycle_correction=True, seed_manager=SeedManager(seed),
+        n_individuals=n, interventions=[INTERVENTION], n_cycles=N_CYCLES,
+        discount_rate=0.03, cycle_correction="half_cycle",
     )
 
 
 def _cohort():
     return MarkovModel(
-        states=STATES, strategies=(STRATEGY,), model_fn=_cohort_model,
-        n_cycles=N_CYCLES, start="H", discount_rate=0.03,
-        half_cycle_correction="half-cycle",
+        states=STATES, interventions=(INTERVENTION,), transitions_and_rewards=_cohort_model,
+        n_cycles=N_CYCLES, initial_state="H", discount_rate=0.03,
+        cycle_correction="half_cycle",
     )
 
 
-def _summary(model):
-    return run_psa(model, _draws(), sequential=True).summary().loc[STRATEGY]
+def _summary(model, seed=1):
+    return run_psa(model, _draws(), seed=seed, sequential=True).outcomes.summary().loc[INTERVENTION]
 
 
 def test_homogeneous_microsim_converges_to_cohort():
     """At 40,000 individuals the homogeneous microsim matches the cohort trace."""
-    cohort = _cohort().evaluate(_draws()).summary().loc[STRATEGY]
+    cohort = _cohort().evaluate(_draws()).summary().loc[INTERVENTION]
     micro = _summary(_microsim(40_000, 0.0))
     # Measured gap at this seed is under half a percent; 1% leaves clear margin.
     assert micro["cost"] == pytest.approx(cohort["cost"], rel=0.01)
@@ -113,7 +113,7 @@ def test_homogeneous_microsim_converges_to_cohort():
 
 def test_heterogeneity_raises_qalys_beyond_noise():
     """A mean-1 frailty raises microsim QALYs well above the cohort trace."""
-    cohort = _cohort().evaluate(_draws()).summary().loc[STRATEGY]
+    cohort = _cohort().evaluate(_draws()).summary().loc[INTERVENTION]
     homo = _summary(_microsim(40_000, 0.0))
     het = _summary(_microsim(40_000, 0.5))
 

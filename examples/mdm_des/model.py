@@ -7,14 +7,12 @@ how configuration is passed in rather than read from module-level constants.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
-from typing import Any
+from collections.abc import Callable, Sequence
 
 import numpy as np
 import pandas as pd
 
-from heormodel.models import LifeTable, MicrosimModel
-from heormodel.run import SeedManager
+from heormodel.models import Intervention, LifeTable, MicrosimModel
 
 EventTimes = Callable[..., np.ndarray]
 Valuation = Callable[..., tuple[np.ndarray, np.ndarray]]
@@ -26,19 +24,21 @@ def make_event_times(
     """Build the continuous-clock event-time sampler.
 
     Input: the background-mortality `LifeTable`, the starting age, and the state
-    labels. Output: a function ``fn(params, state, attrs, rng)`` returning an
-    ``(n, n_states)`` array of the sampled time to each competing transition
-    (``inf`` where a transition cannot occur), the ``event_times`` argument
-    `MicrosimModel` expects on the continuous clock. Competing times are redrawn
-    at every state entry, so the Weibull progression draw needs no truncation
-    and each death time reflects the individual's current age and state.
+    labels. Output: a function ``fn(params, intervention, state, attrs, rng)``
+    returning an ``(n, n_states)`` array of the sampled time to each competing
+    transition (``inf`` where a transition cannot occur), the ``event_times``
+    argument `MicrosimModel` expects on the continuous clock. Competing times are
+    redrawn at every state entry, so the Weibull progression draw needs no
+    truncation and each death time reflects the individual's current age and
+    state.
     """
     index = {label: i for i, label in enumerate(states)}
     n_states = len(states)
     healthy, sick, sicker, dead = index["H"], index["S1"], index["S2"], index["D"]
 
     def event_times(
-        params: pd.Series, state: np.ndarray, attrs: pd.DataFrame, rng: np.random.Generator
+        params: pd.Series, intervention: str, state: np.ndarray, attrs: pd.DataFrame,
+        rng: np.random.Generator,
     ) -> np.ndarray:
         n = len(state)
         times = np.full((n, n_states), np.inf)
@@ -69,23 +69,23 @@ def make_event_times(
     return event_times
 
 
-def make_state_costs_and_utilities(
+def make_state_reward_rates(
     states: tuple[str, ...], treatment_a_utility_gain: float = 0.20
 ) -> Valuation:
-    """Build the per-state cost and utility function.
+    """Build the per-state cost and utility rate function.
 
     Input: the state labels and the fixed utility gain treatment A adds in Sick.
-    Output: a function ``fn(params, state, attrs) -> (cost_rate, utility_rate)``,
-    the ``state_costs_and_utilities`` argument `MicrosimModel` expects: the
-    annual cost and utility of each individual's current state and strategy.
-    Treatment costs apply in both disease states because Sick and Sicker are
-    indistinguishable in practice.
+    Output: a function ``fn(params, intervention, state, attrs) -> (cost_rate,
+    utility_rate)``, the ``state_reward_rates`` argument `MicrosimModel.continuous`
+    expects: the annual cost and utility of each individual's current state and
+    intervention. Treatment costs apply in both disease states because Sick and
+    Sicker are indistinguishable in practice.
     """
     index = {label: i for i, label in enumerate(states)}
     healthy, sick, sicker = index["H"], index["S1"], index["S2"]
 
-    def state_costs_and_utilities(
-        params: pd.Series, state: np.ndarray, attrs: pd.DataFrame
+    def state_reward_rates(
+        params: pd.Series, intervention: str, state: np.ndarray, attrs: pd.DataFrame
     ) -> tuple[np.ndarray, np.ndarray]:
         n = len(state)
         cost = np.zeros(n)
@@ -102,37 +102,32 @@ def make_state_costs_and_utilities(
         utility[in_s2] = params["u_S2"]
         return cost, utility
 
-    return state_costs_and_utilities
+    return state_reward_rates
 
 
 def build_engine(
     *,
     life_table: LifeTable,
     states: tuple[str, ...],
-    strategies: Mapping[str, Mapping[str, Any]],
+    interventions: Sequence[str | Intervention],
     age_start: float,
     horizon: float,
     discount_rate: float,
     population: int,
-    seed_manager: SeedManager,
     treatment_a_utility_gain: float = 0.20,
 ) -> MicrosimModel:
     """Assemble the continuous-clock `MicrosimModel` from the model functions.
 
     Input: the life table, the model structure and horizon, the discount rate,
-    the population size, and a seed manager. Output: a configured
-    `MicrosimModel` ready to ``evaluate`` a draw matrix.
+    and the population size. Output: a configured `MicrosimModel` ready to run
+    through `heormodel.run.run_psa`, which supplies the seed.
     """
-    return MicrosimModel(
+    return MicrosimModel.continuous(
         states=states,
-        clock="continuous",
         event_times=make_event_times(life_table, age_start, states),
-        state_costs_and_utilities=make_state_costs_and_utilities(
-            states, treatment_a_utility_gain
-        ),
+        state_reward_rates=make_state_reward_rates(states, treatment_a_utility_gain),
         population=population,
-        strategies=strategies,
+        interventions=interventions,
         horizon=horizon,
         discount_rate=discount_rate,
-        seed_manager=seed_manager,
     )

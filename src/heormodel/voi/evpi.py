@@ -22,7 +22,7 @@ def evpi(
 
     EVPI is the expected NMB gain from resolving **all** uncertainty:
     ``E[max_d NMB_d] - max_d E[NMB_d]``. It equals the smallest expected loss
-    across strategies at each willingness-to-pay value, so it reads straight
+    across interventions at each willingness-to-pay value, so it reads straight
     off the expected loss curves.
 
     Args:

@@ -14,10 +14,10 @@ from heormodel.models.outcomes import Outcomes
 def ceac(
     outcomes: Outcomes, wtp: ArrayLike | Sequence[float], *, effect: str | None = None
 ) -> pd.DataFrame:
-    """Cost-effectiveness acceptability curve for every strategy.
+    """Cost-effectiveness acceptability curve for every intervention.
 
     For each willingness-to-pay value, the probability (share of
-    iterations) that each strategy has the highest net monetary benefit.
+    iterations) that each intervention has the highest net monetary benefit.
 
     Args:
         outcomes: Outcomes from a probabilistic sensitivity analysis.
@@ -26,7 +26,7 @@ def ceac(
 
     Returns:
         DataFrame indexed by ``wtp`` with one probability column per
-        strategy; rows sum to 1.
+        intervention; rows sum to 1.
 
     Example:
         >>> import pandas as pd
@@ -45,17 +45,17 @@ def ceac(
     for i, lam in enumerate(wtp_grid):
         winners = np.argmax(lam * effects - costs, axis=1)
         probs[i] = np.bincount(winners, minlength=d) / n
-    return pd.DataFrame(probs, index=pd.Index(wtp_grid, name="wtp"), columns=outcomes.strategies)
+    return pd.DataFrame(probs, index=pd.Index(wtp_grid, name="wtp"), columns=outcomes.interventions)
 
 
 def expected_loss(
     outcomes: Outcomes, wtp: ArrayLike | Sequence[float], *, effect: str | None = None
 ) -> pd.DataFrame:
-    """Expected loss curve: mean foregone net benefit per strategy.
+    """Expected loss curve: mean foregone net benefit per intervention.
 
-    In each iteration, a strategy's loss is the gap between its net monetary
-    benefit and the best strategy's in that iteration; the curve is the mean
-    loss over iterations at each willingness-to-pay value. The strategy with
+    In each iteration, an intervention's loss is the gap between its net monetary
+    benefit and the best intervention's in that iteration; the curve is the mean
+    loss over iterations at each willingness-to-pay value. The intervention with
     the lowest expected loss is the optimal choice, and its expected loss
     equals the expected value of perfect information, so the curves show both
     the ranking and the cost of decision uncertainty on one money scale.
@@ -67,7 +67,7 @@ def expected_loss(
 
     Returns:
         DataFrame indexed by ``wtp`` with one expected-loss column per
-        strategy.
+        intervention.
 
     Example:
         >>> import pandas as pd
@@ -87,7 +87,7 @@ def expected_loss(
         nb = lam * effects - costs
         losses[i] = (nb.max(axis=1, keepdims=True) - nb).mean(axis=0)
     return pd.DataFrame(
-        losses, index=pd.Index(wtp_grid, name="wtp"), columns=outcomes.strategies
+        losses, index=pd.Index(wtp_grid, name="wtp"), columns=outcomes.interventions
     )
 
 
@@ -96,13 +96,13 @@ def ceaf(
 ) -> pd.DataFrame:
     """Cost-effectiveness acceptability frontier.
 
-    At each willingness-to-pay value, identifies the strategy with the
+    At each willingness-to-pay value, identifies the intervention with the
     highest **expected** NMB (the optimal choice for a risk-neutral decision
     maker) and reports its acceptability-curve probability.
 
     Returns:
-        DataFrame indexed by ``wtp`` with columns ``strategy`` (the optimal
-        strategy) and ``prob`` (its probability of being cost-effective).
+        DataFrame indexed by ``wtp`` with columns ``intervention`` (the optimal
+        intervention) and ``prob`` (its probability of being cost-effective).
 
     Example:
         >>> import pandas as pd
@@ -110,7 +110,7 @@ def ceaf(
         >>> from heormodel.cea import ceaf
         >>> c = pd.DataFrame({"A": [0.0, 0.0], "B": [10.0, 10.0]})
         >>> e = pd.DataFrame({"A": [0.0, 0.0], "B": [1.0, 1.0]})
-        >>> ceaf(Outcomes.from_wide(c, e), wtp=[100.0]).loc[100.0, "strategy"]
+        >>> ceaf(Outcomes.from_wide(c, e), wtp=[100.0]).loc[100.0, "intervention"]
         'B'
     """
     wtp_grid = np.atleast_1d(np.asarray(wtp, dtype=np.float64))
@@ -119,10 +119,11 @@ def ceaf(
     effects = outcomes.effects_wide(effect).to_numpy(dtype=np.float64)
     mean_cost = costs.mean(axis=0)
     mean_eff = effects.mean(axis=0)
-    strategies = np.asarray(outcomes.strategies, dtype=object)
-    optimal = [strategies[int(np.argmax(lam * mean_eff - mean_cost))] for lam in wtp_grid]
+    interventions = np.asarray(outcomes.interventions, dtype=object)
+    optimal = [interventions[int(np.argmax(lam * mean_eff - mean_cost))] for lam in wtp_grid]
     prob = [curve.iloc[i][opt] for i, opt in enumerate(optimal)]
-    return pd.DataFrame({"strategy": optimal, "prob": prob}, index=pd.Index(wtp_grid, name="wtp"))
+    idx = pd.Index(wtp_grid, name="wtp")
+    return pd.DataFrame({"intervention": optimal, "prob": prob}, index=idx)
 
 
 def ce_plane(
@@ -132,12 +133,14 @@ def ce_plane(
 
     Args:
         outcomes: Outcomes from a probabilistic sensitivity analysis.
-        comparator: Reference strategy (default: the first strategy).
+        comparator: Reference intervention (default: the intervention flagged
+            ``is_comparator=True`` at construction, via ``outcomes.comparator``,
+            or the first intervention if none was flagged).
         effect: Effect column (default: the primary effect).
 
     Returns:
-        Tidy DataFrame with columns ``strategy``, ``iteration``,
-        ``inc_cost`` and ``inc_effect`` for every non-comparator strategy,
+        Tidy DataFrame with columns ``intervention``, ``iteration``,
+        ``inc_cost`` and ``inc_effect`` for every non-comparator intervention,
         ready to scatter on the cost-effectiveness plane.
 
     Example:
@@ -149,19 +152,19 @@ def ce_plane(
         >>> float(ce_plane(Outcomes.from_wide(c, e))["inc_cost"][0])
         10.0
     """
-    ref = comparator or outcomes.strategies[0]
-    if ref not in outcomes.strategies:
-        raise KeyError(f"Unknown comparator strategy: {ref!r}.")
+    ref = comparator or outcomes.comparator or outcomes.interventions[0]
+    if ref not in outcomes.interventions:
+        raise KeyError(f"Unknown comparator intervention: {ref!r}.")
     costs = outcomes.costs_wide()
     effects = outcomes.effects_wide(effect)
     frames = []
-    for s in outcomes.strategies:
+    for s in outcomes.interventions:
         if s == ref:
             continue
         frames.append(
             pd.DataFrame(
                 {
-                    "strategy": s,
+                    "intervention": s,
                     "iteration": costs.index,
                     "inc_cost": (costs[s] - costs[ref]).to_numpy(),
                     "inc_effect": (effects[s] - effects[ref]).to_numpy(),
@@ -169,5 +172,5 @@ def ce_plane(
             )
         )
     if not frames:
-        raise ValueError("ce_plane needs at least two strategies.")
+        raise ValueError("ce_plane needs at least two interventions.")
     return pd.concat(frames, ignore_index=True)

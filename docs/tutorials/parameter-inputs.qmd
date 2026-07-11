@@ -6,7 +6,7 @@ Not every analysis starts from `ParameterSet` distributions: some run at one bas
 
 ## Specifying a model to run
 
-Two strategies compete for a chronic disease, standard care and a new drug; cost and quality-adjusted life-years (QALYs) per iteration are simple functions of three parameters.
+Two interventions compete for a chronic disease, standard care and a new drug; cost and quality-adjusted life-years (QALYs) per iteration are simple functions of three parameters.
 
 ```{python}
 import numpy as np
@@ -45,7 +45,7 @@ params = ParameterSet(
 
 ```{python}
 base = params.at_means()
-run_psa(model, base).summary().round(2)
+run_psa(model, base).outcomes.summary().round(2)
 ```
 
 ## Reading a draw matrix from another tool
@@ -56,7 +56,7 @@ run_psa(model, base).summary().round(2)
 external = params.sample(2_000, seed=1)
 external.to_csv("external_draws.csv")
 csv_draws = read_draws("external_draws.csv", iteration="iteration")
-run_psa(model, csv_draws).summary().round(2)
+run_psa(model, csv_draws).outcomes.summary().round(2)
 ```
 
 ## Resampling a weighted posterior
@@ -69,7 +69,7 @@ grid["weight"] = np.exp(4.0 * grid["p_response"])  # favor higher response
 posterior = resample_posterior(grid, n=2_000, seed=7)
 print(f"grid mean p_response {grid['p_response'].mean():.3f}, "
       f"resample mean {posterior['p_response'].mean():.3f}")
-run_psa(model, posterior).summary().round(2)
+run_psa(model, posterior).outcomes.summary().round(2)
 ```
 
 The resampled mean of `p_response` sits above the unweighted grid mean, because the weights favor higher values, and the reweighting raises the new drug's expected QALYs.

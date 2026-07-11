@@ -14,7 +14,7 @@ from heormodel.models.outcomes import Outcomes
 
 
 def running_means(outcomes: Outcomes, column: str | None = None) -> pd.DataFrame:
-    """Running mean of an outcome column per strategy, by iteration count.
+    """Running mean of an outcome column per intervention, by iteration count.
 
     Flat traces at the right edge indicate the analysis has stabilised for that
     outcome; drifting traces call for more iterations.
@@ -25,7 +25,7 @@ def running_means(outcomes: Outcomes, column: str | None = None) -> pd.DataFrame
 
     Returns:
         DataFrame indexed by the iteration position (1..n) with one column
-        per strategy, holding the mean over the first ``k`` iterations.
+        per intervention, holding the mean over the first ``k`` iterations.
 
     Example:
         >>> import pandas as pd
@@ -39,7 +39,7 @@ def running_means(outcomes: Outcomes, column: str | None = None) -> pd.DataFrame
     wide = (
         outcomes.costs_wide()
         if column in (None, "cost")
-        else (outcomes.data[column].unstack("strategy")[outcomes.strategies])
+        else (outcomes.data[column].unstack("intervention")[outcomes.interventions])
     )
     values = wide.to_numpy(dtype=np.float64)
     k = np.arange(1, len(values) + 1, dtype=np.float64)

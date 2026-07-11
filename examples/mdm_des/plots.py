@@ -8,27 +8,27 @@ from pathlib import Path
 import pandas as pd
 from matplotlib import pyplot as plt
 
-from heormodel.report import strategy_colors
+from heormodel.report import intervention_colors
 
 
 def plot_epidemiology(
     survival: pd.DataFrame,
     prevalence: pd.DataFrame,
     *,
-    strategies: Sequence[str],
+    interventions: Sequence[str],
     age_start: float,
     path: str | Path,
 ) -> None:
     """Draw the survival and prevalence panels (the article's figure 3A and 3B).
 
     Input: the survival and prevalence curves (time-indexed, one column per
-    strategy), the strategy order, the starting age, and an output path.
-    Output: writes a PNG to ``path``. Strategy A shares standard of care's
+    intervention), the intervention order, the starting age, and an output path.
+    Output: writes a PNG to ``path``. Intervention A shares standard of care's
     dynamics and AB shares B's, so their curves coincide; dashes keep both
     members of each pair visible.
     """
-    colors = strategy_colors(list(strategies))
-    dashes = {"Strategy A": (4, 2), "Strategy AB": (4, 2)}
+    colors = intervention_colors(list(interventions))
+    dashes = {"Intervention A": (4, 2), "Intervention AB": (4, 2)}
     fig, axes = plt.subplots(1, 2, figsize=(10, 3.6), sharex=True)
     panels = (
         (axes[0], survival, "Survival"),

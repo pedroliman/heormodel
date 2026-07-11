@@ -2,7 +2,7 @@
 
 Every function draws on a provided or fresh ``Axes`` and returns it, so
 plots compose into user figures. Styling follows a consistent scheme: a
-fixed-order colorblind-validated categorical palette (one hue per strategy,
+fixed-order colorblind-validated categorical palette (one hue per intervention,
 assigned in order, never cycled by rank), thin marks, and recessive grids.
 """
 
@@ -39,20 +39,20 @@ def _style(ax: Axes) -> None:
         ax.spines[side].set_visible(False)
 
 
-def strategy_colors(strategies: list[str]) -> dict[str, str]:
-    """Stable strategy -> color assignment in fixed palette order.
+def intervention_colors(interventions: list[str]) -> dict[str, str]:
+    """Stable intervention -> color assignment in fixed palette order.
 
     Example:
-        >>> from heormodel.report import strategy_colors
-        >>> strategy_colors(["A", "B"])["A"]
+        >>> from heormodel.report import intervention_colors
+        >>> intervention_colors(["A", "B"])["A"]
         '#2a78d6'
     """
-    if len(strategies) > len(PALETTE):
+    if len(interventions) > len(PALETTE):
         raise ValueError(
-            f"More than {len(PALETTE)} strategies; group the rest into 'Other' or "
+            f"More than {len(PALETTE)} interventions; group the rest into 'Other' or "
             "use small multiples rather than extending the palette."
         )
-    return {s: PALETTE[i] for i, s in enumerate(strategies)}
+    return {s: PALETTE[i] for i, s in enumerate(interventions)}
 
 
 def plot_ce_plane(
@@ -67,7 +67,8 @@ def plot_ce_plane(
 
     Args:
         outcomes: Outcomes from a probabilistic sensitivity analysis.
-        comparator: Reference strategy (default: the first).
+        comparator: Reference intervention (default: ``outcomes.comparator``,
+            or the first intervention if none was flagged).
         wtp: If given, draw the willingness-to-pay threshold line.
         effect: Effect column (default: primary).
         ax: Existing axes to draw on.
@@ -84,8 +85,8 @@ def plot_ce_plane(
     """
     ax = ax or plt.subplots()[1]
     data = _ce_plane_data(outcomes, comparator=comparator, effect=effect)
-    colors = strategy_colors(outcomes.strategies)
-    for s, grp in data.groupby("strategy", sort=False):
+    colors = intervention_colors(outcomes.interventions)
+    for s, grp in data.groupby("intervention", sort=False):
         ax.scatter(
             grp["inc_effect"],
             grp["inc_cost"],
@@ -103,7 +104,7 @@ def plot_ce_plane(
     ax.axvline(0, color="0.6", lw=0.8)
     ax.set_xlabel(f"Incremental effect ({effect or outcomes.effect})")
     ax.set_ylabel("Incremental cost")
-    ref = comparator or outcomes.strategies[0]
+    ref = comparator or outcomes.comparator or outcomes.interventions[0]
     ax.set_title(f"Cost-effectiveness plane vs {ref}")
     ax.legend(frameon=False)
     _style(ax)
@@ -119,9 +120,9 @@ def plot_ceac(
     """Cost-effectiveness acceptability curves, optionally with the frontier.
 
     Args:
-        ceac_df: Output of `heval.cea.ceac`.
-        ceaf_df: Optional output of `heval.cea.ceaf`; drawn as a bold
-            trace over the optimal strategy's curve.
+        ceac_df: Output of `heormodel.cea.ceac`.
+        ceaf_df: Optional output of `heormodel.cea.ceaf`; drawn as a bold
+            trace over the optimal intervention's curve.
         ax: Existing axes to draw on.
 
     Example:
@@ -137,7 +138,7 @@ def plot_ceac(
         'Probability cost-effective'
     """
     ax = ax or plt.subplots()[1]
-    colors = strategy_colors([str(c) for c in ceac_df.columns])
+    colors = intervention_colors([str(c) for c in ceac_df.columns])
     for s in ceac_df.columns:
         ax.plot(ceac_df.index, ceac_df[s], lw=1.8, color=colors[str(s)], label=str(s))
     if ceaf_df is not None:
@@ -165,14 +166,14 @@ def plot_expected_loss(
     *,
     ax: Axes | None = None,
 ) -> Axes:
-    """Expected loss curves, one per strategy over the willingness-to-pay grid.
+    """Expected loss curves, one per intervention over the willingness-to-pay grid.
 
     The lower envelope of the curves is the expected value of perfect
-    information, so the plot shows the optimal strategy (lowest curve) and the
+    information, so the plot shows the optimal intervention (lowest curve) and the
     cost of decision uncertainty at each threshold together.
 
     Args:
-        loss_df: Output of `heval.cea.expected_loss`.
+        loss_df: Output of `heormodel.cea.expected_loss`.
         ax: Existing axes to draw on.
 
     Example:
@@ -188,7 +189,7 @@ def plot_expected_loss(
         'Expected loss'
     """
     ax = ax or plt.subplots()[1]
-    colors = strategy_colors([str(c) for c in loss_df.columns])
+    colors = intervention_colors([str(c) for c in loss_df.columns])
     for s in loss_df.columns:
         ax.plot(loss_df.index, loss_df[s], lw=1.8, color=colors[str(s)], label=str(s))
     ax.set_xlabel("Willingness to pay")
@@ -205,10 +206,10 @@ def plot_frontier(
     effect: str | None = None,
     ax: Axes | None = None,
 ) -> Axes:
-    """Mean cost vs mean effect per strategy with the efficiency frontier.
+    """Mean cost vs mean effect per intervention with the efficiency frontier.
 
-    Frontier strategies are connected; dominated (D) and extendedly
-    dominated (ED) strategies are shown hollow and annotated.
+    Frontier interventions are connected; dominated (D) and extendedly
+    dominated (ED) interventions are shown hollow and annotated.
 
     Example:
         >>> import pandas as pd
@@ -222,7 +223,7 @@ def plot_frontier(
     ax = ax or plt.subplots()[1]
     effect_name = effect or (source.effect if isinstance(source, Outcomes) else "effect")
     table = icer_table(source, effect=effect)
-    colors = strategy_colors([str(s) for s in table.index])
+    colors = intervention_colors([str(s) for s in table.index])
     on = table[table["status"] == STATUS_ND]
     ax.plot(on["effect"], on["cost"], color="0.55", lw=1.4, zorder=1)
     for s, row in table.iterrows():
@@ -256,13 +257,13 @@ def _target_nmb(
     outcomes: Outcomes,
     wtp: float,
     *,
-    strategy: str | None,
+    intervention: str | None,
     comparator: str | None,
     effect: str | None,
 ) -> pd.Series:
-    """NMB of the target strategy (incremental if a comparator is given)."""
+    """NMB of the target intervention (incremental if a comparator is given)."""
     nb = nmb(outcomes, wtp, effect=effect)
-    target = strategy or outcomes.strategies[-1]
+    target = intervention or outcomes.interventions[-1]
     y = nb[target]
     if comparator is not None:
         y = y - nb[comparator]
@@ -274,7 +275,7 @@ def _tornado_from_dsa(
     descriptor: pd.DataFrame,
     wtp: float,
     *,
-    strategy: str | None,
+    intervention: str | None,
     comparator: str | None,
     effect: str | None,
 ) -> pd.DataFrame:
@@ -286,7 +287,7 @@ def _tornado_from_dsa(
         )
     if not pd.Index(descriptor.index).equals(pd.Index(outcomes.iterations)):
         raise ValueError("descriptor index must equal the outcomes iteration index.")
-    y = _target_nmb(outcomes, wtp, strategy=strategy, comparator=comparator, effect=effect)
+    y = _target_nmb(outcomes, wtp, intervention=intervention, comparator=comparator, effect=effect)
     d = descriptor.copy()
     d["_nmb"] = y.reindex(d.index).to_numpy(dtype=np.float64)
     swept = d[d[PARAMETER_COL] != BASE_LABEL]
@@ -305,7 +306,7 @@ def tornado_data(
     draws: pd.DataFrame | Design,
     wtp: float,
     *,
-    strategy: str | None = None,
+    intervention: str | None = None,
     comparator: str | None = None,
     effect: str | None = None,
     quantiles: tuple[float, float] = (0.025, 0.975),
@@ -313,11 +314,11 @@ def tornado_data(
     """One-way sensitivity of net monetary benefit, probabilistic or deterministic.
 
     With a parameter draw matrix (the probabilistic path), fits a univariate linear
-    regression of the strategy's NMB (or incremental NMB versus
+    regression of the intervention's NMB (or incremental NMB versus
     ``comparator``) on each parameter and evaluates it at the parameter's
     outer ``quantiles``. This estimates a one-way analysis from the probabilistic draws.
 
-    With a `heval.dsa` ``(design, descriptor)`` pair from `one_way` or
+    With a `heormodel.dsa` ``(design, descriptor)`` pair from `one_way` or
     `one_at_a_time` (the DSA path), reads the NMB at each parameter's lowest
     and highest swept value directly, ignoring ``quantiles``.
 
@@ -334,19 +335,20 @@ def tornado_data(
         >>> draws = pd.DataFrame({"x": x}, index=pd.RangeIndex(500, name="iteration"))
         >>> out = Outcomes.from_wide(
         ...     pd.DataFrame({"A": -x}), pd.DataFrame({"A": np.zeros(500)}))
-        >>> td = tornado_data(out, draws, wtp=1.0, strategy="A")
+        >>> td = tornado_data(out, draws, wtp=1.0, intervention="A")
         >>> td.index[0]
         'x'
     """
     if isinstance(draws, tuple):
         _, descriptor = draws
         return _tornado_from_dsa(
-            outcomes, descriptor, wtp, strategy=strategy, comparator=comparator, effect=effect
+            outcomes, descriptor, wtp,
+            intervention=intervention, comparator=comparator, effect=effect,
         )
     if not pd.Index(draws.index).equals(pd.Index(outcomes.iterations)):
         raise ValueError("draws index must equal the outcomes iteration index.")
     yv = _target_nmb(
-        outcomes, wtp, strategy=strategy, comparator=comparator, effect=effect
+        outcomes, wtp, intervention=intervention, comparator=comparator, effect=effect
     ).to_numpy(dtype=np.float64)
     rows = {}
     for p in draws.columns:
@@ -401,7 +403,7 @@ def heatmap_data(
     """Reshape a two-parameter grid result into a matrix for a heatmap.
 
     Joins a per-scenario value (one number per iteration, e.g. an ICER or
-    incremental NMB) to a `heval.dsa.grid` descriptor and pivots it into a
+    incremental NMB) to a `heormodel.dsa.grid` descriptor and pivots it into a
     matrix over two gridded parameters. The base-case scenario is dropped.
 
     Args:

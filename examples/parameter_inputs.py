@@ -39,7 +39,7 @@ WTP = 30_000.0
 
 
 def model(draws: pd.DataFrame) -> Outcomes:
-    """A two-strategy model: standard care versus a new drug.
+    """A two-intervention model: standard care versus a new drug.
 
     Cost and QALYs per iteration are simple functions of three parameters, so
     the outputs are traceable to the inputs.
@@ -73,7 +73,7 @@ def main() -> None:
     # takes any hand-specified point values just as directly.
     base = params.at_means()
     single_draw({"p_response": 0.35, "c_drug": 12_000.0, "u_gain": 0.12})
-    base_outcomes = run_psa(model, base)
+    base_outcomes = run_psa(model, base).outcomes
     print("Base case (ParameterSet.at_means):")
     print(base_outcomes.summary().round(2).to_string())
 
@@ -82,7 +82,7 @@ def main() -> None:
     csv_path = OUT / "external_draws.csv"
     external.to_csv(csv_path)
     csv_draws = read_draws(csv_path, iteration="iteration")
-    csv_outcomes = run_psa(model, csv_draws)
+    csv_outcomes = run_psa(model, csv_draws).outcomes
     print(f"\nCSV draw matrix (read_draws): {csv_draws.shape[0]} iterations")
     print(csv_outcomes.summary().round(2).to_string())
 
@@ -92,7 +92,7 @@ def main() -> None:
     # A calibration reweights the grid toward higher response probabilities.
     grid["weight"] = np.exp(4.0 * grid["p_response"])
     posterior = resample_posterior(grid, n=2_000, seed=rng)
-    post_outcomes = run_psa(model, posterior)
+    post_outcomes = run_psa(model, posterior).outcomes
     print("\nWeighted posterior (resample_posterior):")
     print(
         f"  grid mean p_response {grid['p_response'].mean():.3f}, "

@@ -10,13 +10,13 @@ disease costs ``c_wait_year`` per year and holds utility at ``u_wait``. Once
 seen, a one-off treatment cost is incurred, and the patient spends the rest of
 the horizon treated at the higher ``u_treated`` with a follow-up cost rate.
 
-Two strategies differ only in capacity. Standard staffing runs one specialist;
+Two interventions differ only in capacity. Standard staffing runs one specialist;
 expanded staffing runs two at a per-patient overhead ``c_capacity``. More
 capacity cuts the queue, so patients spend less time at the low waiting utility.
-Both strategies see the same patients and the same service draws through common
+Both interventions see the same patients and the same service draws through common
 random numbers (the engine default), so the incremental result reflects the
 capacity change, not sampling noise. `DESModel.evaluate` conforms to the model
-contract, so `run_psa`, `heval.cea`, and `heval.voi` treat it like any engine.
+contract, so `run_psa`, `heormodel.cea`, and `heormodel.voi` treat it like any engine.
 
 Run it with::
 
@@ -37,7 +37,7 @@ import pandas as pd
 import simpy
 
 from heormodel.cea import ceac, ceaf, icer_table
-from heormodel.models import DESModel, queue_waits
+from heormodel.models import DESModel, Intervention, queue_waits
 from heormodel.params import Beta, Gamma, ParameterSet
 from heormodel.report import capture_run, plot_ce_plane, plot_ceac, plot_frontier
 from heormodel.run import SeedManager, run_psa
@@ -58,8 +58,8 @@ def patients(rng: np.random.Generator, n: int) -> pd.DataFrame:
     return pd.DataFrame({"arrival": np.cumsum(rng.exponential(1.0 / ARRIVAL_RATE, n))})
 
 
-def resources(env: simpy.Environment, params: pd.Series, strategy: str) -> dict[str, Any]:
-    """One specialist resource whose capacity is the strategy's staffing level."""
+def resources(env: simpy.Environment, params: pd.Series, intervention: str) -> dict[str, Any]:
+    """One specialist resource whose capacity is the intervention's staffing level."""
     return {"specialist": simpy.Resource(env, capacity=int(params["n_servers"]))}
 
 
@@ -67,19 +67,19 @@ def clinic(
     env: simpy.Environment,
     patient: pd.Series,
     params: pd.Series,
-    strategy: str,
+    intervention: str,
     toolkit: Any,
 ) -> Any:
     """One patient: arrive, queue for a specialist, be treated, follow up."""
     arrival = float(patient["arrival"])
-    if arrival >= HORIZON:
+    if arrival >= toolkit.horizon:
         return
     yield env.timeout(arrival)
     toolkit.state("waiting")
     with toolkit.request("specialist") as slot:
         # Race the queue against the horizon: a patient still waiting at the
         # horizon is never seen, and only the waiting segment is billed.
-        result = yield slot | env.timeout(HORIZON - env.now)
+        result = yield slot | env.timeout(toolkit.horizon - env.now)
         served = slot in result
         toolkit.accrue_over(
             arrival, env.now, params["c_wait_year"], params["u_wait"], component="cost_waiting"
@@ -92,7 +92,7 @@ def clinic(
             # From treatment to the horizon the patient is treated: higher utility.
             toolkit.accrue_over(
                 env.now,
-                HORIZON,
+                toolkit.horizon,
                 params["c_followup_year"],
                 params["u_treated"],
                 component="cost_followup",
@@ -121,18 +121,17 @@ def main() -> None:
 
     engine = DESModel(
         process=clinic,
-        entities=patients,
-        n_entities=N_PATIENTS,
+        population=patients,
+        n_individuals=N_PATIENTS,
         resources=resources,
-        strategies={
-            "Standard capacity": {"n_servers": 1, "c_capacity": 0.0},
-            "Expanded capacity": {"n_servers": 2},
-        },
+        interventions=[
+            Intervention("Standard capacity", {"n_servers": 1, "c_capacity": 0.0}),
+            Intervention("Expanded capacity", {"n_servers": 2}),
+        ],
         horizon=HORIZON,
-        seed_manager=seeds,
     )
 
-    outcomes = run_psa(engine, draws)
+    outcomes = run_psa(engine, draws, seed=seeds.entropy).outcomes
     print(outcomes)
     print("\nMean outcome per patient:")
     print(outcomes.summary().round(3).to_string())
@@ -144,9 +143,9 @@ def main() -> None:
     print(evppi_ranking(outcomes, draws, WTP).round(1).to_string())
 
     # Queueing report from the trace, one iteration at the posterior mean draw.
-    _, trace = engine.evaluate(draws.iloc[[0]], trace=True)
+    trace = run_psa(engine, draws.iloc[[0]], seed=seeds.entropy, collect="events").events
     waits = queue_waits(trace)
-    mean_wait = waits.groupby("strategy", sort=False)["wait"].mean() * 365.0
+    mean_wait = waits.groupby("intervention", sort=False)["wait"].mean() * 365.0
     print("\nMean queue wait (days), first iteration:")
     print(mean_wait.round(1).to_string())
 
@@ -170,7 +169,9 @@ def main() -> None:
             "per iteration, common random numbers across staffing levels."
         ),
     )
-    (OUT / "run_report_des.md").write_text(record.to_markdown("heval discrete-event run report"))
+    (OUT / "run_report_des.md").write_text(
+        record.to_markdown("heormodel discrete-event run report")
+    )
     print(f"\nWrote plots and run report to {OUT}/")
 
 

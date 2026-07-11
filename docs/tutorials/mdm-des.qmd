@@ -14,11 +14,11 @@ The folder separates the model into modules the run script and this tutorial sha
 |---|---|---|
 | `mortality` | `load_life_table` | a CSV path to age-specific rates in, a `LifeTable` out |
 | `model` | `build_engine` | the life table, model structure, horizon, discount rate, and population in, a configured continuous-clock `MicrosimModel` out |
-| `parameters` | `states`, `strategies`, `base_case`, `parameter_set` | no input, the model structure and the probabilistic distributions out |
+| `parameters` | `states`, `interventions`, `base_case`, `parameter_set` | no input, the model structure and the probabilistic distributions out |
 | `transitions` | `with_transition_costs_and_utilities`, `costs_and_utilities_model` | outcomes and the event history in, outcomes with the sojourn-accrued transition amounts out |
 | `outcomes` | `survival_and_prevalence`, `dwell_times` | the event history in, epidemiological curves and mean sojourns out |
 
-The engine calls two functions the `model` module builds: `event_times`, which returns the sampled time to each competing transition from the current state, and `state_costs_and_utilities`, which returns the annual cost and utility of each state. The article's next-event kernel is exactly the continuous clock of `MicrosimModel`: sample a latent time for each permitted transition, take the earliest, move, repeat. Because competing times are redrawn at every state entry, the Weibull progression draw needs no truncation and each death time reflects the individual's current age and state.
+The engine calls two functions the `model` module builds: `event_times`, which returns the sampled time to each competing transition from the current state, and `state_reward_rates`, which returns the annual cost and utility of each state. The article's next-event kernel is exactly the continuous clock of `MicrosimModel`: sample a latent time for each permitted transition, take the earliest, move, repeat. Because competing times are redrawn at every state entry, the Weibull progression draw needs no truncation and each death time reflects the individual's current age and state.
 
 First make the example package importable and load its pieces.
 
@@ -34,57 +34,59 @@ sys.path.insert(0, str(examples))
 
 from mdm_des import (
     base_case, build_engine, costs_and_utilities_model, dwell_times,
-    load_life_table, parameter_set, states, strategies,
+    load_life_table, parameter_set, states, interventions,
     survival_and_prevalence, with_transition_costs_and_utilities,
 )
 ```
 
 ## Reproducing the base case
 
-The base case is one run at the article's Table 1 point estimates. `load_life_table` reads the US 2015 mortality rates from the CSV shipped with the example, and `build_engine` assembles the continuous-clock engine from the life table and the model structure. Evaluating with `trace="events"` returns both the standard outcomes and the event history, one row per transition.
+The base case is one run at the article's Table 1 point estimates. `load_life_table` reads the US 2015 mortality rates from the CSV shipped with the example, and `build_engine` assembles the continuous-clock engine from the life table and the model structure. `run_psa` with `collect="events"` returns both the standard outcomes and the event history, one row per transition, in a `RunResult`.
 
 The transition amounts are not in the engine's per-year valuation. The companion code adds each (the onset cost and disutility, and the cost of dying) to the annual flow of the sojourn that ends in the transition, then multiplies by the discounted sojourn length, so the cost of dying enters as its amount per year over the whole final sojourn. `with_transition_costs_and_utilities` reconstructs that from the event history and folds it into the outcomes. 25,000 individuals keep this page fast; the full script uses 100,000.
 
 ```{python}
 from heormodel.cea import icer_table
 from heormodel.params import single_draw
-from heormodel.run import SeedManager
+from heormodel.run import run_psa
 
 age_start, horizon, discount_rate = 25.0, 75.0, 0.03
-state_labels, strategy_defs = states(), strategies()
+SEED = 2
+state_labels, intervention_defs = states(), interventions()
+intervention_names = [s.name for s in intervention_defs]
 life_table = load_life_table(examples / "mdm_des" / "data" / "us_mortality_2015.csv")
-seeds = SeedManager(2)
 
 engine = build_engine(
-    life_table=life_table, states=state_labels, strategies=strategy_defs,
+    life_table=life_table, states=state_labels, interventions=intervention_defs,
     age_start=age_start, horizon=horizon, discount_rate=discount_rate,
-    population=25_000, seed_manager=seeds,
+    population=25_000,
 )
 base = single_draw(base_case())
-outcomes, events = engine.evaluate(base, trace="events")
+base_run = run_psa(engine, base, seed=SEED, collect="events")
 outcomes = with_transition_costs_and_utilities(
-    outcomes, events, base, n_individuals=25_000, discount_rate=discount_rate
+    base_run.outcomes, base_run.events, base, n_individuals=25_000, discount_rate=discount_rate
 )
+events = base_run.events
 icer_table(outcomes).round(2)
 ```
 
-The frontier runs standard of care, then B at about 59,000 dollars per quality-adjusted life-year (QALY), then AB at about 99,000; A is dominated. The costs, near 128,000 dollars for standard of care up to 285,000 for AB, match the article's figure 4A, because the transition amounts accrue over the preceding sojourn: the cost of dying, paid over the long final sojourn, adds about 20,000 dollars per strategy that a once-at-death payment would not.
+The frontier runs standard of care, then B at about 59,000 dollars per quality-adjusted life-year (QALY), then AB at about 99,000; A is dominated. The costs, near 128,000 dollars for standard of care up to 285,000 for AB, match the article's figure 4A, because the transition amounts accrue over the preceding sojourn: the cost of dying, paid over the long final sojourn, adds about 20,000 dollars per intervention that a once-at-death payment would not.
 
 ## Reading epidemiological outcomes from the event history
 
-`survival_and_prevalence` turns the event history into the article's figure 3: it counts state occupancy over time, then returns survival (one minus the dead-state occupancy) and the prevalence of disease among the alive, each a table indexed by time with one column per strategy. Strategies A and standard of care share transition dynamics, as do B and AB, so their curves coincide.
+`survival_and_prevalence` turns the event history into the article's figure 3: it counts state occupancy over time, then returns survival (one minus the dead-state occupancy) and the prevalence of disease among the alive, each a table indexed by time with one column per intervention. Interventions A and standard of care share transition dynamics, as do B and AB, so their curves coincide.
 
 ```{python}
 from matplotlib import pyplot as plt
-from heormodel.report import strategy_colors
+from heormodel.report import intervention_colors
 
 survival, prevalence = survival_and_prevalence(
-    events, states=state_labels, strategies=strategy_defs, initial_state="H",
+    events, states=state_labels, interventions=intervention_names, initial_state="H",
     dead_state="D", disease_states=("S1", "S2"), n_individuals=25_000, horizon=horizon,
 )
 
-colors = strategy_colors(list(strategy_defs))
-dashes = {"Strategy A": (4, 2), "Strategy AB": (4, 2)}
+colors = intervention_colors(intervention_names)
+dashes = {"Intervention A": (4, 2), "Intervention AB": (4, 2)}
 fig, axes = plt.subplots(1, 2, figsize=(9, 3.4))
 for ax, curves, title in ((axes[0], survival, "Survival"), (axes[1], prevalence, "Prevalence of S1 and S2")):
     for s in curves.columns:
@@ -107,22 +109,20 @@ Individuals spend about 6 years per stay in Healthy, under 2 in Sick, and about 
 
 `parameter_set` returns the probabilistic distributions. Six parameters the companion draws but never reads are held fixed there to match its figures: the Weibull progression scale, both treatment costs, both transition costs, and the treated-utility increment. With the scale fixed, only the Weibull shape varies, so the progression hazard barely moves across draws.
 
-The transition amounts must be added on every iteration, so `costs_and_utilities_model` wraps the engine as a `draws -> Outcomes` function that evaluates with the event history and folds the amounts in. `run_psa` drives that wrapper over the draw matrix; one draw per experiment keeps each worker's event history small. The article runs 1,000 parameter sets of 100,000 individuals each; 300 sets of 2,500 individuals keep this page fast.
+The transition amounts must be added on every iteration, so `costs_and_utilities_model` wraps the engine as a stochastic engine that collects the event history and folds the amounts in. `run_psa` drives that wrapper over the draw matrix, supplying the seed; one draw per experiment keeps each worker's event history small. The article runs 1,000 parameter sets of 100,000 individuals each; 300 sets of 2,500 individuals keep this page fast.
 
 ```{python}
-from heormodel.run import run_psa
-
 params = parameter_set()
-draws = params.sample(300, seed=seeds.generator())
+draws = params.sample(300, seed=SEED)
 model = costs_and_utilities_model(
     build_engine(
-        life_table=life_table, states=state_labels, strategies=strategy_defs,
+        life_table=life_table, states=state_labels, interventions=intervention_defs,
         age_start=age_start, horizon=horizon, discount_rate=discount_rate,
-        population=2_500, seed_manager=seeds,
+        population=2_500,
     ),
     n_individuals=2_500, discount_rate=discount_rate,
 )
-psa = run_psa(model, draws, batch_size=1)
+psa = run_psa(model, draws, seed=SEED, batch_size=1).outcomes
 icer_table(psa).round(2)
 ```
 
@@ -141,17 +141,17 @@ axes[0].legend(frameon=False, fontsize=7); axes[1].legend(frameon=False, fontsiz
 plt.show()
 ```
 
-The expected value of perfect information (EVPI) equals the lower envelope of the expected loss curves, so it reads straight off the same money scale. The frontier switches strategy where the lowest curve changes.
+The expected value of perfect information (EVPI) equals the lower envelope of the expected loss curves, so it reads straight off the same money scale. The frontier switches intervention where the lowest curve changes.
 
 ```{python}
 from heormodel.voi import evpi
 
 evpi_curve = evpi(psa, wtp)
 front = ceaf(psa, wtp)
-switches = front["strategy"].ne(front["strategy"].shift()) & front.index.to_series().gt(0)
+switches = front["intervention"].ne(front["intervention"].shift()) & front.index.to_series().gt(0)
 [(float(w), round(float(evpi_curve.loc[w]))) for w in front.index[switches]]
 ```
 
-The frontier switches from standard of care to B near 61,000 dollars per QALY and from B to AB near 99,000, the two thresholds where the article's figure 4 also places its EVPI peaks. Holding the six companion-fixed parameters at base case keeps the strategy comparisons near-certain, so the acceptability curves are close to step functions and the EVPI peaks are small, matching the published figure 4D within Monte Carlo error. The one departure left in place is that the companion drives every parameter set from a single shared random-number stream, while this run keeps the framework's per-iteration seeding; both are unbiased, and a larger population per draw shrinks the difference. See [`devdocs/replication-notes/mdm-des-departures.md`](https://github.com/pedroliman/heormodel/blob/main/devdocs/replication-notes/mdm-des-departures.md) for the full accounting.
+The frontier switches from standard of care to B near 61,000 dollars per QALY and from B to AB near 99,000, the two thresholds where the article's figure 4 also places its EVPI peaks. Holding the six companion-fixed parameters at base case keeps the intervention comparisons near-certain, so the acceptability curves are close to step functions and the EVPI peaks are small, matching the published figure 4D within Monte Carlo error. The one departure left in place is that the companion drives every parameter set from a single shared random-number stream, while this run keeps the framework's per-iteration seeding; both are unbiased, and a larger population per draw shrinks the difference. See [`devdocs/replication-notes/mdm-des-departures.md`](https://github.com/pedroliman/heormodel/blob/main/devdocs/replication-notes/mdm-des-departures.md) for the full accounting.
 
 Reference: Lopez-Mendez M, Goldhaber-Fiebert JD, Alarid-Escudero F. A tutorial on discrete event simulation models using a cost-effectiveness analysis example in R. Medical Decision Making. 2026;46(5):533-548.

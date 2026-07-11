@@ -8,9 +8,11 @@ import numpy as np
 import pandas as pd
 from numpy.typing import ArrayLike
 
-from heormodel.models.outcomes import ITERATION_LEVEL, STRATEGY_LEVEL
+from heormodel.models.outcomes import INTERVENTION_LEVEL, ITERATION_LEVEL
 
-_EVENT_COLUMNS = (STRATEGY_LEVEL, ITERATION_LEVEL, "individual", "time", "from_state", "to_state")
+_EVENT_COLUMNS = (
+    INTERVENTION_LEVEL, ITERATION_LEVEL, "individual", "time", "from_state", "to_state"
+)
 
 
 def state_occupancy(
@@ -35,24 +37,24 @@ def state_occupancy(
     one-line derivations of this table.
 
     Args:
-        events: Event history with columns ``strategy``, ``iteration``,
+        events: Event history with columns ``intervention``, ``iteration``,
             ``individual``, ``time``, ``from_state``, ``to_state``, as
             returned by ``evaluate(draws, trace="events")``.
         states: Every state label, in the order the columns should take.
         initial_state: State every individual occupies at time zero.
-        n_individuals: Number of simulated individuals per strategy and
+        n_individuals: Number of simulated individuals per intervention and
             iteration.
         times: Times at which to evaluate occupancy.
 
     Returns:
-        DataFrame indexed by ``(strategy, iteration, time)`` with one
+        DataFrame indexed by ``(intervention, iteration, time)`` with one
         proportion column per state; rows sum to 1.
 
     Example:
         >>> import pandas as pd
         >>> from heormodel.models import state_occupancy
         >>> events = pd.DataFrame({
-        ...     "strategy": "care", "iteration": 0, "individual": [0, 0, 1],
+        ...     "intervention": "care", "iteration": 0, "individual": [0, 0, 1],
         ...     "time": [1.0, 3.0, 2.0], "from_state": ["H", "S", "H"],
         ...     "to_state": ["S", "D", "D"]})
         >>> occ = state_occupancy(events, states=("H", "S", "D"),
@@ -73,8 +75,8 @@ def state_occupancy(
         raise ValueError("n_individuals must be positive.")
     grid = np.atleast_1d(np.asarray(times, dtype=np.float64))
     frames = []
-    for (strategy, iteration), group in events.groupby(
-        [STRATEGY_LEVEL, ITERATION_LEVEL], sort=False
+    for (intervention, iteration), group in events.groupby(
+        [INTERVENTION_LEVEL, ITERATION_LEVEL], sort=False
     ):
         counts = np.zeros((len(grid), len(state_list)), dtype=np.float64)
         for j, state in enumerate(state_list):
@@ -87,8 +89,8 @@ def state_occupancy(
                 - np.searchsorted(exits, grid, side="right")
             )
         index = pd.MultiIndex.from_arrays(
-            [np.repeat(strategy, len(grid)), np.repeat(iteration, len(grid)), grid],
-            names=[STRATEGY_LEVEL, ITERATION_LEVEL, "time"],
+            [np.repeat(intervention, len(grid)), np.repeat(iteration, len(grid)), grid],
+            names=[INTERVENTION_LEVEL, ITERATION_LEVEL, "time"],
         )
         frames.append(pd.DataFrame(counts / n_individuals, index=index, columns=state_list))
     if not frames:

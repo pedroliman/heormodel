@@ -21,7 +21,7 @@ def survival_and_prevalence(
     events: pd.DataFrame,
     *,
     states: Sequence[str],
-    strategies: Sequence[str],
+    interventions: Sequence[str],
     initial_state: str,
     dead_state: str,
     disease_states: Sequence[str],
@@ -29,12 +29,12 @@ def survival_and_prevalence(
     horizon: float,
     n_points: int = 151,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Survival and disease-prevalence curves by strategy over a time grid.
+    """Survival and disease-prevalence curves by intervention over a time grid.
 
     Input: the event history, the model structure, the population size, and the
     horizon. Output: a tuple ``(survival, prevalence)`` of DataFrames indexed by
-    time (years since the start) with one column per strategy, in the given
-    strategy order.
+    time (years since the start) with one column per intervention, in the given
+    intervention order.
     """
     grid = np.linspace(0.0, horizon, n_points)
     occupancy = state_occupancy(
@@ -42,21 +42,21 @@ def survival_and_prevalence(
         n_individuals=n_individuals, times=grid,
     ).droplevel("iteration")
     alive = 1.0 - occupancy[dead_state]
-    survival = alive.unstack("strategy")[list(strategies)]
+    survival = alive.unstack("intervention")[list(interventions)]
     prevalence = (
         occupancy[list(disease_states)].sum(axis=1) / alive
-    ).unstack("strategy")[list(strategies)]
+    ).unstack("intervention")[list(interventions)]
     return survival, prevalence
 
 
 def dwell_times(events: pd.DataFrame) -> pd.DataFrame:
-    """Mean completed sojourn per state and strategy.
+    """Mean completed sojourn per state and intervention.
 
     Input: the event history. Output: a DataFrame of the mean dwell years by
-    strategy and originating state, each completed sojourn being the gap between
+    intervention and originating state, each completed sojourn being the gap between
     consecutive event times within an individual.
     """
-    ev = events.sort_values(["strategy", "individual", "time"])
-    entered = ev.groupby(["strategy", "individual"])["time"].shift(fill_value=0.0)
+    ev = events.sort_values(["intervention", "individual", "time"])
+    entered = ev.groupby(["intervention", "individual"])["time"].shift(fill_value=0.0)
     ev = ev.assign(dwell=ev["time"] - entered)
-    return ev.groupby(["strategy", "from_state"])["dwell"].mean().unstack("from_state")
+    return ev.groupby(["intervention", "from_state"])["dwell"].mean().unstack("from_state")

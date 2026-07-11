@@ -16,14 +16,15 @@ def tidy_table(n: int = 4) -> pd.DataFrame:
     rows = []
     for s, base in (("A", 100.0), ("B", 200.0)):
         for i in range(n):
-            rows.append({"strategy": s, "iteration": i, "cost": base + i, "qaly": 1.0 + 0.1 * i})
+            row = {"intervention": s, "iteration": i, "cost": base + i, "qaly": 1.0 + 0.1 * i}
+            rows.append(row)
     return pd.DataFrame(rows)
 
 
 class TestOutcomes:
     def test_from_tidy_round_trip(self):
         out = Outcomes.from_tidy(tidy_table())
-        assert out.strategies == ["A", "B"]
+        assert out.interventions == ["A", "B"]
         assert out.n_iterations == 4
         assert out.costs_wide().loc[2, "B"] == 202.0
 
@@ -35,7 +36,7 @@ class TestOutcomes:
         pd.testing.assert_frame_equal(out.effects_wide(), e, check_names=False)
 
     def test_unbalanced_panel_rejected(self):
-        df = tidy_table().iloc[:-1]  # drop one (strategy, iteration) row
+        df = tidy_table().iloc[:-1]  # drop one (intervention, iteration) row
         with pytest.raises(ValueError, match="Unbalanced"):
             Outcomes.from_tidy(df)
 
@@ -60,9 +61,9 @@ class TestOutcomes:
         out = Outcomes.from_tidy(df)
         assert out.components == ["cost_drug"]
 
-    def test_select_subsets_strategies(self):
+    def test_select_subsets_interventions(self):
         out = Outcomes.from_tidy(tidy_table())
-        assert out.select(["B"]).strategies == ["B"]
+        assert out.select(["B"]).interventions == ["B"]
         with pytest.raises(KeyError):
             out.select(["Z"])
 
@@ -70,14 +71,30 @@ class TestOutcomes:
         out = Outcomes.from_tidy(tidy_table())
         assert out.summary().loc["A", "cost"] == pytest.approx(101.5)
 
+    def test_comparator_defaults_to_none(self):
+        assert Outcomes.from_tidy(tidy_table()).comparator is None
+
+    def test_comparator_is_carried_when_given(self):
+        out = Outcomes.from_tidy(tidy_table(), comparator="A")
+        assert out.comparator == "A"
+
+    def test_unknown_comparator_rejected(self):
+        with pytest.raises(KeyError, match="Unknown comparator"):
+            Outcomes.from_tidy(tidy_table(), comparator="Z")
+
+    def test_select_drops_comparator_not_in_subset(self):
+        out = Outcomes.from_tidy(tidy_table(), comparator="A")
+        assert out.select(["B"]).comparator is None
+        assert out.select(["A", "B"]).comparator == "A"
+
 
 class TestByoOutputs:
     def test_as_outcomes_accepts_dataframe_and_custom_columns(self):
         df = tidy_table().rename(
-            columns={"strategy": "arm", "iteration": "run", "cost": "tc", "qaly": "qalys"}
+            columns={"intervention": "arm", "iteration": "run", "cost": "tc", "qaly": "qalys"}
         )
-        out = as_outcomes(df, strategy="arm", iteration="run", cost="tc", effect="qalys")
-        assert out.strategies == ["A", "B"]
+        out = as_outcomes(df, intervention="arm", iteration="run", cost="tc", effect="qalys")
+        assert out.interventions == ["A", "B"]
         assert out.effect == "qalys"
 
     def test_as_outcomes_reads_csv(self, tmp_path):
@@ -107,17 +124,17 @@ class TestRunPsa:
         self.draws = ps.sample(40, seed=9)
 
     def test_callable_model_preserves_iteration_index(self):
-        out = run_psa(dummy_model, self.draws)
+        out = run_psa(dummy_model, self.draws).outcomes
         assert out.iterations.equals(self.draws.index)
 
     def test_engine_object_satisfies_protocol(self):
         assert isinstance(DummyEngine(), ModelEngine)
-        out = run_psa(DummyEngine(), self.draws)
-        assert out.strategies == ["A", "B"]
+        out = run_psa(DummyEngine(), self.draws, sequential=True).outcomes
+        assert out.interventions == ["A", "B"]
 
     def test_parallel_matches_serial(self):
-        serial = run_psa(dummy_model, self.draws, sequential=True)
-        parallel = run_psa(dummy_model, self.draws, n_jobs=2)
+        serial = run_psa(dummy_model, self.draws, sequential=True).outcomes
+        parallel = run_psa(dummy_model, self.draws, n_jobs=2).outcomes
         pd.testing.assert_frame_equal(serial.data, parallel.data)
 
     def test_contract_violation_detected(self):
