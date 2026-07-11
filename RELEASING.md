@@ -43,6 +43,38 @@ token stored in the repo. On the `heormodel` project's PyPI page, under
 - Workflow file: `release.yml`
 - Environment: `pypi`
 
+## Zenodo archive
+
+Every GitHub release also archives to [Zenodo](https://zenodo.org) with a
+DOI, once the one-time setup below is done. No workflow step is needed:
+Zenodo's GitHub integration registers its own repository webhook (under
+`Settings` -> `Webhooks`) that fires on the `release: published` event
+directly, independent of GitHub Actions. That event still fires for
+releases `tag-release.yml` creates with the default `GITHUB_TOKEN`: the
+"`GITHUB_TOKEN` doesn't trigger other workflows" restriction (see step 5
+above) only suppresses new *Actions* workflow runs, not repository
+webhooks, which is what the Zenodo integration relies on.
+
+Zenodo reads archive metadata from [`.zenodo.json`](.zenodo.json); GitHub's
+own "Cite this repository" button reads [`CITATION.cff`](CITATION.cff).
+When both files are present, Zenodo uses `.zenodo.json` and ignores
+`CITATION.cff`. Update `.zenodo.json` if the title, authors, or keywords
+change; there is no version field to keep in sync; each archived record
+takes its version from the release tag.
+
+One-time setup, done by the repository owner on zenodo.org (cannot be
+scripted, requires the owner's GitHub OAuth login):
+
+1. Sign in at [zenodo.org](https://zenodo.org) with the GitHub account that
+   owns this repository, and open the
+   [GitHub integration settings](https://zenodo.org/account/settings/github/).
+2. Click "Sync now" if `heormodel` is not in the repository list yet.
+3. Toggle `heormodel` on. This is a one-time step; every release published
+   afterward archives automatically.
+4. After the first archive completes, copy the "concept DOI" badge Zenodo
+   shows for the repository (the one that always resolves to the latest
+   version) into the README's badge row.
+
 ## Checks before releasing
 
 `CI` (`.github/workflows/ci.yml`) runs `ruff`, `mypy`, `pytest`, and the
