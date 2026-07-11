@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "heormodel"
-version = "0.7.0"
+version = "0.7.1"
 description = "Decision-analytic modeling for health economic evaluation and health technology assessment: probabilistic parameters, cohort and individual-level simulation engines, cost-effectiveness analysis, and value of information"
 readme = "README.md"
 requires-python = ">=3.11"

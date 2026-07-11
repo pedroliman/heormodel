@@ -10,6 +10,8 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-07-11
+
 ### Added
 
 - `.zenodo.json` and `CITATION.cff` so every GitHub release archives to
@@ -346,7 +348,8 @@ bring-your-own-outputs ingestion (`heormodel.run`), cost-effectiveness analysis
 (`heormodel.cea`), value-of-information analysis (`heormodel.voi`), optional ABC
 calibration (`heormodel.calibrate`), and reporting plots (`heormodel.report`).
 
-[Unreleased]: https://github.com/pedroliman/heormodel/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/pedroliman/heormodel/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/pedroliman/heormodel/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/pedroliman/heormodel/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/pedroliman/heormodel/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/pedroliman/heormodel/compare/v0.4.0...v0.5.0
