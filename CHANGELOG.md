@@ -10,6 +10,8 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-07-11
+
 ### Changed
 
 - Renamed the package's arm vocabulary to PICOTS terms (Population,
@@ -338,7 +340,8 @@ bring-your-own-outputs ingestion (`heormodel.run`), cost-effectiveness analysis
 (`heormodel.cea`), value-of-information analysis (`heormodel.voi`), optional ABC
 calibration (`heormodel.calibrate`), and reporting plots (`heormodel.report`).
 
-[Unreleased]: https://github.com/pedroliman/heormodel/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/pedroliman/heormodel/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/pedroliman/heormodel/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/pedroliman/heormodel/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/pedroliman/heormodel/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/pedroliman/heormodel/compare/v0.3.0...v0.4.0
