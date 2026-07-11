@@ -3,6 +3,7 @@
 [![CI](https://github.com/pedroliman/heormodel/actions/workflows/ci.yml/badge.svg)](https://github.com/pedroliman/heormodel/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/pedroliman/heormodel/branch/main/graph/badge.svg)](https://codecov.io/gh/pedroliman/heormodel)
 [![PyPI](https://img.shields.io/pypi/v/heormodel.svg)](https://pypi.org/project/heormodel/)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21314037.svg)](https://doi.org/10.5281/zenodo.21314037)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 `heormodel` is a Python decision-analytic modeling framework for health economic evaluation and health technology assessment.
@@ -15,8 +16,9 @@ Read more in the documentation: [pedroliman.github.io/heormodel](https://pedroli
 
 Cite `heormodel` using the metadata in [`CITATION.cff`](CITATION.cff), or
 click "Cite this repository" in the sidebar of the GitHub repository. Every
-release also archives to [Zenodo](https://zenodo.org) with a DOI; see
-[RELEASING.md](RELEASING.md#zenodo-archive).
+release also archives to [Zenodo](https://zenodo.org) with a DOI; the DOI
+badge above always resolves to the archive of the latest release. See
+[RELEASING.md](RELEASING.md#zenodo-archive) for how the archiving works.
 
 ## Install
 
