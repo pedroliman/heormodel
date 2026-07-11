@@ -45,6 +45,31 @@ When asked to implement the next roadmap priority (`devdocs/roadmap/README.md`):
 - Grill the result. Run the example and any executable docs, and confirm the printed outputs and prose actually match before committing. Do not claim an example works without running it.
 - Ship each feature with a website tutorial, as items 1 and 2 did.
 
+## GitHub workflow
+
+Every development task follows a structured GitHub workflow to maintain clear traceability and avoid duplicating information:
+
+### GitHub Issue: the task
+- Create a GitHub Issue at the start of each conversation describing the work to be done.
+- The Issue documents the *problem*, *goal*, and *acceptance criteria*—what needs to be done and why.
+- This is the single source of truth for the task itself.
+
+### Pull Request: the solution
+- All code changes go through Pull Requests linked to the corresponding GitHub Issue.
+- The PR title and initial description explain the *approach*—how the issue is being addressed at a high level.
+- Do not duplicate the issue description in the PR; reference the linked Issue instead.
+
+### Commits: the implementation record
+- Every commit message must reference the GitHub Issue using the format: `Closes #<issue-number>`, `Fixes #<issue-number>`, or `Refs #<issue-number>`.
+- Commit messages are the source of truth for *what* changed technically. Make them clear and descriptive about the actual changes.
+
+### Status updates: progress without duplication
+- When starting work: post a comment on the Issue or PR stating the high-level approach and *why* this approach was chosen—not implementation details.
+- When completing work: post a comment summarizing the rationale for changes and high-level nature of what was done.
+- Keep comments concise. Do not duplicate information from the Issue (problem/goal), commits (technical changes), or PR description (approach).
+
+**Summary:** Issue = the problem; PR = the approach; Commits = the implementation details; Comments = progress and rationale. Each layer has one purpose.
+
 ## Git identity
 
 - All commits belong to the repo owner's GitHub account, never to Claude. Do not add `Co-Authored-By: Claude ...` or `Claude-Session:` trailers to commit messages.
