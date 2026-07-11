@@ -166,4 +166,4 @@ record = capture_run(
 print(record.to_markdown("heormodel calibration workflow run report"))
 ```
 
-Next: [parameter inputs from data](parameter-inputs.qmd) covers the base-case, imported, and posterior draw matrices that feed the same run loop.
+Next: [parameter inputs from data](parameter-inputs.qmd) covers the base-case, imported, and posterior draw matrices that feed the same analysis.

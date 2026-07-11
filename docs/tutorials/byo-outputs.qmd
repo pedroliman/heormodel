@@ -45,7 +45,7 @@ rows = pd.concat([
 
 ## Converting the table to the standard structure
 
-`as_outcomes` accepts a `DataFrame` or a CSV path with `intervention`, `iteration`, `cost`, and effect columns, and returns `Outcomes`, the structure every analysis function below consumes. Converting once here means `icer_table`, the acceptability curves, the value-of-information estimators, and the plots all take the same object, regardless of where the numbers originally came from.
+`as_outcomes` accepts a `DataFrame` or a CSV path with `intervention`, `iteration`, `cost`, and effect columns, and returns `Outcomes`, the structure every analysis function below uses. Converting once here means `icer_table`, the acceptability curves, the value-of-information estimators, and the plots all take the same `Outcomes`, regardless of where the numbers originally came from.
 
 ```{python}
 outcomes = as_outcomes(rows)
@@ -116,4 +116,4 @@ record = capture_run(seed=seed_manager, params=params, outcomes=outcomes,
 print(record.to_markdown("heormodel example run report"))
 ```
 
-Next: the [Markov cohort model](mdm-cohort.qmd) builds the standard state-transition model and runs its probabilistic sensitivity analysis through the same analysis layer.
+Next: the [Markov cohort model](mdm-cohort.qmd) builds the standard state-transition model and runs its probabilistic sensitivity analysis through the same analysis functions.

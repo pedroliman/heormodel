@@ -50,7 +50,7 @@ run_psa(model, base).outcomes.summary().round(2)
 
 ## Reading a draw matrix from another tool
 
-`read_draws` validates a CSV path or a `DataFrame` as a draw matrix. It honors an explicit `iteration` column and otherwise assigns a fresh index; a non-numeric column raises an error before it reaches the model, so a malformed export fails at the boundary rather than inside the analysis. The code below writes a sampled matrix to CSV to stand in for an external tool's export, then reads it back the way a real export would be read.
+`read_draws` validates a CSV path or a `DataFrame` as a draw matrix. It honors an explicit `iteration` column and otherwise assigns a fresh index; a non-numeric column raises an error before it reaches the model, so a malformed export fails immediately rather than deep inside the analysis. The code below writes a sampled matrix to CSV to stand in for an external tool's export, then reads it back the way a real export would be read.
 
 ```{python}
 external = params.sample(2_000, seed=1)
@@ -74,4 +74,4 @@ run_psa(model, posterior).outcomes.summary().round(2)
 
 The resampled mean of `p_response` sits above the unweighted grid mean, because the weights favor higher values, and the reweighting raises the new drug's expected QALYs.
 
-The [calibration workflow](calibration-workflow.qmd) produces such a posterior with `abc_calibrate` and mixes it with literature draws through `mix_draws`. Next: [deterministic sensitivity analysis](dsa.qmd) sweeps parameters one at a time through the same run loop.
+The [calibration workflow](calibration-workflow.qmd) produces such a posterior with `abc_calibrate` and mixes it with literature draws through `mix_draws`. Next: [deterministic sensitivity analysis](dsa.qmd) sweeps parameters one at a time through the same analysis.

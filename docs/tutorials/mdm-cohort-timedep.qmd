@@ -68,6 +68,6 @@ draws0 = pd.DataFrame([base], index=pd.RangeIndex(1, name="iteration"))
 icer_table(engine.evaluate(draws0)).round(2)
 ```
 
-Intervention B has an incremental cost-effectiveness ratio near 65,000 per quality-adjusted life-year and Intervention AB near 104,000, matching the published results. The analysis layer is identical to the time-independent case.
+Intervention B has an incremental cost-effectiveness ratio near 65,000 per quality-adjusted life-year and Intervention AB near 104,000, matching the published results. The cost-effectiveness analysis is identical to the time-independent case.
 
 Reference: Alarid-Escudero F, Krijkamp EM, Enns EA, Yang A, Hunink MGM, Pechlivanoglou P, Jalal H. A tutorial on time-dependent cohort state-transition models in R using a cost-effectiveness analysis example. Medical Decision Making. 2023;43(1):21-41.

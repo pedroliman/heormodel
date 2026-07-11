@@ -53,7 +53,7 @@ def state_rewards(params, intervention, state, attrs):
 
 ## Configuring once, evaluating on draws
 
-The constructor takes the model structure; `run_psa` takes the draw matrix. The two interventions are bare names, and the model functions branch on the intervention name (`intervention == "Treatment"`) to decide whether treatment is on. The two interventions share one population through common random numbers (the engine default), so the incremental result reflects the treatment effect rather than sampling noise.
+The model structure goes to the engine when you build it; the draw matrix goes to `run_psa`. The two interventions are bare names, and the model functions branch on the intervention name (`intervention == "Treatment"`) to decide whether treatment is on. The two interventions share one population through common random numbers (the engine default), so the incremental result reflects the treatment effect rather than sampling noise.
 
 ```{python}
 from heormodel.models import MicrosimModel
@@ -83,7 +83,7 @@ outcomes = run_psa(engine, draws, seed=seeds.entropy, sequential=True).outcomes
 outcomes.summary().round(3)
 ```
 
-`run_psa` runs the engine like any other model, and enforces the same contract: the outcome iteration index equals `draws.index`. Because each iteration draws a stream keyed by its index, the result is identical whether the run is parallel or sequential. Runs are parallel by default; this small one passes `sequential=True` to stay in-process.
+Runs are parallel by default and give the same numbers either way: each iteration is seeded by its position in the draw matrix, so a parallel and a sequential run agree exactly. This small run passes `sequential=True`.
 
 ## Branching on the intervention name versus using decision levers
 
@@ -92,7 +92,7 @@ An intervention carries a name and, optionally, parameter decision levers. Which
 - Branch on the name when the arms differ in structure or in which model function runs, as here: treatment changes a utility and a cost, so the model reads `intervention == "Treatment"`. The comparison is not a number that lives in the `ParameterSet`.
 - Use an `Intervention` with decision levers for a numeric scenario knob the model already reads as a parameter, such as a server count `Intervention("Expanded", {"n_servers": 2})`. The discrete-event tutorial does this for clinic capacity.
 
-Encoding an arm as a pseudo-parameter, a flag like `{"on_treatment": 1.0}` read back as a boolean, is the case branch-on-name replaces. That flag is not in the `ParameterSet`, so it is invisible to `evppi_ranking` and to the deterministic sensitivity builders, and a float stands in for a flag. The ranking below therefore reports only genuine parameters.
+Do not encode an arm as a fake parameter, a flag like `{"on_treatment": 1.0}`. Such a flag is not part of the `ParameterSet`, so `evppi_ranking` and the deterministic sensitivity analyses never see it, and it would clutter the ranking with a value that is not a real source of uncertainty. Branching on the name keeps the ranking below to genuine parameters.
 
 ## Analyzing cost-effectiveness and value of information
 
@@ -148,7 +148,7 @@ The two agree to under 1% at 60,000 individuals, and the gap shrinks with the po
 
 ## Switching to a continuous-time clock
 
-`MicrosimModel.continuous` is set up the same way. Instead of per-cycle probabilities, `event_times` returns sampled times to each competing event; the engine races them, advances to the earliest, and accrues continuously between events, valuing each segment through `state_reward_rates` (per-year flows rather than per-cycle amounts). On constant hazards it reproduces the exponential cohort solution. See the [engines](../concepts/engines.qmd) concept page for where both fit in the contract.
+`MicrosimModel.continuous` is set up the same way. Instead of per-cycle probabilities, `event_times` returns sampled times to each competing event; the engine races them, advances to the earliest, and accrues continuously between events, valuing each segment through `state_reward_rates` (per-year flows rather than per-cycle amounts). On constant hazards it reproduces the exponential cohort solution. See the [engines](../concepts/engines.qmd) concept page for how the two clocks compare.
 
 Next: [Markov vs microsimulation models](markov-vs-microsim.qmd) builds this microsimulation and a cohort twin from the same rates, cross-validates them, and shows what the individual model carries that the cohort averages away.
 ```

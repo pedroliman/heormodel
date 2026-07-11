@@ -2,7 +2,7 @@
 title: Discrete-event simulation engine
 ---
 
-This tutorial shows how to build a resource-constrained model with `DESModel`, the model type to use when a shared, scarce resource makes entities queue, so that one patient's outcome depends on the others in the system, a coupling neither a cohort nor an independent microsimulation model can carry. It runs that model through the same cost-effectiveness and value-of-information analysis as any other engine; the [microsimulation tutorial](microsim.qmd) covers ideas this one builds on: configure once and evaluate on draws, per-iteration seeding, and the accrual layer. This page walks through [`examples/des.py`](https://github.com/pedroliman/heormodel/blob/main/examples/des.py) step by step. A discrete-event simulation without resource constraints is a continuous-time state-transition model, which the continuous clock of `MicrosimModel` runs directly; the [discrete-event simulation replication](mdm-des.qmd) reproduces a published example of that kind.
+This tutorial shows how to build a resource-constrained model with `DESModel`, the model type to use when a shared, scarce resource makes entities queue, so that one patient's outcome depends on the others in the system, a coupling neither a cohort nor an independent microsimulation model can carry. It runs that model through the same cost-effectiveness and value-of-information analysis as any other model; the [microsimulation tutorial](microsim.qmd) covers ideas this one builds on: building the model once and running it on draws, and accruing discounted costs and effects over time. This page walks through [`examples/des.py`](https://github.com/pedroliman/heormodel/blob/main/examples/des.py) step by step. A discrete-event simulation without resource constraints is a continuous-time state-transition model, which the continuous clock of `MicrosimModel` runs directly; the [discrete-event simulation replication](mdm-des.qmd) reproduces a published example of that kind.
 
 ## Modeling the queueing process
 
@@ -39,11 +39,11 @@ def clinic(env, patient, params, intervention, toolkit):
             yield env.timeout(toolkit.rng.gamma(2.0, params["service_time"] / 2.0))
 ```
 
-`toolkit.accrue_over(start, end, cost_rate, utility_rate)` integrates and discounts a flow over an absolute interval, so billing the queueing time a patient just endured is one call once the specialist is granted. The process reads the run's time horizon back as `toolkit.horizon`, so it need not repeat the value the constructor already holds. A patient still waiting at the horizon is never seen: the request loses the race and only the waiting segment is billed.
+`toolkit.accrue_over(start, end, cost_rate, utility_rate)` integrates and discounts a flow over an absolute interval, so billing the queueing time a patient just endured is one call once the specialist is granted. The process reads the run's time horizon back as `toolkit.horizon`, so it need not repeat the value the engine already holds. A patient still waiting at the horizon is never seen: the request loses the race and only the waiting segment is billed.
 
 ## Configuring once, evaluating on draws
 
-The constructor takes the model; `run_psa` takes the draw matrix. The two interventions differ only in capacity, so each is an `Intervention` carrying the numeric knobs that arm sets: `n_servers`, and a per-patient overhead `c_capacity` for the expanded arm. This is the right use of decision levers, a scenario knob the model already reads as a parameter, rather than a flag standing in for which arm is which. They see the same patients and service draws through common random numbers, so the incremental result reflects the capacity change, not sampling noise.
+The model goes to the engine when you build it; the draw matrix goes to `run_psa`. The two interventions differ only in capacity, so each is an `Intervention` carrying the numeric knobs that arm sets: `n_servers`, and a per-patient overhead `c_capacity` for the expanded arm. This is the right use of decision levers, a scenario knob the model already reads as a parameter, rather than a flag standing in for which arm is which. They see the same patients and service draws through common random numbers, so the incremental result reflects the capacity change, not sampling noise.
 
 ```{python}
 from heormodel.models import DESModel, Intervention
@@ -98,6 +98,6 @@ trace = run_psa(engine, draws.iloc[[0]], seed=seeds.entropy, collect="events").e
 (queue_waits(trace).groupby("intervention", sort=False)["wait"].mean() * 365).round(1)
 ```
 
-The single specialist leaves patients waiting weeks; the second clears the queue to about a day. See the [engines](../concepts/engines.qmd) concept page for where the engine sits in the contract.
+The single specialist leaves patients waiting weeks; the second clears the queue to about a day. See the [engines](../concepts/engines.qmd) concept page for how this model type compares with the others.
 
-Next: the [full pipeline tutorial](full-pipeline.qmd) formalizes the run loop and the contract every engine plugs into, from `ParameterSet` sampling through `run_psa` to the analysis layer.
+Next: the [full pipeline tutorial](full-pipeline.qmd) walks through the whole workflow, from `ParameterSet` sampling through `run_psa` to the analysis functions.

@@ -4,13 +4,13 @@ title: Discrete-event simulation replication
 
 This tutorial shows how to reproduce the published figures of the continuous-time Sick-Sicker discrete-event simulation of Lopez-Mendez and others (2026): competing time-to-event transitions with age-dependent mortality from a life table, a Weibull hazard on time spent Sick, transition costs and utilities accrued over the preceding sojourn, epidemiological outcomes read from the event history, and a probabilistic analysis with expected loss curves.
 
-The model is large enough that its parts live in separate files under [`examples/mdm_des/`](https://github.com/pedroliman/heormodel/tree/main/examples/mdm_des), one concern per module. This page imports those building blocks and shows how they compose, describing each by what it takes in and returns rather than by its internals. Reproducing the figures means matching the companion R code rather than the Table 1 specification on two points, both handled inside the building blocks: transition amounts accrue over the sojourn that ends in each transition, and six parameters the companion draws but never reads are held at their base case.
+The model is large enough that its parts live in separate files under [`examples/mdm_des/`](https://github.com/pedroliman/heormodel/tree/main/examples/mdm_des). This page loads those parts and shows how they fit together, describing each by what it takes in and returns. Reproducing the figures means matching the companion R code rather than the Table 1 specification on two points, both handled inside those parts: transition amounts accrue over the sojourn that ends in each transition, and six parameters the companion draws but never reads are held at their base case.
 
-## The building blocks
+## Loading the model's parts
 
-The folder separates the model into modules the run script and this tutorial share:
+The folder splits the model into files the run script and this tutorial share:
 
-| Module | Provides | Takes in and returns |
+| File | Provides | Takes in and returns |
 |---|---|---|
 | `mortality` | `load_life_table` | a CSV path to age-specific rates in, a `LifeTable` out |
 | `model` | `build_engine` | the life table, model structure, horizon, discount rate, and population in, a configured continuous-clock `MicrosimModel` out |
@@ -18,9 +18,9 @@ The folder separates the model into modules the run script and this tutorial sha
 | `transitions` | `with_transition_costs_and_utilities`, `costs_and_utilities_model` | outcomes and the event history in, outcomes with the sojourn-accrued transition amounts out |
 | `outcomes` | `survival_and_prevalence`, `dwell_times` | the event history in, epidemiological curves and mean sojourns out |
 
-The engine calls two functions the `model` module builds: `event_times`, which returns the sampled time to each competing transition from the current state, and `state_reward_rates`, which returns the annual cost and utility of each state. The article's next-event kernel is exactly the continuous clock of `MicrosimModel`: sample a latent time for each permitted transition, take the earliest, move, repeat. Because competing times are redrawn at every state entry, the Weibull progression draw needs no truncation and each death time reflects the individual's current age and state.
+The engine calls two functions the `model` file builds: `event_times`, which returns the sampled time to each competing transition from the current state, and `state_reward_rates`, which returns the annual cost and utility of each state. The article's next-event method is the continuous clock of `MicrosimModel`: sample a time for each permitted transition, take the earliest, move, repeat. Because competing times are redrawn at every state entry, the Weibull progression draw needs no truncation and each death time reflects the individual's current age and state.
 
-First make the example package importable and load its pieces.
+First put the `examples` folder on the import path and load its pieces.
 
 ```{python}
 import pathlib
@@ -109,7 +109,7 @@ Individuals spend about 6 years per stay in Healthy, under 2 in Sick, and about 
 
 `parameter_set` returns the probabilistic distributions. Six parameters the companion draws but never reads are held fixed there to match its figures: the Weibull progression scale, both treatment costs, both transition costs, and the treated-utility increment. With the scale fixed, only the Weibull shape varies, so the progression hazard barely moves across draws.
 
-The transition amounts must be added on every iteration, so `costs_and_utilities_model` wraps the engine as a stochastic engine that collects the event history and folds the amounts in. `run_psa` drives that wrapper over the draw matrix, supplying the seed; one draw per experiment keeps each worker's event history small. The article runs 1,000 parameter sets of 100,000 individuals each; 300 sets of 2,500 individuals keep this page fast.
+The transition amounts must be added on every iteration, so `costs_and_utilities_model` builds a model that collects the event history and adds the amounts in. `run_psa` runs it over the draw matrix; one draw per run keeps each event history small. The article runs 1,000 parameter sets of 100,000 individuals each; 300 sets of 2,500 individuals keep this page fast.
 
 ```{python}
 params = parameter_set()
@@ -152,6 +152,6 @@ switches = front["intervention"].ne(front["intervention"].shift()) & front.index
 [(float(w), round(float(evpi_curve.loc[w]))) for w in front.index[switches]]
 ```
 
-The frontier switches from standard of care to B near 61,000 dollars per QALY and from B to AB near 99,000, the two thresholds where the article's figure 4 also places its EVPI peaks. Holding the six companion-fixed parameters at base case keeps the intervention comparisons near-certain, so the acceptability curves are close to step functions and the EVPI peaks are small, matching the published figure 4D within Monte Carlo error. The one departure left in place is that the companion drives every parameter set from a single shared random-number stream, while this run keeps the framework's per-iteration seeding; both are unbiased, and a larger population per draw shrinks the difference. See [`devdocs/replication-notes/mdm-des-departures.md`](https://github.com/pedroliman/heormodel/blob/main/devdocs/replication-notes/mdm-des-departures.md) for the full accounting.
+The frontier switches from standard of care to B near 61,000 dollars per QALY and from B to AB near 99,000, the two thresholds where the article's figure 4 also places its EVPI peaks. Holding the six companion-fixed parameters at base case keeps the intervention comparisons near-certain, so the acceptability curves are close to step functions and the EVPI peaks are small, matching the published figure 4D within Monte Carlo error. The one departure left in place is that the companion drives every parameter set from a single shared random-number stream, while this run seeds each parameter set separately; both are unbiased, and a larger population per draw shrinks the difference. See [`devdocs/replication-notes/mdm-des-departures.md`](https://github.com/pedroliman/heormodel/blob/main/devdocs/replication-notes/mdm-des-departures.md) for the full accounting.
 
 Reference: Lopez-Mendez M, Goldhaber-Fiebert JD, Alarid-Escudero F. A tutorial on discrete event simulation models using a cost-effectiveness analysis example in R. Medical Decision Making. 2026;46(5):533-548.

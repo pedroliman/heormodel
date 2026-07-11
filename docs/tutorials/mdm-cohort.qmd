@@ -53,7 +53,7 @@ icer_table(engine.evaluate(draws0)).round(2)
 
 ## Running the probabilistic sensitivity analysis
 
-The article's uncertainty distributions for each parameter become a `ParameterSet`; gamma distributions bound rates and costs at zero, beta distributions bound utilities to the unit interval, and log-normal distributions keep hazard ratios positive. From there, `run_psa` and the analysis layer treat this cohort model like any other engine. The run below passes `sequential=True` because 1,000 iterations finish quickly in-process; larger runs default to parallel batches across cores.
+The article's uncertainty distributions for each parameter become a `ParameterSet`; gamma distributions bound rates and costs at zero, beta distributions bound utilities to the unit interval, and log-normal distributions keep hazard ratios positive. From there the analysis is the same as for any other model. The run below passes `sequential=True` because 1,000 iterations finish quickly; larger runs are parallel by default.
 
 ```{python}
 from heormodel.params import Beta, Gamma, LogNormal, ParameterSet

@@ -2,11 +2,11 @@
 title: Full pipeline
 ---
 
-This tutorial shows how to run the workflow every engine plugs into: specify parameters, sample draws, evaluate a model with `run_psa`, then feed the outcomes to cost-effectiveness and value-of-information analysis. [Bring your own outputs](byo-outputs.qmd) covers the analysis functions in more detail; here the focus is the run loop and its contract.
+This tutorial shows how to run the standard probabilistic sensitivity analysis workflow end to end: specify parameters, sample draws, evaluate a model with `run_psa`, then feed the outcomes to cost-effectiveness and value-of-information analysis. [Bring your own outputs](byo-outputs.qmd) covers the analysis functions in more detail; here the focus is the run itself.
 
 ## Specifying and sampling parameters
 
-Distributions are specified directly or from published mean and standard error. `ParameterSet.sample` returns a draw matrix whose index is the canonical iteration index; a Spearman rank correlation can be requested per parameter pair.
+Distributions are specified directly or from published mean and standard error. `ParameterSet.sample` returns a draw matrix, one row per iteration; a Spearman rank correlation can be requested per parameter pair.
 
 ```{python}
 from heormodel.params import Beta, Gamma, Normal, ParameterSet
@@ -26,9 +26,9 @@ draws = params.sample(4_000, seed=seeds.generator())
 draws.head(3).round(3)
 ```
 
-## Writing a model as a plain function
+## Writing the model as a function
 
-An engine is anything that maps draws to `Outcomes`. A plain function satisfying `ModelFn` is enough; the one below is a two-intervention decision tree evaluated over one year. `Outcomes.from_wide` assembles the structure from per-intervention cost and effect columns.
+A model is a function that takes the draw matrix and returns `Outcomes`. The one below is a two-intervention decision tree evaluated over one year. `Outcomes.from_wide` builds that result from per-intervention cost and effect columns.
 
 ```{python}
 import pandas as pd
@@ -49,7 +49,7 @@ def decision_tree(d: pd.DataFrame) -> Outcomes:
 
 ## Running the probabilistic sensitivity analysis
 
-`run_psa` evaluates the model and guarantees the outcomes carry exactly the draws' index, preserving the parameter/outcome linkage that value of information needs. It runs in parallel over all cores by default, printing a time-remaining readout when `stderr` is a terminal. This tutorial's run is tiny, so it passes `sequential=True` to run in-process and stay quiet.
+`run_psa` evaluates the model on every draw and keeps each outcome matched to the parameters that produced it, the link value-of-information analysis relies on. It runs in parallel by default; this run is small, so `sequential=True` runs it without that overhead.
 
 ```{python}
 from heormodel.run import run_psa
@@ -60,7 +60,7 @@ outcomes.summary().round(3)
 
 ## Analyzing cost-effectiveness and value of information
 
-Nothing from here on is specific to a decision tree: the same `icer_table`, `evpi`, and `evppi_ranking` calls apply to any engine's `Outcomes`, which is why the run loop above is the part worth learning once.
+Nothing from here on is specific to a decision tree: the same `icer_table`, `evpi`, and `evppi_ranking` calls apply to the `Outcomes` any model produces.
 
 ```{python}
 import numpy as np
@@ -88,4 +88,4 @@ from heormodel.run import running_means
 running_means(outcomes).plot(xlabel="iterations", ylabel="mean cost");
 ```
 
-The [engines](../concepts/engines.qmd) concept page explains the contract `run_psa` enforces. Next: the [value of information](voi.qmd) tutorial takes outcomes like these through the expected value of perfect, partial perfect, and sample information, checking each against a closed form.
+The [engines](../concepts/engines.qmd) concept page describes the model types `run_psa` can run. Next: the [value of information](voi.qmd) tutorial takes outcomes like these through the expected value of perfect, partial perfect, and sample information, checking each against a closed form.
