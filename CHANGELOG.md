@@ -10,6 +10,12 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ## [Unreleased]
 
+### Added
+
+- `.zenodo.json` and `CITATION.cff` so every GitHub release archives to
+  Zenodo with a DOI once the one-time Zenodo integration is enabled; see
+  [RELEASING.md](RELEASING.md#zenodo-archive) ([#39](https://github.com/pedroliman/heormodel/issues/39)).
+
 ## [0.7.0] - 2026-07-11
 
 ### Changed

@@ -11,6 +11,13 @@
 
 Read more in the documentation: [pedroliman.github.io/heormodel](https://pedroliman.github.io/heormodel/)
 
+## Citing
+
+Cite `heormodel` using the metadata in [`CITATION.cff`](CITATION.cff), or
+click "Cite this repository" in the sidebar of the GitHub repository. Every
+release also archives to [Zenodo](https://zenodo.org) with a DOI; see
+[RELEASING.md](RELEASING.md#zenodo-archive).
+
 ## Install
 
 If you are new to Python, I recommend installing it with [uv](https://docs.astral.sh/uv/guides/install-python/). Once you have a working Python installation, run this from your terminal within your project's folder:

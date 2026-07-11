@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: If you use this software, cite it using the metadata below.
+title: heormodel
+abstract: >-
+  Decision-analytic modeling for health economic evaluation and health
+  technology assessment: probabilistic parameters, cohort and
+  individual-level simulation engines, cost-effectiveness analysis, and
+  value of information.
+authors:
+  - family-names: Nascimento de Lima
+    given-names: Pedro
+license: MIT
+repository-code: https://github.com/pedroliman/heormodel
+url: https://pedroliman.github.io/heormodel/
+keywords:
+  - health economics
+  - HEOR
+  - health technology assessment
+  - cost-effectiveness analysis
+  - value of information
