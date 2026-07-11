@@ -18,19 +18,13 @@ Every PR that changes behavior adds one line under `## [Unreleased]` in
 3. In `CHANGELOG.md`, rename `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD`,
    add a fresh empty `## [Unreleased]` above it, and update the link
    references at the bottom of the file.
-4. Commit as `Release vX.Y.Z`, push to `main`.
-5. Tag the release commit and push the tag:
-
-   ```bash
-   git tag vX.Y.Z
-   git push origin vX.Y.Z
-   ```
-
-6. Create a GitHub release from that tag (`Releases` -> `Draft a new
-   release`), using the matching CHANGELOG section as the release notes.
-   Publishing the release triggers the `Release` workflow
-   (`.github/workflows/release.yml`), which builds the package with `uv
-   build` and publishes it to PyPI.
+4. Commit as `Release vX.Y.Z`, merge to `main` through a pull request.
+5. On merge, the `Tag release` workflow
+   (`.github/workflows/tag-release.yml`) reads the version from
+   `pyproject.toml`, tags the merge commit `vX.Y.Z`, and creates a GitHub
+   release from the matching `CHANGELOG.md` section. Publishing that release
+   triggers the `Release` workflow (`.github/workflows/release.yml`), which
+   builds the package with `uv build` and publishes it to PyPI.
 
 ## One-time PyPI setup
 
