@@ -43,7 +43,7 @@ def evppi(
         wtp: Willingness to pay per unit of effect.
         effect: Effect column (default: the primary effect).
         method: ``"spline"`` (default) or ``"gp"`` metamodel; see
-            `heval.voi._metamodel.fitted_conditional_means`.
+            `heormodel.voi._metamodel.fitted_conditional_means`.
         n_knots: Spline knot count.
         degree: Spline degree.
         seed: Subsample seed for the GP method.

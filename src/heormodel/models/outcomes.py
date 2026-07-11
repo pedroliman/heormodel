@@ -1,14 +1,14 @@
-"""The standardized outcome structure: the integration contract of ``heval``.
+"""The standardized outcome structure: the integration contract of ``heormodel``.
 
 Every model engine, and every bring-your-own-outputs table, is normalised
 into an `Outcomes` object: a tidy ``DataFrame`` indexed by
 ``(strategy, iteration)`` carrying a ``cost`` column, one or more effect
 columns (e.g. QALYs), and optional disaggregated cost/effect components.
-Every analysis in `heval.cea` and `heval.voi` consumes this object
+Every analysis in `heormodel.cea` and `heormodel.voi` consumes this object
 and nothing else, which is what makes the analysis layer engine-agnostic.
 
 The ``iteration`` level of the index is the same iteration index carried by
-the parameter draw matrix from `heval.params`; EVPPI and EVSI rely on
+the parameter draw matrix from `heormodel.params`; EVPPI and EVSI rely on
 that shared index to trace which parameter draw produced which outcome.
 """
 

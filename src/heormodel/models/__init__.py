@@ -1,4 +1,4 @@
-"""Model engines behind an output contract (`heval.models`).
+"""Model engines behind an output contract (`heormodel.models`).
 
 The durable pieces here are `Outcomes`, the standardized
 (strategy, iteration) outcome structure, and `ModelEngine`, the

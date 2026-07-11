@@ -1,4 +1,4 @@
-"""Value-of-information analysis (`heval.voi`).
+"""Value-of-information analysis (`heormodel.voi`).
 
 EVPI directly from the probabilistic sensitivity analysis; EVPPI via
 metamodeling; EVSI via nonparametric regression on simulated study

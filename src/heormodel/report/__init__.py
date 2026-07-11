@@ -1,4 +1,4 @@
-"""Reporting (`heval.report`).
+"""Reporting (`heormodel.report`).
 
 Standard cost-effectiveness plots (CE plane, CEAC/CEAF, efficiency
 frontier, tornado) and reproducibility scaffolding (seed logging,

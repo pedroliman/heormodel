@@ -3,11 +3,11 @@
 `DESModel` runs a SimPy model once per parameter draw and strategy and returns
 the standard `Outcomes` structure. It is not a new discrete-event kernel: the SimPy
 ``Environment``, the process functions, and the ``Resource`` objects stay the
-user's own code. `heval` adds only what SimPy leaves out for a health economic
+user's own code. `heormodel` adds only what SimPy leaves out for a health economic
 model:
 
 - a per-entity `_DESToolkit` for cost and utility accrual with discounting,
-  reusing `heval.models._accrual` between events exactly as the continuous-time
+  reusing `heormodel.models._accrual` between events exactly as the continuous-time
   microsimulation engine does,
 - per-iteration seeding from a `SeedManager`, so results do not depend on how a
   run is chunked across workers,
@@ -22,7 +22,7 @@ discount through the shared `_accrual` module. Discounting is continuous
 (``exp(-rate * t)``), matching `MicrosimModel(clock="continuous")`, because a DES runs
 in continuous time.
 
-``simpy`` is an optional dependency: install with ``uv pip install 'heval[des]'``.
+``simpy`` is an optional dependency: install with ``uv pip install 'heormodel[des]'``.
 """
 
 from __future__ import annotations
@@ -61,7 +61,7 @@ def _require_simpy() -> Any:
     except ImportError as err:  # pragma: no cover
         raise ImportError(
             "The discrete-event engine requires simpy; install it with "
-            "uv pip install 'heval[des]'."
+            "uv pip install 'heormodel[des]'."
         ) from err
     return simpy
 
@@ -76,7 +76,7 @@ def _iteration_key(label: Any) -> int:
 
 
 class _DESToolkit:
-    """What `heval` adds on top of SimPy, one instance per entity per run.
+    """What `heormodel` adds on top of SimPy, one instance per entity per run.
 
     Handed to each process as ``toolkit``. It accrues discounted cost and effect
     for its entity, marks trajectory segments and resource events in the shared

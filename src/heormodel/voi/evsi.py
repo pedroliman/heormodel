@@ -78,7 +78,7 @@ def evsi_regression(
             `simulate_summaries`).
         wtp: Willingness to pay per unit of effect.
         effect: Effect column (default: the primary effect).
-        method: Metamodel; see `heval.voi.evppi.evppi`.
+        method: Metamodel; see `heormodel.voi.evppi.evppi`.
         n_knots: Spline knot count.
         degree: Spline degree.
         seed: Subsample seed for the GP method.

@@ -1,4 +1,4 @@
-"""Run orchestration (`heval.run`).
+"""Run orchestration (`heormodel.run`).
 
 Seed management, the probabilistic run loop (serial or ``joblib``-parallel),
 bring-your-own-outputs ingestion point, and convergence diagnostics.

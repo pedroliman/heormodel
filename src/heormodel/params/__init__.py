@@ -1,4 +1,4 @@
-"""Parameter distributions and probabilistic sampling (`heval.params`).
+"""Parameter distributions and probabilistic sampling (`heormodel.params`).
 
 Defines distribution specs (with method-of-moments constructors from
 published means and standard errors), and `ParameterSet`, which

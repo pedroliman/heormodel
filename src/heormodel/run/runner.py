@@ -8,7 +8,7 @@ Two first-class entry points:
 - `as_outcomes` normalises a bring-your-own-outputs table (from
   any external simulator or spreadsheet export) into the standard
   `Outcomes` structure so it can flow straight
-  into `heval.cea` and `heval.voi` without touching an engine.
+  into `heormodel.cea` and `heormodel.voi` without touching an engine.
 """
 
 from __future__ import annotations
@@ -142,7 +142,7 @@ def run_psa(
         model: A `ModelEngine` or a callable
             ``draws -> Outcomes``.
         draws: Parameter draw matrix (rows = iterations), e.g. from
-            `heval.params.ParameterSet.sample`.
+            `heormodel.params.ParameterSet.sample`.
         n_jobs: ``joblib`` worker count; ``-1`` (default) uses all cores.
         sequential: Run in-process on one worker, the readable off switch
             for debugging and reproducibility checks. Forces sequential

@@ -119,8 +119,8 @@ def plot_ceac(
     """Cost-effectiveness acceptability curves, optionally with the frontier.
 
     Args:
-        ceac_df: Output of `heval.cea.ceac`.
-        ceaf_df: Optional output of `heval.cea.ceaf`; drawn as a bold
+        ceac_df: Output of `heormodel.cea.ceac`.
+        ceaf_df: Optional output of `heormodel.cea.ceaf`; drawn as a bold
             trace over the optimal strategy's curve.
         ax: Existing axes to draw on.
 
@@ -172,7 +172,7 @@ def plot_expected_loss(
     cost of decision uncertainty at each threshold together.
 
     Args:
-        loss_df: Output of `heval.cea.expected_loss`.
+        loss_df: Output of `heormodel.cea.expected_loss`.
         ax: Existing axes to draw on.
 
     Example:
@@ -317,7 +317,7 @@ def tornado_data(
     ``comparator``) on each parameter and evaluates it at the parameter's
     outer ``quantiles``. This estimates a one-way analysis from the probabilistic draws.
 
-    With a `heval.dsa` ``(design, descriptor)`` pair from `one_way` or
+    With a `heormodel.dsa` ``(design, descriptor)`` pair from `one_way` or
     `one_at_a_time` (the DSA path), reads the NMB at each parameter's lowest
     and highest swept value directly, ignoring ``quantiles``.
 
@@ -401,7 +401,7 @@ def heatmap_data(
     """Reshape a two-parameter grid result into a matrix for a heatmap.
 
     Joins a per-scenario value (one number per iteration, e.g. an ICER or
-    incremental NMB) to a `heval.dsa.grid` descriptor and pivots it into a
+    incremental NMB) to a `heormodel.dsa.grid` descriptor and pivots it into a
     matrix over two gridded parameters. The base-case scenario is dropped.
 
     Args:

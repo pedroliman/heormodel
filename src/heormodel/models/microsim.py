@@ -17,7 +17,7 @@ model structure, and `evaluate` takes only the parameter draw matrix, returning
 injected at construction; each iteration draws a stream keyed by its index, so
 iteration ``i`` is reproducible in isolation and results do not depend on how a
 run is chunked across workers. Cost and utility accrual, discounting, and
-aggregation live in the shared `heval.models._accrual` module.
+aggregation live in the shared `heormodel.models._accrual` module.
 """
 
 from __future__ import annotations

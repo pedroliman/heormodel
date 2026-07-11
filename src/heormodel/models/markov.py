@@ -15,7 +15,7 @@ are deterministic given a parameter set, so no random streams are involved.
 Rewards follow the transition-dynamics convention. State rewards accrue on the
 occupancy trace. Optional transition rewards accrue on the flow between states,
 so a one-time cost of dying or a disutility of onset attaches to the transition
-rather than to a state. Discounting reuses `heval.models._accrual`, and the
+rather than to a state. Discounting reuses `heormodel.models._accrual`, and the
 within-cycle correction offers Simpson's 1/3 rule, the half-cycle weights, or
 none.
 """

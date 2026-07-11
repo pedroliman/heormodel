@@ -20,7 +20,7 @@ from heormodel.models.outcomes import Outcomes
 from heormodel.params.sampling import ParameterSet
 from heormodel.run.seeds import SeedManager
 
-_TRACKED_PACKAGES = ("heval", "numpy", "scipy", "pandas", "joblib", "scikit-learn")
+_TRACKED_PACKAGES = ("heormodel", "numpy", "scipy", "pandas", "joblib", "scikit-learn")
 
 
 def _versions() -> dict[str, str]:
@@ -115,7 +115,7 @@ def capture_run(
         params: The sampled `ParameterSet`, if any.
         outcomes: The resulting outcomes, if available.
         draw_sources: Where each parameter's draws came from, for analyses
-            that mix sources with `heval.params.mix_draws` (for example,
+            that mix sources with `heormodel.params.mix_draws` (for example,
             ``{"beta": "ABC posterior", "u_healthy": "literature"}``).
         note: Free-text description of the analysis.
 

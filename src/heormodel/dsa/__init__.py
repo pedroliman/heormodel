@@ -1,9 +1,9 @@
-"""Deterministic sensitivity analysis (`heval.dsa`).
+"""Deterministic sensitivity analysis (`heormodel.dsa`).
 
 Where probabilistic analysis answers how uncertain a decision is,
 deterministic sensitivity analysis (DSA) answers which parameters move the
 result and by how much. Both read the same model. This module builds
-scenario designs that run through `heval.run.run_psa` unchanged: a design is
+scenario designs that run through `heormodel.run.run_psa` unchanged: a design is
 a draw matrix whose rows are scenarios instead of random draws, paired with a
 descriptor table that names what each scenario varied.
 

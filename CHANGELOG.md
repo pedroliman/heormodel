@@ -105,6 +105,15 @@ Each entry links to the pull request that introduced it. Add a line under
   silent unless `progress=True` is explicit
   ([#15](https://github.com/pedroliman/heormodel/pull/15)).
 
+### Fixed
+
+- `heormodel.__version__` reported `0.0.0` on every install because the package
+  read its version from `version("heval")`, the pre-rename distribution name.
+  It now reads `version("heormodel")`. The stale `heval` name is also gone from
+  every module docstring, cross-reference, and error message in `src/`, so the
+  optional-dependency hints now point at `heormodel[des]` and
+  `heormodel[calibration]` ([#28](https://github.com/pedroliman/heormodel/issues/28)).
+
 ## [0.6.0] - 2026-07-05
 
 ### Changed

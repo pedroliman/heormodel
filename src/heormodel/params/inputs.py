@@ -5,10 +5,10 @@ base-case set of point values, some carry a draw matrix exported from another
 tool, and some carry a posterior sample with weights. These three entry points
 turn each source into a **parameter draw matrix**: a tidy ``pandas.DataFrame``
 with one row per iteration (index named ``"iteration"``) and one numeric column
-per scalar parameter. Once a table is that, `heval.run.run_psa`, `heval.cea`,
-and `heval.voi` do not care where it came from.
+per scalar parameter. Once a table is that, `heormodel.run.run_psa`, `heormodel.cea`,
+and `heormodel.voi` do not care where it came from.
 
-This is the parameter-side analogue of `heval.run.as_outcomes`, the
+This is the parameter-side analogue of `heormodel.run.as_outcomes`, the
 bring-your-own-outputs entry point on the outcome side.
 """
 
@@ -25,7 +25,8 @@ def single_draw(values: Mapping[str, float]) -> pd.DataFrame:
     """Wrap one named set of parameter values as a one-row draw matrix.
 
     The row's iteration index is 0, so the result flows straight into
-    `heval.run.run_psa` for a base-case (deterministic) run alongside the probabilistic analysis.
+    `heormodel.run.run_psa` for a base-case (deterministic) run alongside the
+    probabilistic analysis.
 
     Args:
         values: Parameter names mapped to point values, for example a
