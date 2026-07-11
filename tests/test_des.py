@@ -103,8 +103,8 @@ class TestExponentialCohort:
         return MicrosimModel(
             states=("alive", "dead"),
             clock="continuous",
-            hazards=hazards,
-            payoffs=payoffs,
+            event_times=hazards,
+            state_costs_and_utilities=payoffs,
             population=60_000,
             strategies={"care": {}},
             horizon=self.HORIZON,

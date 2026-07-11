@@ -60,8 +60,8 @@ class TestDiscreteValidation:
         horizon = 40
         engine = MicrosimModel(
             states=("H", "S", "D"),
-            transition=_transition,
-            payoffs=_payoffs,
+            transition_probabilities=_transition,
+            state_costs_and_utilities=_payoffs,
             population=60_000,
             strategies={"care": {}},
             horizon=horizon,
@@ -98,8 +98,8 @@ class TestContinuousValidation:
         engine = MicrosimModel(
             states=("alive", "dead"),
             clock="continuous",
-            hazards=hazards,
-            payoffs=payoffs,
+            event_times=hazards,
+            state_costs_and_utilities=payoffs,
             population=60_000,
             strategies={"care": {}},
             horizon=horizon,
@@ -126,8 +126,8 @@ class TestContinuousValidation:
         engine = MicrosimModel(
             states=("a", "b"),
             clock="continuous",
-            hazards=hazards,
-            payoffs=payoffs,
+            event_times=hazards,
+            state_costs_and_utilities=payoffs,
             population=10,
             strategies={"care": {}},
             horizon=100.0,
@@ -141,8 +141,8 @@ class TestContinuousValidation:
 def _small_engine(**overrides):
     kwargs = dict(
         states=("H", "S", "D"),
-        transition=_transition,
-        payoffs=_payoffs,
+        transition_probabilities=_transition,
+        state_costs_and_utilities=_payoffs,
         population=200,
         strategies={"care": {}},
         horizon=10,
@@ -206,7 +206,7 @@ class TestContract:
             return COST_VEC[state] * params.get("mult", 1.0), EFF_VEC[state]
 
         engine = _small_engine(
-            payoffs=payoffs, strategies={"base": {}, "double": {"mult": 2.0}}
+            state_costs_and_utilities=payoffs, strategies={"base": {}, "double": {"mult": 2.0}}
         )
         summary = engine.evaluate(_draws(3)).summary()
         assert summary.loc["double", "cost"] == pytest.approx(
@@ -224,7 +224,9 @@ class TestPopulationAndTrace:
             sick = (state == 1).astype(float)
             return COST_VEC[state] + sick * attrs["frail"].to_numpy() * 1_000.0, EFF_VEC[state]
 
-        engine = _small_engine(payoffs=payoffs, population=population, n_individuals=300)
+        engine = _small_engine(
+            state_costs_and_utilities=payoffs, population=population, n_individuals=300
+        )
         out = engine.evaluate(_draws(2))
         assert out.n_iterations == 2
 
@@ -255,7 +257,8 @@ class TestDurationGroups:
             return np.zeros(1), np.zeros(1)
 
         engine = MicrosimModel(
-            states=("H", "S1", "S2", "D"), transition=transition, payoffs=payoffs,
+            states=("H", "S1", "S2", "D"),
+            transition_probabilities=transition, state_costs_and_utilities=payoffs,
             population=1, strategies={"s": {}}, horizon=len(path) - 1,
             seed_manager=SeedManager(0), duration_groups={"sick_dur": ("S1", "S2")},
         )
@@ -269,7 +272,7 @@ class TestDurationGroups:
             assert "sick_dur" not in attrs.columns
             return _transition(params, state, attrs, rng)
 
-        engine = _small_engine(transition=transition)
+        engine = _small_engine(transition_probabilities=transition)
         engine.evaluate(_draws())
 
 
@@ -277,21 +280,23 @@ class TestClockValidation:
     def test_bad_clock_rejected(self):
         with pytest.raises(ValueError, match="clock"):
             MicrosimModel(
-                states=("H", "S", "D"), transition=_transition, payoffs=_payoffs,
+                states=("H", "S", "D"),
+                transition_probabilities=_transition,
+                state_costs_and_utilities=_payoffs,
                 population=10, strategies={"care": {}}, seed_manager=SeedManager(0),
                 clock="quarterly",
             )
 
     def test_discrete_requires_transition(self):
-        with pytest.raises(TypeError, match="transition"):
+        with pytest.raises(TypeError, match="transition_probabilities"):
             MicrosimModel(
-                states=("H", "S", "D"), payoffs=_payoffs, population=10,
+                states=("H", "S", "D"), state_costs_and_utilities=_payoffs, population=10,
                 strategies={"care": {}}, seed_manager=SeedManager(0),
             )
 
-    def test_continuous_requires_hazards(self):
-        with pytest.raises(TypeError, match="hazards"):
+    def test_continuous_requires_event_times(self):
+        with pytest.raises(TypeError, match="event_times"):
             MicrosimModel(
-                states=("H", "S", "D"), clock="continuous", payoffs=_payoffs,
+                states=("H", "S", "D"), clock="continuous", state_costs_and_utilities=_payoffs,
                 population=10, strategies={"care": {}}, seed_manager=SeedManager(0),
             )

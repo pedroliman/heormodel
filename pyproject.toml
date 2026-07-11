@@ -52,6 +52,11 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "NPY"]
 
+[tool.ruff.lint.isort]
+# The mdm_des example is a folder of sibling modules run as a script; group its
+# flat imports together rather than mixing them into the third-party block.
+known-local-folder = ["model", "mortality", "outcomes", "parameters", "plots", "transitions"]
+
 [tool.mypy]
 ignore_missing_imports = true
 disallow_untyped_defs = true
@@ -60,6 +65,7 @@ files = ["src/heormodel"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["examples"]
 
 [tool.coverage.run]
 source = ["src/heormodel"]

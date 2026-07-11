@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from numpy.typing import ArrayLike
 
-from heormodel.cea.nb import nmb
+from heormodel.cea.ceac import expected_loss
 from heormodel.models.outcomes import Outcomes
 
 
@@ -21,8 +21,9 @@ def evpi(
     """Expected value of perfect information per decision.
 
     EVPI is the expected NMB gain from resolving **all** uncertainty:
-    ``E[max_d NMB_d] - max_d E[NMB_d]``, estimated directly from the
-    iterations.
+    ``E[max_d NMB_d] - max_d E[NMB_d]``. It equals the smallest expected loss
+    across strategies at each willingness-to-pay value, so it reads straight
+    off the expected loss curves.
 
     Args:
         outcomes: Outcomes from a probabilistic sensitivity analysis.
@@ -42,10 +43,7 @@ def evpi(
         2.5
     """
     grid = np.atleast_1d(np.asarray(wtp, dtype=np.float64))
-    values = []
-    for lam in grid:
-        nb = nmb(outcomes, float(lam), effect=effect).to_numpy(dtype=np.float64)
-        values.append(float(nb.max(axis=1).mean() - nb.mean(axis=0).max()))
+    values = expected_loss(outcomes, grid, effect=effect).min(axis=1).to_numpy(dtype=np.float64)
     if np.isscalar(wtp) or (hasattr(wtp, "ndim") and getattr(wtp, "ndim", 1) == 0):
-        return values[0]
+        return float(values[0])
     return pd.Series(values, index=pd.Index(grid, name="wtp"), name="evpi")

@@ -4,9 +4,9 @@ title: Microsimulation engine
 
 This tutorial shows how to build an individual-level model with `MicrosimModel`, the model type to use when outcomes depend on a patient's history or on heterogeneity between patients, neither of which a cohort average can carry. It runs the same `run_psa`, cost-effectiveness, and value-of-information calls as the [Markov cohort model tutorial](mdm-cohort.qmd), so the two are worth reading as a pair. This page walks through [`examples/microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/microsim.py) step by step.
 
-## Specifying individual-level transitions and payoffs
+## Specifying individual-level transition probabilities and utilities
 
-The model has three states, Healthy, Sick, and Dead, over a 30-year horizon. Two features rule out a single cohort transition matrix: each individual carries a `frailty` attribute that scales their sick-state cost and mortality, and the Sick to Dead risk rises with time already spent sick. The engine maintains `time_in_state` and passes it, alongside the sampled attributes, to the `transition` and `payoffs` functions.
+The model has three states, Healthy, Sick, and Dead, over a 30-year horizon. Two features rule out a single cohort transition matrix: each individual carries a `frailty` attribute that scales their sick-state cost and mortality, and the Sick to Dead risk rises with time already spent sick. The engine maintains `time_in_state` and passes it, alongside the sampled attributes, to the `transition_probabilities` and `state_costs_and_utilities` functions.
 
 ```{python}
 import numpy as np
@@ -19,7 +19,7 @@ WORSENING = 0.05  # extra Sick -> Dead risk per year already spent sick
 def population(rng, n):
     return pd.DataFrame({"frailty": rng.lognormal(mean=0.0, sigma=0.3, size=n)})
 
-def transition(params, state, attrs, rng):
+def transition_probabilities(params, state, attrs, rng):
     n = len(state)
     probs = np.zeros((n, 3))
     on_tx = bool(params["on_treatment"])
@@ -37,7 +37,7 @@ def transition(params, state, attrs, rng):
     probs[state == 2, 2] = 1.0  # Dead is absorbing
     return probs
 
-def payoffs(params, state, attrs):
+def state_costs_and_utilities(params, state, attrs):
     n = len(state)
     cost, qaly = np.zeros(n), np.zeros(n)
     frailty = attrs["frailty"].to_numpy()
@@ -73,7 +73,8 @@ parameters = ParameterSet({
 draws = parameters.sample(256, seed=seeds.generator())
 
 engine = MicrosimModel(
-    states=STATES, transition=transition, payoffs=payoffs,
+    states=STATES, transition_probabilities=transition_probabilities,
+    state_costs_and_utilities=state_costs_and_utilities,
     population=population, n_individuals=800,
     strategies={"Standard care": {"on_treatment": 0.0},
                 "Treatment": {"on_treatment": 1.0}},
@@ -123,8 +124,8 @@ def cohort(horizon=40, rate=0.03):
 
 check = MicrosimModel(
     states=STATES,
-    transition=lambda params, state, attrs, rng: P[state],
-    payoffs=lambda params, state, attrs: (cost_vec[state], eff_vec[state]),
+    transition_probabilities=lambda params, state, attrs, rng: P[state],
+    state_costs_and_utilities=lambda params, state, attrs: (cost_vec[state], eff_vec[state]),
     population=60_000, strategies={"cohort": {}}, horizon=40,
     seed_manager=SeedManager(1),
 )

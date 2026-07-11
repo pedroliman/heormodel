@@ -16,6 +16,7 @@ from heormodel.cea import (
     ce_plane,
     ceac,
     ceaf,
+    expected_loss,
     expected_nmb,
     frontier,
     icer_table,
@@ -156,3 +157,27 @@ class TestCeacCeaf:
     def test_ce_plane_unknown_comparator(self, simple_outcomes):
         with pytest.raises(KeyError):
             ce_plane(simple_outcomes, comparator="Z")
+
+
+class TestExpectedLoss:
+    def test_hand_computed_losses(self, simple_outcomes):
+        # At wtp=100: NMB_A = 0 in every iteration; NMB_B = 50, 50, 50, -150.
+        losses = expected_loss(simple_outcomes, wtp=[100.0])
+        assert losses.loc[100.0, "A"] == pytest.approx((50 * 3 + 0) / 4)
+        assert losses.loc[100.0, "B"] == pytest.approx(150 / 4)
+
+    def test_minimum_expected_loss_equals_evpi(self, simple_outcomes):
+        from heormodel.voi import evpi
+
+        grid = [0.0, 50.0, 100.0, 200.0, 400.0]
+        losses = expected_loss(simple_outcomes, wtp=grid)
+        pd.testing.assert_series_equal(
+            losses.min(axis=1), evpi(simple_outcomes, grid), check_names=False
+        )
+
+    def test_zero_loss_without_uncertainty(self):
+        costs = pd.DataFrame({"A": [0.0, 0.0], "B": [10.0, 10.0]})
+        effects = pd.DataFrame({"A": [0.0, 0.0], "B": [1.0, 1.0]})
+        losses = expected_loss(Outcomes.from_wide(costs, effects), wtp=[100.0])
+        assert losses.loc[100.0, "B"] == 0.0
+        assert losses.loc[100.0, "A"] == pytest.approx(90.0)

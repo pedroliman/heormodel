@@ -9,9 +9,10 @@ model enter the same pipeline via `as_outcomes`.
 
 Subpackages:
     - `heval.params`: distributions and correlated probabilistic sampling
-    - `heval.models`: engines behind the output contract
+    - `heval.models`: engines behind the output contract, plus state occupancy
+      over time from an event history
     - `heval.run`: seeds, run loop, bring-your-own-outputs ingestion
-    - `heval.cea`: incremental analysis, frontier, NMB/NHB, CEAC/CEAF
+    - `heval.cea`: incremental analysis, frontier, NMB/NHB, CEAC/CEAF, expected loss
     - `heval.dsa`: one-way, one-at-a-time, and grid deterministic sensitivity designs
     - `heval.voi`: EVPI, EVPPI, EVSI
     - `heval.calibrate`: ABC calibration (optional ``pyabc`` extra)

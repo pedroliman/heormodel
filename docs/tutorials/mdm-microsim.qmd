@@ -19,7 +19,7 @@ STATES = ("H", "S1", "S2", "D")
 def population(rng, n):
     return pd.DataFrame({"x": rng.uniform(0.95, 1.05, n)})
 
-def transition(p, state, attrs, rng):
+def transition_probabilities(p, state, attrs, rng):
     n = len(state); probs = np.zeros((n, 4))
     mult = 1.0 + (attrs["dur"].to_numpy() + 1.0) * p["rp_S1S2"]
     r_HD = -np.log(1 - p["p_HD"])
@@ -35,7 +35,7 @@ def transition(p, state, attrs, rng):
     probs[state == 3, 3] = 1.0
     return probs
 
-def payoffs(p, state, attrs):
+def state_costs_and_utilities(p, state, attrs):
     n = len(state); cost = np.zeros(n); util = np.zeros(n)
     dur, x, tx = attrs["dur"].to_numpy(), attrs["x"].to_numpy(), bool(p["on_treatment"])
     tx_cost = p["c_Trt"] if tx else 0.0
@@ -58,7 +58,8 @@ base = dict(p_HD=0.005, p_HS1=0.15, p_S1H=0.5, p_S1S2=0.105, rr_S1=3.0, rr_S2=10
             rp_S1S2=0.2, c_H=2000.0, c_S1=4000.0, c_S2=15000.0, c_Trt=12000.0,
             u_H=1.0, u_S1=0.75, u_S2=0.5, u_Trt=0.95, ru_S1S2=0.03)
 engine = MicrosimModel(
-    states=STATES, transition=transition, payoffs=payoffs, population=population,
+    states=STATES, transition_probabilities=transition_probabilities,
+    state_costs_and_utilities=state_costs_and_utilities, population=population,
     n_individuals=50_000, seed_manager=SeedManager(1),
     strategies={"No Treatment": {"on_treatment": 0.0}, "Treatment": {"on_treatment": 1.0}},
     horizon=30, discount_rate=0.03,

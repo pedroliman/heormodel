@@ -52,7 +52,7 @@ def population(rng: np.random.Generator, n: int) -> pd.DataFrame:
     return pd.DataFrame({"x": rng.uniform(0.95, 1.05, n)})
 
 
-def transition(
+def transition_probabilities(
     params: pd.Series, state: np.ndarray, attrs: pd.DataFrame, rng: np.random.Generator
 ) -> np.ndarray:
     """Per-cycle transition probabilities with duration-dependent mortality."""
@@ -79,7 +79,7 @@ def transition(
     return probs
 
 
-def payoffs(
+def state_costs_and_utilities(
     params: pd.Series, state: np.ndarray, attrs: pd.DataFrame
 ) -> tuple[np.ndarray, np.ndarray]:
     """Per-cycle cost and utility, with a duration-decaying treatment utility."""
@@ -110,7 +110,8 @@ def main() -> None:
     OUT.mkdir(exist_ok=True)
     seeds = SeedManager(1)
     engine = MicrosimModel(
-        states=STATES, transition=transition, payoffs=payoffs, population=population,
+        states=STATES, transition_probabilities=transition_probabilities,
+        state_costs_and_utilities=state_costs_and_utilities, population=population,
         n_individuals=POP,
         strategies={"No Treatment": {"on_treatment": 0.0},
                     "Treatment": {"on_treatment": 1.0}},

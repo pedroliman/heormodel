@@ -47,18 +47,19 @@ def make_pop(var):
         return pd.DataFrame({"z": np.ones(n) if var == 0 else rng.gamma(1 / var, var, n)})
     return population
 
-def transition(p, state, attrs, rng):
+def transition_probabilities(p, state, attrs, rng):
     probs = rows_from(hazards(p, state, attrs["z"].to_numpy()))
     probs[np.arange(len(state)), state] += 1.0 - probs.sum(axis=1)
     probs[state == 3] = [0.0, 0.0, 0.0, 1.0]
     return probs
 
-def payoffs(p, state, attrs):
+def state_costs_and_utilities(p, state, attrs):
     return COST[state], EFF[state]
 
 def microsim(n, var):
     return MicrosimModel(
-        states=STATES, transition=transition, payoffs=payoffs, population=make_pop(var),
+        states=STATES, transition_probabilities=transition_probabilities,
+        state_costs_and_utilities=state_costs_and_utilities, population=make_pop(var),
         n_individuals=n, strategies={"Standard of care": {}}, horizon=N_CYCLES,
         discount_rate=0.03, half_cycle_correction=True, seed_manager=SeedManager(1))
 
@@ -104,7 +105,8 @@ def hist_transition(p, state, attrs, rng):
     return probs
 
 hist = MicrosimModel(
-    states=STATES, transition=hist_transition, payoffs=payoffs, population=make_pop(0.5),
+    states=STATES, transition_probabilities=hist_transition,
+    state_costs_and_utilities=state_costs_and_utilities, population=make_pop(0.5),
     n_individuals=40_000, strategies={"Standard of care": {}}, horizon=N_CYCLES,
     discount_rate=0.03, half_cycle_correction=True, seed_manager=SeedManager(1),
     duration_groups={"tis": ("S1", "S2")})

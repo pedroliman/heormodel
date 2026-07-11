@@ -147,13 +147,13 @@ def micro_payoffs(
 
 def build_microsim(
     n_individuals: int, frailty_var: float, seeds: SeedManager,
-    *, transition=micro_transition, **kwargs,
+    *, transition_probabilities=micro_transition, **kwargs,
 ) -> MicrosimModel:
     """A microsimulation twin of the cohort model at one population size."""
     return MicrosimModel(
         states=STATES,
-        transition=transition,
-        payoffs=micro_payoffs,
+        transition_probabilities=transition_probabilities,
+        state_costs_and_utilities=micro_payoffs,
         population=make_population(frailty_var),
         n_individuals=n_individuals,
         strategies={STRATEGY: {}},
@@ -224,7 +224,7 @@ def main() -> None:
 
     hist = build_microsim(
         80_000, FRAILTY_VAR, seeds,
-        transition=hist_transition, duration_groups={"tis": ("S1", "S2")},
+        transition_probabilities=hist_transition, duration_groups={"tis": ("S1", "S2")},
     )
     hist_out = run_psa(hist, draws, sequential=True)
     hist_row = hist_out.summary().loc[STRATEGY]

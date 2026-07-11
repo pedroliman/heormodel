@@ -2,16 +2,20 @@
 title: Replication gallery
 ---
 
-This page collects three published Sick-Sicker cost-effectiveness tutorials, reproduced with `heormodel`, one per model type. Each replication first matches the source's deterministic results, then runs the same model through `heormodel.cea` and `heormodel.voi` to show how a probabilistic analysis extends it.
+This page collects four published Sick-Sicker cost-effectiveness tutorials, reproduced with `heormodel`, one per model type. Each replication first matches the source's deterministic results, then runs the same model through `heormodel.cea` and `heormodel.voi` to show how a probabilistic analysis extends it.
 
 | Replication | Engine | Deterministic result |
 |---|---|---|
 | [Cohort state-transition model](mdm-cohort.qmd) | `MarkovModel` | Matches the published results exactly |
 | [Time-dependent cohort model](mdm-cohort-timedep.qmd) | `MarkovModel`, per-cycle transitions | Matches the published results exactly |
 | [Microsimulation](mdm-microsim.qmd) | `MicrosimModel`, `duration_groups` | Matches within Monte Carlo error |
+| [Discrete-event simulation](mdm-des.qmd) | `MicrosimModel`, continuous clock | Matches the published figures within Monte Carlo error |
+
+The discrete-event source publishes figures rather than result tables. Its page reproduces the epidemiological curves, the cost axis, and the frontier structure of the published figures, matching the companion code on the two points that move the numbers: transition rewards accrued over the sojourn that ends in each transition, and six parameters the companion draws but never reads held at their base case.
 
 ## Sources
 
 - Alarid-Escudero F, Krijkamp EM, Enns EA, Yang A, Hunink MGM, Pechlivanoglou P, Jalal H. An introductory tutorial on cohort state-transition models in R using a cost-effectiveness analysis example. Medical Decision Making. 2023;43(1):3-20.
 - Alarid-Escudero F, Krijkamp EM, Enns EA, Yang A, Hunink MGM, Pechlivanoglou P, Jalal H. A tutorial on time-dependent cohort state-transition models in R using a cost-effectiveness analysis example. Medical Decision Making. 2023;43(1):21-41.
 - Krijkamp EM, Alarid-Escudero F, Enns EA, Jalal HJ, Hunink MGM, Pechlivanoglou P. Microsimulation modeling for health decision sciences using R: a tutorial. Medical Decision Making. 2018;38(3):400-422.
+- Lopez-Mendez M, Goldhaber-Fiebert JD, Alarid-Escudero F. A tutorial on discrete event simulation models using a cost-effectiveness analysis example in R. Medical Decision Making. 2026;46(5):533-548.

@@ -12,6 +12,33 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Added
 
+- Continuous-time Sick-Sicker replication (roadmap item 13):
+  `examples/mdm_des/` (a folder of building blocks composed by `run.py`) and a
+  website tutorial reproduce the published figures of the discrete-event
+  simulation tutorial of Lopez-Mendez, Goldhaber-Fiebert, and Alarid-Escudero
+  (Medical Decision Making 2026;46(5):533-548) on the continuous clock of
+  `MicrosimModel`, with the base case, epidemiological outcomes, and a 1,000-set
+  probabilistic analysis with acceptability, expected loss, and EVPI curves. It
+  matches the companion code on the two points that move the numbers: each
+  one-time transition amount (onset cost, onset disutility, cost of dying)
+  accrues over the sojourn that ends in it (reconstructed from the event
+  history), and six parameters the companion draws but never reads are held at
+  their base case. Three framework additions carry it:
+  `heormodel.models.LifeTable` samples time to death from piecewise-constant
+  age-specific mortality rates by exact cumulative-hazard inversion under a
+  hazard ratio; `MicrosimModel` returns the event history via
+  `evaluate(trace="events")` on either clock, which `heormodel.models.state_occupancy`
+  turns into state occupancy over time; and `heormodel.cea.expected_loss` with
+  `heormodel.report.plot_expected_loss` adds expected loss curves whose minimum
+  equals EVPI. A test cross-validates the replication's all-exponential variant,
+  including the sojourn-accrued transition amounts, against the continuous-time
+  Markov chain closed form ([#27](https://github.com/pedroliman/heormodel/pull/27)).
+
+- `MicrosimModel` callbacks renamed for clarity: `hazards` is now `event_times`,
+  `transition` is now `transition_probabilities`, and `payoffs` is now
+  `state_costs_and_utilities`, each named for what the caller supplies
+  ([#27](https://github.com/pedroliman/heormodel/pull/27)).
+
 - Value-of-information tutorial: `examples/voi_tutorial.py` and a website tutorial
   run EVPI, EVPPI, and EVSI end to end on the Gaussian linear decision model that
   anchors the regression VoI literature (Strong, Oakley & Brennan, 2014; Strong,

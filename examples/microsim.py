@@ -58,7 +58,7 @@ def population(rng: np.random.Generator, n: int) -> pd.DataFrame:
     return pd.DataFrame({"frailty": rng.lognormal(mean=0.0, sigma=0.3, size=n)})
 
 
-def transition(
+def transition_probabilities(
     params: pd.Series, state: np.ndarray, attrs: pd.DataFrame, rng: np.random.Generator
 ) -> np.ndarray:
     """Per-cycle transition probabilities, with history and heterogeneity."""
@@ -83,7 +83,7 @@ def transition(
     return probs
 
 
-def payoffs(
+def state_costs_and_utilities(
     params: pd.Series, state: np.ndarray, attrs: pd.DataFrame
 ) -> tuple[np.ndarray, np.ndarray]:
     """Per-cycle cost and QALY of each individual's current state."""
@@ -122,8 +122,8 @@ def main() -> None:
 
     engine = MicrosimModel(
         states=STATES,
-        transition=transition,
-        payoffs=payoffs,
+        transition_probabilities=transition_probabilities,
+        state_costs_and_utilities=state_costs_and_utilities,
         population=population,
         n_individuals=POP,
         strategies={

@@ -81,7 +81,10 @@ def _payoffs(p, state, attrs):
 
 def _microsim(n, var, seed=1):
     return MicrosimModel(
-        states=STATES, transition=_transition, payoffs=_payoffs, population=_make_pop(var),
+        states=STATES,
+        transition_probabilities=_transition,
+        state_costs_and_utilities=_payoffs,
+        population=_make_pop(var),
         n_individuals=n, strategies={STRATEGY: {}}, horizon=N_CYCLES,
         discount_rate=0.03, half_cycle_correction=True, seed_manager=SeedManager(seed),
     )
