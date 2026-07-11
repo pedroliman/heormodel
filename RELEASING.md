@@ -21,10 +21,16 @@ Every PR that changes behavior adds one line under `## [Unreleased]` in
 4. Commit as `Release vX.Y.Z`, merge to `main` through a pull request.
 5. On merge, the `Tag release` workflow
    (`.github/workflows/tag-release.yml`) reads the version from
-   `pyproject.toml`, tags the merge commit `vX.Y.Z`, and creates a GitHub
-   release from the matching `CHANGELOG.md` section. Publishing that release
-   triggers the `Release` workflow (`.github/workflows/release.yml`), which
-   builds the package with `uv build` and publishes it to PyPI.
+   `pyproject.toml`, tags the merge commit `vX.Y.Z`, creates a GitHub release
+   from the matching `CHANGELOG.md` section, and (in the same workflow run)
+   builds the package with `uv build` and publishes it to PyPI. The publish
+   step runs in the same workflow deliberately: a release created with the
+   default `GITHUB_TOKEN` does not trigger other workflows, so a separate
+   `release: published`-triggered job would silently never run.
+6. If a publish is ever stuck for a tag that already has a GitHub release
+   (check the `Tag release` and `Release` workflow runs in the `Actions` tab),
+   trigger `.github/workflows/release.yml` manually: `Actions` -> `Release` ->
+   `Run workflow`, entering the tag (e.g. `v0.7.0`).
 
 ## One-time PyPI setup
 

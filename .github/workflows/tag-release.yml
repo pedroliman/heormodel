@@ -10,6 +10,9 @@ permissions:
 jobs:
   tag:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      created: ${{ steps.check.outputs.exists == 'false' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -57,3 +60,20 @@ jobs:
             --title "v${{ steps.version.outputs.version }}" \
             --notes-file release-notes.md \
             --target "${{ github.sha }}"
+
+  publish:
+    needs: tag
+    if: needs.tag.outputs.created == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/heormodel
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - run: uv build
+      - uses: pypa/gh-action-pypi-publish@release/v1
