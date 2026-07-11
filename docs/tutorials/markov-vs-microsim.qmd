@@ -71,7 +71,7 @@ cohort.evaluate(draws).summary().round(3)
 
 ## Cross-validating the two engines
 
-With a memoryless, homogeneous population, the microsimulation mean should approach the cohort trace as the population grows; if it did not, one of the two implementations would have a bug. The check below runs the microsimulation at increasing population sizes and compares each to the cohort trace computed above.
+With a memoryless, homogeneous population, the microsimulation mean should approach the cohort trace as the population grows; if it did not, one of the two models would have a coding error. The check below runs the microsimulation at increasing population sizes and compares each to the cohort trace computed above.
 
 ```{python}
 rows = [dict(n=n, **run_psa(microsim(n, 0.0), draws, seed=1, sequential=True)
@@ -94,7 +94,7 @@ Quality-adjusted life-years rise by about 8% and cost by about 2% against the co
 
 ## Representing history with duration groups
 
-The same machinery also carries history, which the frailty example above did not need. This section makes mortality in the sick states rise 8% for every year already spent sick. A cohort model can only represent that by adding a tunnel state for each duration bucket, since a Markov transition cannot depend on how long an individual has already been in a state; the microsimulation instead tracks a `duration_groups` counter per individual and reads it directly in the transition function, without restructuring the state space.
+The same machinery also carries history, which the frailty example above did not need. This section makes mortality in the sick states rise 8% for every year already spent sick. A cohort model can only represent that by adding a tunnel state for each year already spent sick, since a Markov transition cannot depend on how long an individual has been in a state; the microsimulation instead tracks a `duration_groups` counter per individual and reads it directly in the transition function, without restructuring the state space.
 
 ```{python}
 def hist_transition(p, intervention, state, attrs, rng):
