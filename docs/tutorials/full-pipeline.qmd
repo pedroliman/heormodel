@@ -2,6 +2,12 @@
 title: Full pipeline
 ---
 
+<!-- colab-badge:start -->
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pedroliman/heormodel/blob/main/docs/_notebooks/full-pipeline.ipynb)
+
+<!-- colab-badge:end -->
+
 This tutorial shows how to run the standard probabilistic sensitivity analysis workflow end to end: specify parameters, sample draws, evaluate a model with `run_psa`, then feed the outcomes to cost-effectiveness and value-of-information analysis. [Bring your own outputs](byo-outputs.qmd) covers the analysis functions in more detail; here the focus is the run itself.
 
 ## Specifying and sampling parameters

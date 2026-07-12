@@ -2,6 +2,12 @@
 title: Discrete-event simulation replication
 ---
 
+<!-- colab-badge:start -->
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pedroliman/heormodel/blob/main/docs/_notebooks/mdm-des.ipynb)
+
+<!-- colab-badge:end -->
+
 This tutorial shows how to reproduce the published figures of the continuous-time Sick-Sicker discrete-event simulation of Lopez-Mendez and others (2026): competing time-to-event transitions with age-dependent mortality from a life table, a Weibull hazard on time spent Sick, transition costs and utilities accrued over the preceding sojourn, epidemiological outcomes read from the event history, and a probabilistic analysis with expected loss curves.
 
 The model is large enough that its parts live in separate files under [`examples/mdm_des/`](https://github.com/pedroliman/heormodel/tree/main/examples/mdm_des). This page loads those parts and shows how they fit together, describing each by what it takes in and returns. Reproducing the figures means matching the companion R code rather than the Table 1 specification on two points, both handled inside those parts: transition amounts accrue over the sojourn that ends in each transition, and six parameters the companion draws but never reads are held at their base case.

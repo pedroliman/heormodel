@@ -27,3 +27,15 @@ jobs:
         with:
           files: coverage.xml
           fail_ci_if_error: false
+
+  colab-notebooks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync --extra docs
+      - run: uv run python docs/build_colab_notebooks.py
+      - name: Check the Colab notebooks and badges are up to date
+        run: git diff --exit-code docs/tutorials docs/_notebooks

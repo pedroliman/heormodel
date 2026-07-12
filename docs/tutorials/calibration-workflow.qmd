@@ -2,6 +2,12 @@
 title: Calibration workflow
 ---
 
+<!-- colab-badge:start -->
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pedroliman/heormodel/blob/main/docs/_notebooks/calibration-workflow.ipynb)
+
+<!-- colab-badge:end -->
+
 This tutorial shows how to mix two parameter sources in one analysis: some parameters are calibrated to observed data, and the rest come from the literature. Both feed one probabilistic sensitivity analysis that flows through cost-effectiveness and value-of-information analysis exactly as a single-source analysis would. It builds on the [full pipeline tutorial](full-pipeline.qmd) and walks through [`examples/calibration_workflow.py`](https://github.com/pedroliman/heormodel/blob/main/examples/calibration_workflow.py) step by step. Calibration needs the `calibration` extra: `uv pip install 'heormodel[calibration]'`.
 
 ## Specifying the disease model

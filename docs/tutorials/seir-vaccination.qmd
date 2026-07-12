@@ -2,6 +2,12 @@
 title: Compartmental transmission model
 ---
 
+<!-- colab-badge:start -->
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pedroliman/heormodel/blob/main/docs/_notebooks/seir-vaccination.ipynb)
+
+<!-- colab-badge:end -->
+
 This tutorial shows how to build an infectious-disease cost-effectiveness model with `ODEModel`, the engine for systems of ordinary differential equations, using a susceptible-exposed-infectious-recovered (SEIR) model of a vaccination program. A transmission model is what the cohort and microsimulation engines cannot express: the hazard a susceptible person faces is not fixed but rises and falls with how many others are infectious, so the compartments are coupled through a force of infection that changes over the course of the epidemic. Full script: [`examples/seir_vaccination.py`](https://github.com/pedroliman/heormodel/blob/main/examples/seir_vaccination.py).
 
 ## Specifying the compartments and their dynamics

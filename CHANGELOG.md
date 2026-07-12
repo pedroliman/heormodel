@@ -12,6 +12,12 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Added
 
+- An "Open in Colab" badge on every tutorial with executable code, backed by a
+  runnable notebook under `docs/_notebooks/` that `docs/build_colab_notebooks.py`
+  generates from the tutorial. Each notebook opens with a setup cell that installs
+  `heormodel` from the repository; the discrete-event simulation replication
+  clones the repository so the model code and mortality table it reads are present
+  ([#45](https://github.com/pedroliman/heormodel/issues/45)).
 - `MarkovModel.trace(params, intervention)` returns the cohort occupancy trace
   (a `cycle` column and one occupancy column per state), the public parallel to
   `ODEModel.trajectory`, for inspecting and validating a cohort model

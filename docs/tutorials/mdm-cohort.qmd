@@ -2,6 +2,12 @@
 title: Cohort state-transition model
 ---
 
+<!-- colab-badge:start -->
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pedroliman/heormodel/blob/main/docs/_notebooks/mdm-cohort.ipynb)
+
+<!-- colab-badge:end -->
+
 This tutorial shows how to build a cohort state-transition model with `MarkovModel` and validate it against a published result, using the introductory Sick-Sicker analysis of Alarid-Escudero and others (2023). Reproducing a known answer first, before trusting the model on a new question, is the standard check for any cost-effectiveness model. Full script: [`examples/mdm_cohort.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_cohort.py); companion replications: [replication gallery](replication-gallery.qmd).
 
 ## Specifying the four-state model

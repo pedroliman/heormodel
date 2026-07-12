@@ -48,6 +48,9 @@ heormodel = ["py.typed"]
 line-length = 100
 target-version = "py311"
 src = ["src", "tests"]
+# Notebooks under docs/_notebooks are generated from the tutorials, which are not
+# linted, so mirror that and skip them here.
+extend-exclude = ["docs/_notebooks"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "NPY"]

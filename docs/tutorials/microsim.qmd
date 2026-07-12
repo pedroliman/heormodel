@@ -2,6 +2,12 @@
 title: Microsimulation engine
 ---
 
+<!-- colab-badge:start -->
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pedroliman/heormodel/blob/main/docs/_notebooks/microsim.ipynb)
+
+<!-- colab-badge:end -->
+
 This tutorial shows how to build an individual-level model with `MicrosimModel`, the model type to use when outcomes depend on a patient's history or on heterogeneity between patients, neither of which a cohort average can carry. It runs the same `run_psa`, cost-effectiveness, and value-of-information calls as the [Markov cohort model tutorial](mdm-cohort.qmd), so the two are worth reading as a pair. This page walks through [`examples/microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/microsim.py) step by step.
 
 ## Specifying individual-level transition probabilities and utilities

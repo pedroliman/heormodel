@@ -2,6 +2,12 @@
 title: Bring your own outputs
 ---
 
+<!-- colab-badge:start -->
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pedroliman/heormodel/blob/main/docs/_notebooks/byo-outputs.ipynb)
+
+<!-- colab-badge:end -->
+
 This tutorial shows how to take a costs-and-effects table computed outside `heormodel`, a spreadsheet export or a legacy simulator's output, and run it through the complete analysis: cost-effectiveness, value of information, plots, and a reproducibility record, without building a model engine. This page walks through [`examples/byoo_example.py`](https://github.com/pedroliman/heormodel/blob/main/examples/byoo_example.py) step by step. Install `heormodel` first: see the [overview](../index.qmd).
 
 ## Simulating an external results table

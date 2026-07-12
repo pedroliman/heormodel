@@ -2,6 +2,12 @@
 title: Microsimulation replication
 ---
 
+<!-- colab-badge:start -->
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pedroliman/heormodel/blob/main/docs/_notebooks/mdm-microsim.ipynb)
+
+<!-- colab-badge:end -->
+
 This tutorial shows how to reproduce the Sick-Sicker microsimulation of Krijkamp and others (2018) with `MicrosimModel`, building on the [microsimulation engine tutorial](microsim.qmd). Full script: [`examples/mdm_microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_microsim.py).
 
 ## Modeling duration-dependent risk and a treatment effect modifier

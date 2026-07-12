@@ -111,3 +111,9 @@ The site in `docs/` builds with [Quarto](https://quarto.org) and [quartodoc](htt
 uv run quartodoc build --config docs/_quarto.yml
 quarto preview docs
 ```
+
+Each tutorial also carries an "Open in Colab" badge backed by a runnable notebook under `docs/_notebooks/`. Regenerate the badges and notebooks after editing a tutorial; continuous integration checks they stay in sync:
+
+```bash
+uv run python docs/build_colab_notebooks.py
+```

@@ -2,6 +2,12 @@
 title: Parameter inputs from data
 ---
 
+<!-- colab-badge:start -->
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pedroliman/heormodel/blob/main/docs/_notebooks/parameter-inputs.ipynb)
+
+<!-- colab-badge:end -->
+
 Not every analysis starts from `ParameterSet` distributions: some run at one base-case set of point values, some carry a draw matrix exported from another tool, and some carry a posterior sample with weights. This tutorial shows how to turn each of those three sources into a parameter draw matrix with `single_draw` (via `ParameterSet.at_means`), `read_draws`, and `resample_posterior`. It walks through [`examples/parameter_inputs.py`](https://github.com/pedroliman/heormodel/blob/main/examples/parameter_inputs.py) step by step; [bring your own outputs](byo-outputs.qmd) is the analogue on the outcome side. All three converge on the same rule: once the result is a draw matrix with an `iteration` index and numeric columns, `run_psa` does not care where it came from.
 
 ## Specifying a model to run

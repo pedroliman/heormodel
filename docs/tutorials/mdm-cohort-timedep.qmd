@@ -2,6 +2,12 @@
 title: Time-dependent cohort model
 ---
 
+<!-- colab-badge:start -->
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pedroliman/heormodel/blob/main/docs/_notebooks/mdm-cohort-timedep.ipynb)
+
+<!-- colab-badge:end -->
+
 This tutorial shows how to extend the [cohort replication](mdm-cohort.qmd) with age-varying mortality and one-time transition rewards, reproducing the time-dependent Sick-Sicker tutorial of Alarid-Escudero and others (2023). Full script: [`examples/mdm_cohort_timedep.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_cohort_timedep.py).
 
 ## Specifying age-varying transitions and rewards

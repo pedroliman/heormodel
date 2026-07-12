@@ -2,6 +2,12 @@
 title: Discrete-event simulation engine
 ---
 
+<!-- colab-badge:start -->
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pedroliman/heormodel/blob/main/docs/_notebooks/des.ipynb)
+
+<!-- colab-badge:end -->
+
 This tutorial shows how to build a resource-constrained model with `DESModel`, the model type to use when a shared, scarce resource makes entities queue, so that one patient's outcome depends on the others in the system, a coupling neither a cohort nor an independent microsimulation model can carry. It runs that model through the same cost-effectiveness and value-of-information analysis as any other model; the [microsimulation tutorial](microsim.qmd) covers ideas this one builds on: building the model once and running it on draws, and accruing discounted costs and effects over time. This page walks through [`examples/des.py`](https://github.com/pedroliman/heormodel/blob/main/examples/des.py) step by step. A discrete-event simulation without resource constraints is a continuous-time state-transition model, which the continuous clock of `MicrosimModel` runs directly; the [discrete-event simulation replication](mdm-des.qmd) reproduces a published example of that kind.
 
 ## Modeling the queueing process

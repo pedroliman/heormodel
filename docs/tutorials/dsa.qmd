@@ -2,6 +2,12 @@
 title: Deterministic sensitivity analysis
 ---
 
+<!-- colab-badge:start -->
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pedroliman/heormodel/blob/main/docs/_notebooks/dsa.ipynb)
+
+<!-- colab-badge:end -->
+
 Probabilistic sensitivity analysis answers how uncertain a decision is; deterministic sensitivity analysis (DSA) instead answers which parameters move the result, and by how much. This tutorial shows how to run the three standard DSA designs, one-way, one-at-a-time, and grid, on the same Sick-Sicker cohort model the [cohort tutorial](mdm-cohort.qmd) uses for its probabilistic analysis, so the two are worth reading as a pair. The full script is [`examples/dsa.py`](https://github.com/pedroliman/heormodel/blob/main/examples/dsa.py).
 
 `heormodel.dsa` builds scenario designs that run through `run_psa` like any draw matrix: a design has one row per scenario instead of one row per random draw, paired with a descriptor naming what each scenario varied. The same cost-effectiveness functions then read the outcomes, so a deterministic analysis reuses everything a probabilistic one does.
