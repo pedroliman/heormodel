@@ -18,10 +18,22 @@ Each entry links to the pull request that introduced it. Add a line under
   `heormodel` from PyPI; the discrete-event simulation replication also clones the
   repository for the model code and mortality table it reads
   ([#45](https://github.com/pedroliman/heormodel/issues/45)).
+- An "Open in Colab" badge on the Quickstart section of the homepage, with a
+  sentence pointing readers to it as the way to run any tutorial in Google
+  Colab without installing anything locally
+  ([#49](https://github.com/pedroliman/heormodel/issues/49)).
 - `MarkovModel.trace(params, intervention)` returns the cohort occupancy trace
   (a `cycle` column and one occupancy column per state), the public parallel to
   `ODEModel.trajectory`, for inspecting and validating a cohort model
   ([#43](https://github.com/pedroliman/heormodel/issues/43)).
+
+### Fixed
+
+- The Colab badge on every tutorial page no longer shows a stray "Open In
+  Colab" caption underneath it. Pandoc turned the markdown image link into a
+  `<figure>` with the alt text as caption when it was the sole content of a
+  paragraph; the badge now renders as raw HTML instead
+  ([#49](https://github.com/pedroliman/heormodel/issues/49)).
 
 ## [0.7.1] - 2026-07-11
 

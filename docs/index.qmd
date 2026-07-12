@@ -15,7 +15,13 @@ The `calibration` extra adds Bayesian calibration: `pip install "heormodel[calib
 
 ## Quickstart
 
-This example builds a three-state Markov cohort state-transition model comparing standard care with two treatments of different efficacy and cost, then evaluates it by probabilistic sensitivity analysis:
+<!-- colab-badge:start -->
+
+<a href="https://colab.research.google.com/github/pedroliman/heormodel/blob/main/docs/_notebooks/index.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a>
+
+<!-- colab-badge:end -->
+
+This example builds a three-state Markov cohort state-transition model comparing standard care with two treatments of different efficacy and cost, then evaluates it by probabilistic sensitivity analysis. Click **Open in Colab** above (or on any tutorial page) to run it in Google Colab, a browser-based notebook environment that needs no local installation:
 
 ```{python}
 import matplotlib.pyplot as plt

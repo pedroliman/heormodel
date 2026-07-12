@@ -4,9 +4,11 @@ Each tutorial under `docs/tutorials/` is a Quarto page executed as HTML for the
 website. Google Colab opens notebooks from the GitHub repository rather than from
 the published site, so this script writes a runnable notebook copy of each
 tutorial to `docs/_notebooks/` and adds an "Open in Colab" badge to the top of the
-page. Every notebook opens with a setup cell that installs `heormodel` from PyPI.
-The discrete-event simulation replication also imports model code and reads a
-mortality table from the `examples/` folder, so its setup cell clones the
+page. The Quickstart section of `docs/index.qmd` gets the same treatment, keyed
+off `EXTRA_PAGES` since its badge sits under a heading rather than at the top of
+the page. Every notebook opens with a setup cell that installs `heormodel` from
+PyPI. The discrete-event simulation replication also imports model code and reads
+a mortality table from the `examples/` folder, so its setup cell clones the
 repository for those files after installing the package.
 
 Run it with `uv run python docs/build_colab_notebooks.py`. The command is
@@ -152,6 +154,16 @@ def badge_markdown(stem: str) -> str:
     return f"[![Open In Colab]({BADGE_IMG})]({colab_url(stem)})"
 
 
+def badge_html(stem: str) -> str:
+    """Return the badge as raw HTML for the website page.
+
+    Pandoc turns a paragraph containing only a markdown image into a `<figure>`
+    and renders its alt text as a caption underneath, which duplicated "Open In
+    Colab" as stray text below the badge. Raw HTML skips that treatment.
+    """
+    return f'<a href="{colab_url(stem)}"><img src="{BADGE_IMG}" alt="Open In Colab"></a>'
+
+
 def build_notebook(stem: str, title: str, cells: list[tuple[str, str]]) -> nbformat.NotebookNode:
     """Assemble the notebook: title and badge, setup cell, then tutorial cells."""
     nb = nbformat.v4.new_notebook()
@@ -175,14 +187,29 @@ def build_notebook(stem: str, title: str, cells: list[tuple[str, str]]) -> nbfor
     return nb
 
 
-def insert_badge(header_text: str, body: str, stem: str) -> str:
-    """Return the page with the badge region placed above the tutorial body."""
-    region = f"{BADGE_START}\n\n{badge_markdown(stem)}\n\n{BADGE_END}"
-    return f"{header_text}\n\n{region}\n\n{body}"
+def insert_badge(header_text: str, body: str, stem: str, anchor: str | None = None) -> str:
+    """Return the page with the badge region placed in the tutorial body.
+
+    With no anchor, the badge goes right above the body, matching every tutorial
+    page. `index.qmd` passes the "## Quickstart" heading instead, since that page
+    also has an Install section that should not carry a Colab badge.
+    """
+    region = f"{BADGE_START}\n\n{badge_html(stem)}\n\n{BADGE_END}"
+    if anchor is None:
+        return f"{header_text}\n\n{region}\n\n{body}"
+    marker = f"{anchor}\n"
+    split = body.index(marker) + len(marker)
+    before, after = body[:split], body[split:].lstrip("\n")
+    return f"{header_text}\n\n{before}\n{region}\n\n{after}"
 
 
-def process(page: Path) -> bool:
-    """Rebuild one tutorial's notebook and badge. Return True if it has code."""
+# Pages outside docs/tutorials/ that also get a Colab badge and notebook, keyed by
+# path to the heading the badge is inserted beneath (None: right above the body).
+EXTRA_PAGES: dict[Path, str | None] = {DOCS / "index.qmd": "## Quickstart"}
+
+
+def process(page: Path, anchor: str | None = None) -> bool:
+    """Rebuild one page's notebook and badge. Return True if it has code."""
     text = page.read_text()
     header, raw_body = split_front_matter(text)
     body = strip_badge_region(raw_body)
@@ -198,7 +225,7 @@ def process(page: Path) -> bool:
 
     end = text.index("\n---", 4) + 4
     header_text = text[:end]
-    page.write_text(insert_badge(header_text, body, stem))
+    page.write_text(insert_badge(header_text, body, stem, anchor))
 
     nb = build_notebook(stem, str(header.get("title", stem)), cells)
     NOTEBOOKS.mkdir(exist_ok=True)
@@ -210,6 +237,9 @@ def main() -> None:
     built = []
     for page in sorted(TUTORIALS.glob("*.qmd")):
         if process(page):
+            built.append(page.stem)
+    for page, anchor in EXTRA_PAGES.items():
+        if process(page, anchor):
             built.append(page.stem)
     print(f"Wrote {len(built)} notebooks to {NOTEBOOKS.relative_to(DOCS.parent)}:")
     for stem in built:

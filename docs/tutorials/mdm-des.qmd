@@ -4,7 +4,7 @@ title: Discrete-event simulation replication
 
 <!-- colab-badge:start -->
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pedroliman/heormodel/blob/main/docs/_notebooks/mdm-des.ipynb)
+<a href="https://colab.research.google.com/github/pedroliman/heormodel/blob/main/docs/_notebooks/mdm-des.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a>
 
 <!-- colab-badge:end -->
 
