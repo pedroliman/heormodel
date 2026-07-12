@@ -26,7 +26,6 @@ aggregation live in the shared `heormodel.models._accrual` module.
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
@@ -34,31 +33,13 @@ import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
-from heormodel.models._accrual import accrue, aggregate, integrate_flow
-from heormodel.models._interventions import (
-    InterventionSpec,
-    comparator_of,
-    merge_decision_levers,
-    normalize_interventions,
-)
+from heormodel.models._accrual import accrue, integrate_flow
+from heormodel.models._engine import PopulationSampler, PopulationSpec, StreamingEngine
+from heormodel.models._interventions import InterventionSpec
 from heormodel.models.markov import gen_wcc
-from heormodel.models.outcomes import INTERVENTION_LEVEL, ITERATION_LEVEL, Outcomes
-from heormodel.models.protocol import EngineResult
-from heormodel.run.seeds import SeedManager
-
-PopulationSpec = int | Callable[[np.random.Generator, int], pd.DataFrame] | None
 
 
-def _iteration_key(label: Any) -> int:
-    """Turn an iteration label into a stable integer seed key."""
-    try:
-        return int(label)
-    except (TypeError, ValueError):
-        digest = hashlib.blake2b(repr(label).encode(), digest_size=8).digest()
-        return int.from_bytes(digest, "big")
-
-
-class _MicrosimBase:
+class _MicrosimBase(StreamingEngine):
     """Shared configuration and per-iteration streaming for the microsim clocks.
 
     Not an engine API: `MicrosimModel` implements ``_simulate`` per clock. The
@@ -83,28 +64,12 @@ class _MicrosimBase:
     ) -> None:
         if len(states) < 2:
             raise ValueError("Provide at least two states.")
+        self._configure(interventions, discount_rate, effect)
         self._states = tuple(states)
         self._state_rewards = state_rewards
-        self._interventions = normalize_interventions(interventions)
-        self._comparator = comparator_of(interventions)
-        self._discount_rate = float(discount_rate)
-        self._effect = effect
         self._independent_streams = bool(independent_streams)
-        if isinstance(population, bool):  # bool is an int subclass; reject it explicitly
-            raise TypeError("population must be an int, a callable, or None.")
-        if isinstance(population, int):
-            self._n = population
-            self._population_fn: Callable[..., pd.DataFrame] | None = None
-        elif population is None:
-            self._n = n_individuals
-            self._population_fn = None
-        elif callable(population):
-            self._n = n_individuals
-            self._population_fn = population
-        else:
-            raise TypeError("population must be an int, a callable, or None.")
-        if self._n <= 0:
-            raise ValueError("Population size must be positive.")
+        self._population = PopulationSampler(population, n_individuals)
+        self._n = self._population.n
         self._initial_index = self._state_index(initial_state)
 
     def _state_index(self, state: str | int) -> int:
@@ -117,122 +82,26 @@ class _MicrosimBase:
             raise ValueError(f"initial_state index {idx} out of range.")
         return idx
 
-    def _sample_population(self, rng: np.random.Generator) -> pd.DataFrame:
-        if self._population_fn is None:
-            return pd.DataFrame(index=pd.RangeIndex(self._n))
-        attrs = self._population_fn(rng, self._n)
-        if not isinstance(attrs, pd.DataFrame):
-            raise TypeError("population sampler must return a DataFrame.")
-        if len(attrs) != self._n:
-            raise ValueError(f"population sampler returned {len(attrs)} rows, expected {self._n}.")
-        return attrs.reset_index(drop=True)
-
     def _simulate(
         self, params: pd.Series, intervention: str, attrs: pd.DataFrame,
         rng: np.random.Generator, *, collect_events: bool = False,
     ) -> tuple[NDArray[np.float64], NDArray[np.float64], pd.DataFrame | None]:
         raise NotImplementedError
 
-    def evaluate(self, draws: pd.DataFrame) -> Outcomes:
-        """Simulate the population for every draw and average to `Outcomes`.
-
-        This is the narrow `heormodel.models.ModelEngine` entry point: it seeds
-        each iteration from a fixed default stream, so a direct call is
-        reproducible. Run through `heormodel.run.run_psa` to choose the seed, to
-        run in parallel, and to collect the event or individual logs.
-
-        Args:
-            draws: Parameter draw matrix (rows = iterations). Its index becomes
-                the outcome iteration index.
-
-        Returns:
-            `Outcomes` indexed by ``(intervention, draws.index)``.
-        """
-        return self.evaluate_streamed(draws, streams=SeedManager(0)).outcomes
-
-    def evaluate_streamed(
-        self, draws: pd.DataFrame, *, streams: SeedManager, collect: str | None = None
-    ) -> EngineResult:
-        """Simulate every draw under ``streams``, collecting the ``collect`` log.
-
-        Args:
-            draws: Parameter draw matrix (rows = iterations).
-            streams: Root of the per-iteration streams; each iteration draws a
-                stream keyed by its index, so results do not depend on how the
-                run is chunked across workers.
-            collect: ``None`` for outcomes only, ``"events"`` for the state-change
-                history (one row per state change with columns ``intervention``,
-                ``iteration``, ``individual``, ``time``, ``from_state``, and
-                ``to_state``, the input to `heormodel.models.state_occupancy`), or
-                ``"individuals"`` for per-individual cost and effect.
-
-        Returns:
-            An `EngineResult` whose ``outcomes`` is always set and whose
-            ``events`` or ``individuals`` is set to match ``collect``.
-        """
-        if collect not in (None, "events", "individuals"):
-            raise ValueError(
-                f"collect must be None, 'events', or 'individuals', got {collect!r}."
-            )
-        collect_events = collect == "events"
-        collect_individuals = collect == "individuals"
-        if draws.empty:
-            raise ValueError("draws is empty.")
-        intervention_names = list(self._interventions)
-        rows: list[pd.DataFrame] = []
-        traces: list[pd.DataFrame] = []
-        for label, (_, raw_params) in zip(draws.index, draws.iterrows(), strict=True):
-            iter_seq = streams.child_sequence(_iteration_key(label))
-            shared_attrs: pd.DataFrame | None = None
-            shared_txn: np.random.SeedSequence | None = None
-            if self._independent_streams:
-                sub = iter_seq.spawn(2 * len(intervention_names))
-            else:
-                pop_seq, shared_txn = iter_seq.spawn(2)
-                shared_attrs = self._sample_population(np.random.default_rng(pop_seq))
-            for j, (name, decision_levers) in enumerate(self._interventions.items()):
-                params = merge_decision_levers(raw_params, decision_levers)
-                if self._independent_streams:
-                    attrs = self._sample_population(np.random.default_rng(sub[2 * j]))
-                    rng = np.random.default_rng(sub[2 * j + 1])
-                else:
-                    assert shared_attrs is not None and shared_txn is not None
-                    attrs = shared_attrs.copy()
-                    rng = np.random.default_rng(shared_txn)  # common random numbers
-                cost, eff, events = self._simulate(
-                    params, name, attrs, rng, collect_events=collect_events
-                )
-                rows.append(aggregate({"cost": cost, self._effect: eff}, name, label))
-                if collect_events:
-                    assert events is not None
-                    events.insert(0, ITERATION_LEVEL, label)
-                    events.insert(0, INTERVENTION_LEVEL, name)
-                    traces.append(events)
-                elif collect_individuals:
-                    traces.append(
-                        pd.DataFrame(
-                            {
-                                INTERVENTION_LEVEL: name,
-                                ITERATION_LEVEL: label,
-                                "individual": np.arange(len(cost)),
-                                "cost": cost,
-                                self._effect: eff,
-                            }
-                        )
-                    )
-        data = pd.concat(rows)
-        full_index = pd.MultiIndex.from_product(
-            [intervention_names, draws.index], names=[INTERVENTION_LEVEL, ITERATION_LEVEL]
+    def _run_arm(
+        self,
+        params: pd.Series,
+        intervention: str,
+        attrs: pd.DataFrame,
+        sim_randomness: Any,
+        *,
+        collect_events: bool,
+    ) -> tuple[dict[str, NDArray[np.float64]], pd.DataFrame | None]:
+        rng = np.random.default_rng(sim_randomness)
+        cost, eff, events = self._simulate(
+            params, intervention, attrs, rng, collect_events=collect_events
         )
-        outcomes = Outcomes(
-            data.reindex(full_index), effect=self._effect, comparator=self._comparator
-        )
-        log = pd.concat(traces, ignore_index=True) if traces else None
-        return EngineResult(
-            outcomes,
-            events=log if collect_events else None,
-            individuals=log if collect_individuals else None,
-        )
+        return {"cost": cost, self._effect: eff}, events
 
 
 class MicrosimModel(_MicrosimBase):
@@ -627,10 +496,9 @@ class MicrosimModel(_MicrosimBase):
             remaining = horizon - clock
             segment = np.where(active, np.minimum(dt, remaining), 0.0)
             cost_rate, eff_rate = self._state_rewards(params, intervention, state, view)
-            disc_cost = integrate_flow(clock, segment, self._discount_rate)
-            disc_eff = integrate_flow(clock, segment, self._discount_rate)
-            cost_total += np.where(active, cost_rate * disc_cost, 0.0)
-            eff_total += np.where(active, eff_rate * disc_eff, 0.0)
+            disc = integrate_flow(clock, segment, self._discount_rate)
+            cost_total += np.where(active, cost_rate * disc, 0.0)
+            eff_total += np.where(active, eff_rate * disc, 0.0)
             event = active & np.isfinite(dt) & (dt <= remaining)
             if collect_events and event.any():
                 idx = np.nonzero(event)[0]

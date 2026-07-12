@@ -27,7 +27,6 @@ in continuous time.
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any
 
@@ -35,25 +34,15 @@ import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
-from heormodel.models._accrual import aggregate, discount_factor, integrate_flow
-from heormodel.models._interventions import (
-    InterventionSpec,
-    comparator_of,
-    merge_decision_levers,
-    normalize_interventions,
-)
-from heormodel.models.outcomes import (
-    INTERVENTION_LEVEL,
-    ITERATION_LEVEL,
-    Outcomes,
-)
-from heormodel.models.protocol import EngineResult
-from heormodel.run.seeds import SeedManager
+from heormodel._util import require_optional
+from heormodel.models._accrual import discount_factor, integrate_flow
+from heormodel.models._engine import PopulationSampler, PopulationSpec, StreamingEngine
+from heormodel.models._interventions import InterventionSpec
+from heormodel.models.outcomes import INTERVENTION_LEVEL, ITERATION_LEVEL
 
 if TYPE_CHECKING:
     import simpy
 
-PopulationSpec = int | Callable[[np.random.Generator, int], pd.DataFrame] | None
 ResourceFn = Callable[[Any, pd.Series, str], Mapping[str, Any]]
 ProcessFn = Callable[..., Any]
 
@@ -62,23 +51,7 @@ _LOG_COLS = ("intervention", "iteration", "entity", "t", "event", "state", "reso
 
 
 def _require_simpy() -> Any:
-    try:
-        import simpy
-    except ImportError as err:  # pragma: no cover
-        raise ImportError(
-            "The discrete-event engine requires simpy; install it with "
-            "uv pip install 'heormodel[des]'."
-        ) from err
-    return simpy
-
-
-def _iteration_key(label: Any) -> int:
-    """Turn an iteration label into a stable integer seed key."""
-    try:
-        return int(label)
-    except (TypeError, ValueError):
-        digest = hashlib.blake2b(repr(label).encode(), digest_size=8).digest()
-        return int.from_bytes(digest, "big")
+    return require_optional("simpy", feature="The discrete-event engine", extra="des")
 
 
 class _DESToolkit:
@@ -245,7 +218,7 @@ class _RequestContext:
         self._tk._record("release", resource=self._name)
 
 
-class DESModel:
+class DESModel(StreamingEngine):
     """Discrete-event simulation engine wrapping SimPy.
 
     Each process is the user's own SimPy code with signature
@@ -315,41 +288,33 @@ class DESModel:
         _require_simpy()
         if horizon <= 0:
             raise ValueError("horizon must be positive.")
+        self._configure(interventions, discount_rate, effect)
         self._process = process
         self._resources_fn = resources
-        self._interventions = normalize_interventions(interventions)
-        self._comparator = comparator_of(interventions)
         self._horizon = float(horizon)
-        self._discount_rate = float(discount_rate)
-        self._effect = effect
         self._independent_streams = bool(independent_streams)
-        if isinstance(population, bool):  # bool is an int subclass; reject it explicitly
-            raise TypeError("population must be an int, a callable, or None.")
-        if isinstance(population, int):
-            self._n = population
-            self._population_fn: Callable[..., pd.DataFrame] | None = None
-        elif population is None:
-            self._n = n_individuals
-            self._population_fn = None
-        elif callable(population):
-            self._n = n_individuals
-            self._population_fn = population
-        else:
-            raise TypeError("population must be an int, a callable, or None.")
-        if self._n <= 0:
-            raise ValueError("Population size must be positive.")
+        self._population = PopulationSampler(population, n_individuals)
+        self._n = self._population.n
 
-    def _sample_entities(self, rng: np.random.Generator) -> pd.DataFrame:
-        if self._population_fn is None:
-            return pd.DataFrame(index=pd.RangeIndex(self._n))
-        attrs = self._population_fn(rng, self._n)
-        if not isinstance(attrs, pd.DataFrame):
-            raise TypeError("population sampler must return a DataFrame.")
-        if len(attrs) != self._n:
-            raise ValueError(
-                f"population sampler returned {len(attrs)} rows, expected {self._n}."
-            )
-        return attrs.reset_index(drop=True)
+    def _simulation_randomness(
+        self, source: np.random.SeedSequence
+    ) -> list[np.random.SeedSequence]:
+        """Each arm's per-entity seed sequences, spawned once from ``source``."""
+        return list(source.spawn(self._n))
+
+    def _run_arm(
+        self,
+        params: pd.Series,
+        intervention: str,
+        attrs: pd.DataFrame,
+        sim_randomness: Any,
+        *,
+        collect_events: bool,
+    ) -> tuple[dict[str, NDArray[np.float64]], pd.DataFrame | None]:
+        log: list[dict[str, Any]] | None = [] if collect_events else None
+        accruals = self._run_once(params, attrs, sim_randomness, intervention, log)
+        events = pd.DataFrame(log, columns=list(_LOG_COLS[2:])) if collect_events else None
+        return accruals, events
 
     def _run_once(
         self,
@@ -387,119 +352,6 @@ class DESModel:
             result[name] = np.array([tk.components.get(name, 0.0) for tk in toolkits])
         return result
 
-    def evaluate(self, draws: pd.DataFrame) -> Outcomes:
-        """Simulate every draw and intervention, averaging entities to `Outcomes`.
-
-        This is the narrow `heormodel.models.ModelEngine` entry point: it seeds
-        each iteration from a fixed default stream, so a direct call is
-        reproducible. Run through `heormodel.run.run_psa` to choose the seed, to
-        run in parallel, and to collect the event or individual logs.
-
-        Args:
-            draws: Parameter draw matrix (rows = iterations). Its index becomes
-                the outcome iteration index.
-
-        Returns:
-            `Outcomes` indexed by ``(intervention, draws.index)``.
-
-        Example:
-            >>> import pandas as pd
-            >>> from heormodel.models import DESModel
-            >>> def process(env, entity, params, intervention, toolkit):
-            ...     toolkit.accrue_cost(params["visit"])
-            ...     yield env.timeout(1.0)
-            >>> engine = DESModel(
-            ...     process=process, population=50, interventions=["clinic"],
-            ...     horizon=5.0)
-            >>> draws = pd.DataFrame({"visit": [200.0, 210.0]},
-            ...                      index=pd.RangeIndex(2, name="iteration"))
-            >>> engine.evaluate(draws).n_iterations
-            2
-        """
-        return self.evaluate_streamed(draws, streams=SeedManager(0)).outcomes
-
-    def evaluate_streamed(
-        self, draws: pd.DataFrame, *, streams: SeedManager, collect: str | None = None
-    ) -> EngineResult:
-        """Simulate every draw under ``streams``, collecting the ``collect`` log.
-
-        Args:
-            draws: Parameter draw matrix (rows = iterations).
-            streams: Root of the per-iteration streams; each iteration draws a
-                stream keyed by its index, so results do not depend on how the
-                run is chunked across workers.
-            collect: ``None`` for outcomes only, ``"events"`` for the per-entity
-                event log (columns ``intervention``, ``iteration``, ``entity``,
-                ``t``, ``event``, ``state``, ``resource``), or ``"individuals"``
-                for per-entity cost and effect.
-
-        Returns:
-            An `EngineResult` whose ``outcomes`` is always set and whose
-            ``events`` or ``individuals`` is set to match ``collect``.
-        """
-        if collect not in (None, "events", "individuals"):
-            raise ValueError(
-                f"collect must be None, 'events', or 'individuals', got {collect!r}."
-            )
-        if draws.empty:
-            raise ValueError("draws is empty.")
-        collect_events = collect == "events"
-        collect_individuals = collect == "individuals"
-        intervention_names = list(self._interventions)
-        rows: list[pd.DataFrame] = []
-        event_frames: list[pd.DataFrame] = []
-        individual_frames: list[pd.DataFrame] = []
-        for label, (_, raw_params) in zip(draws.index, draws.iterrows(), strict=True):
-            iter_seq = streams.child_sequence(_iteration_key(label))
-            shared_attrs: pd.DataFrame | None = None
-            shared_entity_seqs: list[np.random.SeedSequence] | None = None
-            if self._independent_streams:
-                sub = iter_seq.spawn(2 * len(intervention_names))
-            else:
-                pop_seq, entity_root = iter_seq.spawn(2)
-                shared_attrs = self._sample_entities(np.random.default_rng(pop_seq))
-                shared_entity_seqs = list(entity_root.spawn(self._n))
-            for j, (name, decision_levers) in enumerate(self._interventions.items()):
-                params = merge_decision_levers(raw_params, decision_levers)
-                if self._independent_streams:
-                    attrs = self._sample_entities(np.random.default_rng(sub[2 * j]))
-                    entity_seqs = list(sub[2 * j + 1].spawn(self._n))
-                else:
-                    assert shared_attrs is not None and shared_entity_seqs is not None
-                    attrs = shared_attrs.copy()
-                    entity_seqs = shared_entity_seqs  # common random numbers
-                log: list[dict[str, Any]] | None = [] if collect_events else None
-                accruals = self._run_once(params, attrs, entity_seqs, name, log)
-                rows.append(aggregate(accruals, name, label))
-                if collect_events and log is not None:
-                    frame = pd.DataFrame(log, columns=list(_LOG_COLS[2:]))
-                    frame.insert(0, ITERATION_LEVEL, label)
-                    frame.insert(0, INTERVENTION_LEVEL, name)
-                    event_frames.append(frame)
-                elif collect_individuals:
-                    frame = pd.DataFrame(accruals)
-                    frame.insert(0, "individual", np.arange(len(frame)))
-                    frame.insert(0, ITERATION_LEVEL, label)
-                    frame.insert(0, INTERVENTION_LEVEL, name)
-                    individual_frames.append(frame)
-        data = pd.concat(rows).fillna(0.0)
-        full_index = pd.MultiIndex.from_product(
-            [intervention_names, draws.index], names=[INTERVENTION_LEVEL, ITERATION_LEVEL]
-        )
-        outcomes = Outcomes(
-            data.reindex(full_index), effect=self._effect, comparator=self._comparator
-        )
-        events = None
-        individuals = None
-        if collect_events:
-            events = (
-                pd.concat(event_frames, ignore_index=True)
-                if event_frames
-                else pd.DataFrame(columns=list(_LOG_COLS))
-            )
-        elif collect_individuals:
-            individuals = pd.concat(individual_frames, ignore_index=True)
-        return EngineResult(outcomes, events=events, individuals=individuals)
 
 
 def queue_waits(trace: pd.DataFrame) -> pd.DataFrame:

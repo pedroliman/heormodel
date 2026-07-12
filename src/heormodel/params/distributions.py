@@ -21,6 +21,13 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 from scipy import stats
 
+from heormodel._util import as_rng
+
+
+def _positive_mean_se(mean: float, se: float, name: str) -> None:
+    if mean <= 0 or se <= 0:
+        raise ValueError(f"{name} mean and se must be positive.")
+
 
 class Distribution(ABC):
     """Abstract base class for univariate parameter distributions.
@@ -45,7 +52,7 @@ class Distribution(ABC):
             >>> Beta(2, 5).sample(3, rng=1).shape
             (3,)
         """
-        gen = rng if isinstance(rng, np.random.Generator) else np.random.default_rng(rng)
+        gen = as_rng(rng)
         return np.asarray(self._frozen().rvs(size=n, random_state=gen), dtype=np.float64)
 
     def mean(self) -> float:
@@ -133,8 +140,7 @@ class Gamma(Distribution):
     @classmethod
     def from_mean_se(cls, mean: float, se: float) -> Gamma:
         """Method-of-moments Gamma from a mean and standard error."""
-        if mean <= 0 or se <= 0:
-            raise ValueError("Gamma mean and se must be positive.")
+        _positive_mean_se(mean, se, "Gamma")
         return cls(shape=(mean / se) ** 2, scale=se**2 / mean)
 
     def _frozen(self) -> Any:
@@ -165,8 +171,7 @@ class LogNormal(Distribution):
     @classmethod
     def from_mean_se(cls, mean: float, se: float) -> LogNormal:
         """Method-of-moments LogNormal matching the natural-scale mean and SE."""
-        if mean <= 0 or se <= 0:
-            raise ValueError("LogNormal mean and se must be positive.")
+        _positive_mean_se(mean, se, "LogNormal")
         sigma2 = math.log(1.0 + (se / mean) ** 2)
         return cls(mu=math.log(mean) - sigma2 / 2.0, sigma=math.sqrt(sigma2))
 
@@ -303,5 +308,5 @@ class Dirichlet:
 
     def sample(self, n: int, rng: np.random.Generator | int | None = None) -> NDArray[np.float64]:
         """Draw ``n`` probability vectors, shape ``(n, n_components)``."""
-        gen = rng if isinstance(rng, np.random.Generator) else np.random.default_rng(rng)
+        gen = as_rng(rng)
         return gen.dirichlet(np.asarray(self.alpha, dtype=np.float64), size=n)

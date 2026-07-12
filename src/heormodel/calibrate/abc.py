@@ -21,6 +21,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from heormodel._util import require_optional, resample_to_iterations
 from heormodel.params.distributions import (
     Beta,
     Dirichlet,
@@ -36,13 +37,7 @@ TargetSimulator = Callable[[dict[str, float]], dict[str, float]]
 
 
 def _require_pyabc() -> Any:
-    try:
-        import pyabc
-    except ImportError as err:  # pragma: no cover
-        raise ImportError(
-            "Calibration requires pyabc; install it with uv pip install 'heormodel[calibration]'."
-        ) from err
-    return pyabc
+    return require_optional("pyabc", feature="Calibration", extra="calibration")
 
 
 def to_pyabc_prior(distributions: Mapping[str, Distribution | Dirichlet]) -> Any:
@@ -170,8 +165,7 @@ def abc_calibrate(
     rng = np.random.default_rng(seed)
     n_out = n_posterior or len(particles)
     picks = rng.choice(len(particles), size=n_out, p=np.asarray(weights) / np.sum(weights))
-    posterior = particles.iloc[picks].reset_index(drop=True)
-    posterior.index = pd.RangeIndex(n_out, name="iteration")
+    posterior = resample_to_iterations(particles, picks)
     posterior.columns.name = None
     epsilons = history.get_all_populations()["epsilon"]
     return CalibrationResult(

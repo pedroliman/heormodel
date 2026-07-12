@@ -20,6 +20,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from heormodel._util import as_rng, resample_to_iterations
+
 
 def single_draw(values: Mapping[str, float]) -> pd.DataFrame:
     """Wrap one named set of parameter values as a one-row draw matrix.
@@ -168,8 +170,5 @@ def resample_posterior(
         raise ValueError("weights must sum to a positive value.")
 
     params = read_draws(frame.drop(columns=[weight]))
-    rng = seed if isinstance(seed, np.random.Generator) else np.random.default_rng(seed)
-    picks = rng.choice(len(params), size=n, replace=True, p=w / total)
-    out = params.iloc[picks].reset_index(drop=True)
-    out.index = pd.RangeIndex(n, name="iteration")
-    return out
+    picks = as_rng(seed).choice(len(params), size=n, replace=True, p=w / total)
+    return resample_to_iterations(params, picks)
