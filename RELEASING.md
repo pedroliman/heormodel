@@ -19,18 +19,21 @@ Every PR that changes behavior adds one line under `## [Unreleased]` in
    add a fresh empty `## [Unreleased]` above it, and update the link
    references at the bottom of the file.
 4. Commit as `Release vX.Y.Z`, merge to `main` through a pull request.
-5. On merge, the `Tag release` workflow
-   (`.github/workflows/tag-release.yml`) reads the version from
-   `pyproject.toml`, tags the merge commit `vX.Y.Z`, creates a GitHub release
-   from the matching `CHANGELOG.md` section, and (in the same workflow run)
-   builds the package with `uv build` and publishes it to PyPI. The publish
-   step runs in the same workflow deliberately: a release created with the
-   default `GITHUB_TOKEN` does not trigger other workflows, so a separate
-   `release: published`-triggered job would silently never run.
+5. On merge, the `Release` workflow (`.github/workflows/release.yml`) runs
+   its `tag` job: reads the version from `pyproject.toml`, tags the merge
+   commit `vX.Y.Z`, and creates a GitHub release from the matching
+   `CHANGELOG.md` section. Its `publish` job then builds the package with
+   `uv build` and publishes it to PyPI. Both jobs run in the same workflow
+   deliberately, so the publish job's PyPI trusted-publisher identity is
+   always `release.yml`, whichever job triggered it: a release created with
+   the default `GITHUB_TOKEN` does not trigger other workflows, so a separate
+   `release: published`-triggered workflow would silently never run for a
+   release this workflow itself created.
 6. If a publish is ever stuck for a tag that already has a GitHub release
-   (check the `Tag release` and `Release` workflow runs in the `Actions` tab),
-   trigger `.github/workflows/release.yml` manually: `Actions` -> `Release` ->
-   `Run workflow`, entering the tag (e.g. `v0.7.0`).
+   (check the `Release` workflow runs in the `Actions` tab), trigger
+   `.github/workflows/release.yml` manually: `Actions` -> `Release` -> `Run
+   workflow`, entering the tag (e.g. `v0.7.0`). This runs only the `publish`
+   job, since `tag` is skipped for a manual `workflow_dispatch` run.
 
 ## One-time PyPI setup
 
@@ -50,7 +53,7 @@ DOI, once the one-time setup below is done. No workflow step is needed:
 Zenodo's GitHub integration registers its own repository webhook (under
 `Settings` -> `Webhooks`) that fires on the `release: published` event
 directly, independent of GitHub Actions. That event still fires for
-releases `tag-release.yml` creates with the default `GITHUB_TOKEN`: the
+releases the `tag` job creates with the default `GITHUB_TOKEN`: the
 "`GITHUB_TOKEN` doesn't trigger other workflows" restriction (see step 5
 above) only suppresses new *Actions* workflow runs, not repository
 webhooks, which is what the Zenodo integration relies on.
