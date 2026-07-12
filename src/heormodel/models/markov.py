@@ -30,13 +30,11 @@ import pandas as pd
 from numpy.typing import NDArray
 
 from heormodel.models._accrual import discount_factor
+from heormodel.models._engine import DeterministicEngine
 from heormodel.models._interventions import (
     InterventionSpec,
-    comparator_of,
     merge_decision_levers,
-    normalize_interventions,
 )
-from heormodel.models.outcomes import INTERVENTION_LEVEL, ITERATION_LEVEL, Outcomes
 
 _PROB_TOL = 1e-8
 
@@ -107,7 +105,7 @@ def gen_wcc(n_cycles: int, method: str = "simpson") -> NDArray[np.float64]:
     return wcc
 
 
-class MarkovModel:
+class MarkovModel(DeterministicEngine):
     """Cohort state-transition model engine.
 
     ``discount_rate`` is an annual rate on an annual clock. ``cycle_length``
@@ -169,15 +167,12 @@ class MarkovModel:
             raise ValueError("Provide at least two states.")
         if n_cycles < 1:
             raise ValueError("n_cycles must be at least one.")
+        self._configure(interventions, discount_rate, effect)
         self._states = tuple(states)
         self._n_states = len(self._states)
-        self._interventions = normalize_interventions(interventions)
-        self._comparator = comparator_of(interventions)
         self._transitions_and_rewards = transitions_and_rewards
         self._n_cycles = int(n_cycles)
         self._cycle_length = float(cycle_length)
-        self._discount_rate = float(discount_rate)
-        self._effect = effect
         self._start = self._resolve_start(initial_state)
         times = np.arange(self._n_cycles + 1, dtype=np.float64) * self._cycle_length
         self._disc = discount_factor(times, self._discount_rate)
@@ -264,6 +259,9 @@ class MarkovModel:
             out[t + 1] = float(np.sum(flow * Rt))
         return out
 
+    def _payoff(self, params: pd.Series, intervention: str) -> tuple[float, float]:
+        return self._accrue(self._transitions_and_rewards(params, intervention))
+
     def _accrue(self, spec: CohortSpec) -> tuple[float, float]:
         trace = self._trace(spec.transition)
         cost_cycle = self._state_reward(trace, spec.state_cost)
@@ -327,32 +325,3 @@ class MarkovModel:
             frame[name] = occupancy[:, i]
         return frame
 
-    def evaluate(self, draws: pd.DataFrame) -> Outcomes:
-        """Evaluate every intervention on every draw and return `Outcomes`.
-
-        Args:
-            draws: Parameter draw matrix (rows = iterations). Its index becomes
-                the outcome iteration index.
-
-        Returns:
-            `Outcomes` indexed by ``(intervention, draws.index)``.
-        """
-        if draws.empty:
-            raise ValueError("draws is empty.")
-        costs: list[float] = []
-        effects: list[float] = []
-        keys: list[tuple[str, object]] = []
-        for label, (_, raw_params) in zip(draws.index, draws.iterrows(), strict=True):
-            for name, decision_levers in self._interventions.items():
-                params = merge_decision_levers(raw_params, decision_levers)
-                spec = self._transitions_and_rewards(params, name)
-                cost, effect = self._accrue(spec)
-                costs.append(cost)
-                effects.append(effect)
-                keys.append((name, label))
-        index = pd.MultiIndex.from_tuples(keys, names=[INTERVENTION_LEVEL, ITERATION_LEVEL])
-        data = pd.DataFrame({"cost": costs, self._effect: effects}, index=index)
-        full_index = pd.MultiIndex.from_product(
-            [self._interventions, draws.index], names=[INTERVENTION_LEVEL, ITERATION_LEVEL]
-        )
-        return Outcomes(data.reindex(full_index), effect=self._effect, comparator=self._comparator)

@@ -13,6 +13,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 
+from heormodel._util import require_shared_index
 from heormodel.cea.ceac import ce_plane as _ce_plane_data
 from heormodel.cea.frontier import STATUS_ND, icer_table
 from heormodel.cea.nb import nmb
@@ -37,6 +38,21 @@ def _style(ax: Axes) -> None:
     ax.set_axisbelow(True)
     for side in ("top", "right"):
         ax.spines[side].set_visible(False)
+
+
+def _plot_columns(df: pd.DataFrame, ax: Axes) -> None:
+    """Draw one colored line per column over the shared index."""
+    colors = intervention_colors([str(c) for c in df.columns])
+    for name in df.columns:
+        ax.plot(df.index, df[name], lw=1.8, color=colors[str(name)], label=str(name))
+
+
+def _tornado_table(rows: dict[str, tuple[float, float]]) -> pd.DataFrame:
+    """A (low, high) mapping as a tornado table sorted by descending span."""
+    table = pd.DataFrame(rows, index=["low", "high"]).T
+    table.index.name = "parameter"
+    table["span"] = (table["high"] - table["low"]).abs()
+    return table.sort_values("span", ascending=False)
 
 
 def intervention_colors(interventions: list[str]) -> dict[str, str]:
@@ -138,9 +154,7 @@ def plot_ceac(
         'Probability cost-effective'
     """
     ax = ax or plt.subplots()[1]
-    colors = intervention_colors([str(c) for c in ceac_df.columns])
-    for s in ceac_df.columns:
-        ax.plot(ceac_df.index, ceac_df[s], lw=1.8, color=colors[str(s)], label=str(s))
+    _plot_columns(ceac_df, ax)
     if ceaf_df is not None:
         ax.plot(
             ceaf_df.index,
@@ -189,9 +203,7 @@ def plot_expected_loss(
         'Expected loss'
     """
     ax = ax or plt.subplots()[1]
-    colors = intervention_colors([str(c) for c in loss_df.columns])
-    for s in loss_df.columns:
-        ax.plot(loss_df.index, loss_df[s], lw=1.8, color=colors[str(s)], label=str(s))
+    _plot_columns(loss_df, ax)
     ax.set_xlabel("Willingness to pay")
     ax.set_ylabel("Expected loss")
     ax.set_title("Expected loss curves")
@@ -285,8 +297,7 @@ def _tornado_from_dsa(
             "DSA descriptor must carry 'parameter' and 'value' columns; pass a one-way "
             "or one-at-a-time design, not a grid."
         )
-    if not pd.Index(descriptor.index).equals(pd.Index(outcomes.iterations)):
-        raise ValueError("descriptor index must equal the outcomes iteration index.")
+    require_shared_index(descriptor.index, outcomes.iterations, "descriptor")
     y = _target_nmb(outcomes, wtp, intervention=intervention, comparator=comparator, effect=effect)
     d = descriptor.copy()
     d["_nmb"] = y.reindex(d.index).to_numpy(dtype=np.float64)
@@ -295,10 +306,7 @@ def _tornado_from_dsa(
     for p, grp in swept.groupby(PARAMETER_COL, sort=False):
         ordered = grp.sort_values(VALUE_COL)
         rows[str(p)] = (float(ordered["_nmb"].iloc[0]), float(ordered["_nmb"].iloc[-1]))
-    td = pd.DataFrame(rows, index=["low", "high"]).T
-    td.index.name = "parameter"
-    td["span"] = (td["high"] - td["low"]).abs()
-    return td.sort_values("span", ascending=False)
+    return _tornado_table(rows)
 
 
 def tornado_data(
@@ -345,8 +353,7 @@ def tornado_data(
             outcomes, descriptor, wtp,
             intervention=intervention, comparator=comparator, effect=effect,
         )
-    if not pd.Index(draws.index).equals(pd.Index(outcomes.iterations)):
-        raise ValueError("draws index must equal the outcomes iteration index.")
+    require_shared_index(draws.index, outcomes.iterations, "draws")
     yv = _target_nmb(
         outcomes, wtp, intervention=intervention, comparator=comparator, effect=effect
     ).to_numpy(dtype=np.float64)
@@ -359,10 +366,7 @@ def tornado_data(
         slope, intercept = np.polyfit(x, yv, 1)
         lo_x, hi_x = np.quantile(x, quantiles)
         rows[p] = (intercept + slope * lo_x, intercept + slope * hi_x)
-    td = pd.DataFrame(rows, index=["low", "high"]).T
-    td.index.name = "parameter"
-    td["span"] = (td["high"] - td["low"]).abs()
-    return td.sort_values("span", ascending=False)
+    return _tornado_table(rows)
 
 
 def plot_tornado(td: pd.DataFrame, *, ax: Axes | None = None) -> Axes:

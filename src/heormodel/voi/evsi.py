@@ -17,6 +17,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from heormodel._util import as_rng, require_shared_index
 from heormodel.cea.nb import nmb
 from heormodel.models.outcomes import Outcomes
 from heormodel.voi._metamodel import fitted_conditional_means, voi_from_fitted
@@ -53,7 +54,7 @@ def simulate_summaries(
         >>> simulate_summaries(draws, study, seed=1).shape
         (2, 1)
     """
-    rng = seed if isinstance(seed, np.random.Generator) else np.random.default_rng(seed)
+    rng = as_rng(seed)
     records = [study(row, rng) for _, row in draws.iterrows()]
     return pd.DataFrame(records, index=draws.index)
 
@@ -100,11 +101,12 @@ def evsi_regression(
         >>> 0.0 <= evsi_regression(out, s, wtp=1.0) <= 0.45
         True
     """
-    if not pd.Index(summaries.index).equals(pd.Index(outcomes.iterations)):
-        raise ValueError(
-            "summaries index must equal the outcomes iteration index; each summary "
-            "must be simulated from the parameter draw of the same iteration."
-        )
+    require_shared_index(
+        summaries.index,
+        outcomes.iterations,
+        "summaries",
+        detail="each summary must be simulated from the parameter draw of the same iteration.",
+    )
     nb = nmb(outcomes, wtp, effect=effect)
     fitted = fitted_conditional_means(
         summaries, nb, method=method, n_knots=n_knots, degree=degree, seed=seed

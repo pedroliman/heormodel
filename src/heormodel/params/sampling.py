@@ -22,6 +22,7 @@ import pandas as pd
 from numpy.typing import NDArray
 from scipy.special import ndtr
 
+from heormodel._util import as_rng
 from heormodel.params.distributions import Dirichlet, Distribution
 
 AnyDistribution: TypeAlias = Distribution | Dirichlet
@@ -153,7 +154,7 @@ class ParameterSet:
         """
         if n <= 0:
             raise ValueError("n must be a positive integer.")
-        rng = seed if isinstance(seed, np.random.Generator) else np.random.default_rng(seed)
+        rng = as_rng(seed)
         k = len(self._columns)
         pearson = 2.0 * np.sin(np.pi * self._corr / 6.0)
         pearson = _nearest_correlation(pearson)

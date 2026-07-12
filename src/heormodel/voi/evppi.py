@@ -16,6 +16,7 @@ from collections.abc import Sequence
 
 import pandas as pd
 
+from heormodel._util import require_shared_index
 from heormodel.cea.nb import nmb
 from heormodel.models.outcomes import Outcomes
 from heormodel.voi._metamodel import fitted_conditional_means, voi_from_fitted
@@ -70,11 +71,12 @@ def evppi(
     missing = [c for c in cols if c not in draws.columns]
     if missing:
         raise KeyError(f"Parameters not found in draw matrix: {missing}.")
-    if not pd.Index(draws.index).equals(pd.Index(outcomes.iterations)):
-        raise ValueError(
-            "draws index must equal the outcomes iteration index; EVPPI needs the "
-            "parameter/outcome linkage preserved by run_psa."
-        )
+    require_shared_index(
+        draws.index,
+        outcomes.iterations,
+        "draws",
+        detail="EVPPI needs the parameter/outcome linkage preserved by run_psa.",
+    )
     nb = nmb(outcomes, wtp, effect=effect)
     fitted = fitted_conditional_means(
         draws[cols], nb, method=method, n_knots=n_knots, degree=degree, seed=seed

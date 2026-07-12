@@ -17,6 +17,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from heormodel._util import as_rng, resample_to_iterations
+
 
 def mix_draws(
     *sources: pd.DataFrame,
@@ -79,12 +81,10 @@ def mix_draws(
     if n <= 0:
         raise ValueError("n must be a positive integer.")
 
-    rng = seed if isinstance(seed, np.random.Generator) else np.random.default_rng(seed)
+    rng = as_rng(seed)
     blocks: list[pd.DataFrame] = []
     for source in sources:
         m = len(source)
         picks = rng.choice(m, size=n, replace=m < n)
-        blocks.append(source.iloc[picks].reset_index(drop=True))
-    mixed = pd.concat(blocks, axis=1)
-    mixed.index = pd.RangeIndex(n, name="iteration")
-    return mixed
+        blocks.append(resample_to_iterations(source, picks))
+    return pd.concat(blocks, axis=1)

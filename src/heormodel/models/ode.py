@@ -39,13 +39,8 @@ from numpy.typing import NDArray
 from scipy.integrate import solve_ivp
 
 from heormodel.models._accrual import discount_factor
-from heormodel.models._interventions import (
-    InterventionSpec,
-    comparator_of,
-    merge_decision_levers,
-    normalize_interventions,
-)
-from heormodel.models.outcomes import INTERVENTION_LEVEL, ITERATION_LEVEL, Outcomes
+from heormodel.models._engine import DeterministicEngine
+from heormodel.models._interventions import InterventionSpec
 
 Derivatives = Callable[[float, NDArray[np.float64]], NDArray[np.float64]]
 EventRates = Callable[[float, NDArray[np.float64]], NDArray[np.float64]]
@@ -93,7 +88,7 @@ class ODESpec:
     event_effect: NDArray[np.float64] | None = None
 
 
-class ODEModel:
+class ODEModel(DeterministicEngine):
     """Ordinary differential equation (compartmental) model engine.
 
     ``discount_rate`` is an annual rate discounted continuously, ``exp(-rate *
@@ -162,18 +157,15 @@ class ODEModel:
             raise ValueError("Provide at least two states.")
         if horizon <= 0:
             raise ValueError("horizon must be positive.")
+        self._configure(interventions, discount_rate, effect)
         self._states = tuple(states)
         self._n_states = len(self._states)
-        self._interventions = normalize_interventions(interventions)
-        self._comparator = comparator_of(interventions)
         self._dynamics_and_rewards = dynamics_and_rewards
         self._horizon = float(horizon)
-        self._discount_rate = float(discount_rate)
         self._method = method
         self._rtol = float(rtol)
         self._atol = float(atol)
         self._max_step = np.inf if max_step is None else float(max_step)
-        self._effect = effect
 
     def _check_vector(self, name: str, value: NDArray[np.float64]) -> NDArray[np.float64]:
         arr = np.asarray(value, dtype=np.float64)
@@ -198,6 +190,9 @@ class ODEModel:
         if cost.shape != effect.shape or cost.ndim != 1:
             raise ValueError("event_cost and event_effect must be 1-D arrays of equal length.")
         return spec.event_rates, cost, effect
+
+    def _payoff(self, params: pd.Series, intervention: str) -> tuple[float, float]:
+        return self._integrate(self._dynamics_and_rewards(params, intervention))
 
     def _integrate(self, spec: ODESpec) -> tuple[float, float]:
         """Integrate one intervention's system and return discounted (cost, effect).
@@ -305,32 +300,3 @@ class ODEModel:
             frame[name] = sol.y[i]
         return frame
 
-    def evaluate(self, draws: pd.DataFrame) -> Outcomes:
-        """Evaluate every intervention on every draw and return `Outcomes`.
-
-        Args:
-            draws: Parameter draw matrix (rows = iterations). Its index becomes
-                the outcome iteration index.
-
-        Returns:
-            `Outcomes` indexed by ``(intervention, draws.index)``.
-        """
-        if draws.empty:
-            raise ValueError("draws is empty.")
-        costs: list[float] = []
-        effects: list[float] = []
-        keys: list[tuple[str, object]] = []
-        for label, (_, raw_params) in zip(draws.index, draws.iterrows(), strict=True):
-            for name, decision_levers in self._interventions.items():
-                params = merge_decision_levers(raw_params, decision_levers)
-                spec = self._dynamics_and_rewards(params, name)
-                cost, effect = self._integrate(spec)
-                costs.append(cost)
-                effects.append(effect)
-                keys.append((name, label))
-        index = pd.MultiIndex.from_tuples(keys, names=[INTERVENTION_LEVEL, ITERATION_LEVEL])
-        data = pd.DataFrame({"cost": costs, self._effect: effects}, index=index)
-        full_index = pd.MultiIndex.from_product(
-            [self._interventions, draws.index], names=[INTERVENTION_LEVEL, ITERATION_LEVEL]
-        )
-        return Outcomes(data.reindex(full_index), effect=self._effect, comparator=self._comparator)

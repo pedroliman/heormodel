@@ -24,7 +24,8 @@ import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed, effective_n_jobs
 
-from heormodel.models.outcomes import INTERVENTION_LEVEL, ITERATION_LEVEL, Outcomes
+from heormodel.models._engine import finalize_outcomes
+from heormodel.models.outcomes import Outcomes
 from heormodel.models.protocol import EngineResult, ModelEngine, ModelFn, StochasticEngine
 from heormodel.run._progress import ProgressReporter, resolve_enabled
 from heormodel.run.seeds import SeedManager
@@ -142,10 +143,7 @@ def _reassemble(partials: list[Outcomes], draws: pd.DataFrame) -> Outcomes:
             "Model violated the output contract: a batch returned outcomes whose "
             "iteration index does not match its input draws."
         )
-    full_index = pd.MultiIndex.from_product(
-        [interventions, draws.index], names=[INTERVENTION_LEVEL, ITERATION_LEVEL]
-    )
-    return Outcomes(data.reindex(full_index), effect=effect, comparator=comparator)
+    return finalize_outcomes(data, interventions, draws.index, effect, comparator)
 
 
 def _concat_logs(frames: list[pd.DataFrame | None]) -> pd.DataFrame | None:
