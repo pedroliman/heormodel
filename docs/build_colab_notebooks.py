@@ -4,11 +4,10 @@ Each tutorial under `docs/tutorials/` is a Quarto page executed as HTML for the
 website. Google Colab opens notebooks from the GitHub repository rather than from
 the published site, so this script writes a runnable notebook copy of each
 tutorial to `docs/_notebooks/` and adds an "Open in Colab" badge to the top of the
-page. Every notebook opens with a setup cell that installs `heormodel` from the
-repository, so the version matches the tutorial. The discrete-event simulation
-replication also imports model code and reads a mortality table from the
-`examples/` folder, so its setup cell clones the repository instead of installing
-the published package.
+page. Every notebook opens with a setup cell that installs `heormodel` from PyPI.
+The discrete-event simulation replication also imports model code and reads a
+mortality table from the `examples/` folder, so its setup cell clones the
+repository for those files after installing the package.
 
 Run it with `uv run python docs/build_colab_notebooks.py`. The command is
 idempotent: it rewrites the badge region in each page and the notebooks in place,
@@ -48,22 +47,21 @@ CLONE = {"mdm-des"}
 def install_spec(stem: str) -> str:
     """Return the pip requirement string that installs the tutorial's package."""
     extra = EXTRAS.get(stem)
-    name = f"heormodel[{extra}]" if extra else "heormodel"
-    return f'"{name} @ git+{REPO_GIT}@{GH_REF}"'
+    return f"heormodel[{extra}]" if extra else "heormodel"
 
 
 def setup_code(stem: str) -> str:
     """Return the first code cell that makes the tutorial runnable in Colab."""
     if stem in CLONE:
         return (
-            "# This tutorial imports model code and reads a mortality table from the\n"
-            "# examples folder, so clone the repository and install it from there.\n"
+            "# Install heormodel from PyPI, then fetch the model code and mortality\n"
+            "# table this tutorial reads from the examples folder.\n"
+            f"%pip install -q {install_spec(stem)}\n"
             f"!git clone -q --depth 1 {REPO_GIT}\n"
-            f"%cd {GH_REPO}\n"
-            "%pip install -q -e ."
+            f"%cd {GH_REPO}"
         )
     return (
-        "# Install heormodel from the repository so this notebook matches the tutorial.\n"
+        "# Install heormodel from PyPI.\n"
         f"%pip install -q {install_spec(stem)}"
     )
 
