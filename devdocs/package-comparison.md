@@ -76,10 +76,10 @@ after the table). This is the clearest area where R leads.
 | Feature | heormodel | dampack | hesim | BCEA | voi | heemod |
 |---|---|---|---|---|---|---|
 | Distribution parameters from summary statistics (method of moments) | Yes, mean/SE constructors on distributions | Yes, `beta_params`, `gamma_params`, `lnorm_params`, `dirichlet_params` | Yes, `mom_beta`, `mom_gamma` | No | No | Partly, direct distribution specs and probability-conversion helpers (`rate_to_prob`, `or_to_prob`) |
-| Fitting parametric survival models from data | No | No | Yes, integrates fitted parametric survival models via `flexsurv` (`partsurvfit`, `flexsurvreg_list`) | No | No | Partly, accepts externally fitted survival models (`define_surv_fit`, `load_surv_models`); fitting done upstream |
-| Survival extrapolation beyond observed follow-up | No | No | Yes, parametric extrapolation in the partitioned survival and continuous-time engines | No | No | Yes, `define_part_surv` with `join`, `mix`, `apply_hr`, `apply_af` to project beyond the observed curve |
-| Fitted regression models as parameters | No | No | Yes, `params_lm`, `params_surv`, `params_mlogit`, `create_params` from fitted models | No | No | Partly, survival fits and `look_up` tables |
-| Multi-state transition-intensity estimation | No | No | Yes, `qmatrix` from multi-state (`msm`) fits, transition data tables | No | No | No |
+| Fitting parametric survival models from data | No | No | Yes, wraps fitted `flexsurv` models (`create_params`, `flexsurvreg_list`) across 11 families (exponential, Weibull accelerated-failure-time and proportional-hazards, gamma, lognormal, log-logistic, generalized gamma, Gompertz, Royston-Parmar splines, fractional polynomials, piecewise exponential) and fits partitioned survival regressions itself with `partsurvfit` | No | No | Partly, accepts externally fitted survival models (`define_surv_fit`, `load_surv_models`); fitting done upstream |
+| Survival extrapolation beyond observed follow-up | No | No | Yes, parametric extrapolation in the partitioned survival and continuous-time engines, with `surv_quantile` and `autoplot` on the survival curves | No | No | Yes, `define_part_surv` with `join`, `mix`, `apply_hr`, `apply_af` to project beyond the observed curve |
+| Fitted regression models as parameters | No | No | Yes, `params_lm`, `params_surv`, `params_mlogit`, `create_params` from fitted models, carrying covariates into the simulation | No | No | Partly, survival fits and `look_up` tables |
+| Multi-state survival and transition-intensity estimation | No | No | Yes, semi-Markov and Markov multi-state models from `flexsurv` fits per transition; `qmatrix` builds intensity matrices, including from multi-state (`msm`) fits; `sim_stateprobs` derives state occupancy from the fitted survival curves | No | No | No |
 | Bayesian estimation or posterior inputs | Partly, approximate Bayesian computation returns a posterior draw matrix | No | No, frequentist and bootstrap | Yes, consumes MCMC posteriors fitted upstream | No | No |
 | Calibration to observed targets | Yes, `abc_calibrate`: approximate Bayesian computation, posterior returned as a draw matrix that flows into `run_psa` | No | No | No | No | Yes, `calibrate_model`, `define_calibration_fn` |
 
@@ -159,10 +159,16 @@ five comparators. The stochastic compartmental engine on the roadmap would widen
 that gap.
 
 The R ecosystem still leads in three places, each a candidate roadmap item.
-First, survival analysis and parameter estimation: `hesim` and `heemod` consume
-fitted survival, multi-state, and regression models, and `flexsurv` and `survHE`
-fit them, including extrapolation beyond the observed follow-up, all of which
-`heormodel` leaves to upstream tools. Second, `voi` offers more estimation
+First, and most clearly, survival analysis and parameter estimation. `hesim` is
+the standout: it carries survival and multi-state modeling through the whole
+pipeline, wrapping `flexsurv` fits across 11 parametric families, fitting
+partitioned survival regressions with `partsurvfit`, building semi-Markov and
+Markov multi-state models per transition, and deriving state occupancy from the
+fitted curves with covariates carried into the simulation. `heemod` consumes
+fitted survival models and extrapolates them, and `flexsurv` and `survHE` do the
+fitting, including extrapolation beyond the observed follow-up. `heormodel`
+leaves all of this to upstream tools and brings parameters in as draws. Second,
+`voi` offers more estimation
 methods for the expected value of partial perfect information and adds the
 expected net benefit of sampling and population value of information. Third,
 `BCEA` adds risk aversion, mixed-strategy analysis, and an automated report.
