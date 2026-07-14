@@ -35,8 +35,9 @@ Changelog = "https://github.com/pedroliman/heormodel/blob/main/CHANGELOG.md"
 [project.optional-dependencies]
 calibration = ["pyabc>=0.12"]
 des = ["simpy>=4.0"]
-dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.5", "mypy>=1.10", "pyabc>=0.12", "simpy>=4.0"]
-docs = ["quartodoc>=0.11", "ipykernel>=6.29,<7", "nbclient>=0.10", "nbformat>=5.10", "pyyaml>=6", "pyabc>=0.12", "simpy>=4.0"]
+survival = ["lifelines>=0.27"]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.5", "mypy>=1.10", "pyabc>=0.12", "simpy>=4.0", "lifelines>=0.27"]
+docs = ["quartodoc>=0.11", "ipykernel>=6.29,<7", "nbclient>=0.10", "nbformat>=5.10", "pyyaml>=6", "pyabc>=0.12", "simpy>=4.0", "lifelines>=0.27"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

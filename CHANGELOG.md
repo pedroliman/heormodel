@@ -12,19 +12,24 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Added
 
-- Survival analysis bridge, phase 1 (roadmap item 18): `examples/survival_bridge.py`
-  turns a fitted parametric survival curve into engine inputs, sampled event times
-  for `MicrosimModel.continuous` and per-cycle death probabilities for
-  `MarkovModel`, and carries fitted-parameter uncertainty onto the iteration index.
-  Bespoke Weibull helpers (survival, hazard, inverse-transform sampling, per-cycle
-  transition probabilities, maximum-likelihood fitting, and asymptotic parameter
-  sampling) reproduce the reference table (undiscounted life expectancy 5.64394,
-  discounted 4.92709, quality-adjusted 4.18803) and pass a parameter recovery
-  exercise: as the simulated sample grows the fit converges to shape 1.2 and scale
-  6.0 and both the fitted-model and probabilistic discounted life expectancies
-  converge to 4.92709. A website tutorial and closed-form and convergence tests ship
-  with it. Items 19 and 20 reuse these helpers before any of it becomes a public
-  module.
+- `heormodel.survival` (roadmap item 18): fitted parametric survival curves as
+  engine inputs. `SurvivalCurve` is one composed value object holding a
+  cumulative-hazard function; the families (`exponential`, `weibull`, `gompertz`),
+  the curve algebra (`apply_hazard_ratio`, `apply_acceleration_factor`, `mix`,
+  `splice`), and the `lifelines` adapter (`from_lifelines`, `sample_params`) are
+  functions that return curves, so nothing depends on a class hierarchy. A curve
+  produces sampled event times for `MicrosimModel.continuous` and, through
+  `to_transition_matrix`, the per-cycle transition array `MarkovModel` accepts;
+  `sample_params` carries fitted-parameter uncertainty onto the iteration index so
+  survival estimates flow through `run_psa` unchanged. The adapter is duck-typed,
+  so the module imports without `lifelines`; install the fitting package with the
+  new `survival` extra (`uv pip install 'heormodel[survival]'`).
+  `examples/survival_models.py` and a website tutorial reproduce a Weibull
+  reference model (undiscounted life expectancy 5.64394, discounted 4.92709,
+  quality-adjusted 4.18803) through both engines and run a parameter recovery
+  exercise: fitting the curve to a censored sample with `lifelines` and propagating
+  its uncertainty, the fitted-model and probabilistic discounted life expectancies
+  converge to 4.92709 as the sample grows.
 
 ### Changed
 

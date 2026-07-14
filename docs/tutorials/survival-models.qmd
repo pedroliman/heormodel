@@ -1,0 +1,123 @@
+---
+title: Survival models
+---
+
+<!-- colab-badge:start -->
+
+<a href="https://colab.research.google.com/github/pedroliman/heormodel/blob/main/docs/_notebooks/survival-models.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a>
+
+<!-- colab-badge:end -->
+
+This tutorial shows how to turn a fitted parametric survival curve into engine inputs with `heormodel.survival`: sampled event times for `MicrosimModel.continuous` and per-cycle transition probabilities for `MarkovModel`. It fits the curve with `lifelines` and carries the fitted uncertainty into a probabilistic analysis. The reference curve is Weibull, `S(t) = exp(-(t / scale) ** shape)` with shape 1.2 and scale 6.0 years, run as a two-state alive-and-dead model at a 3% discount rate. Full script: [`examples/survival_models.py`](https://github.com/pedroliman/heormodel/blob/main/examples/survival_models.py). Install the survival extra with `uv pip install 'heormodel[survival]'`.
+
+## The survival curve
+
+A `SurvivalCurve` is one value object; families and curve algebra are functions that return curves, so nothing depends on a class hierarchy.
+
+```{python}
+import numpy as np
+import pandas as pd
+from heormodel import survival as sv
+
+reference = sv.weibull(shape=1.2, scale=6.0)  # a Weibull curve
+round(float(reference.survival(6.0)), 4)      # survival at the scale
+```
+
+The discounted life expectancy, the integral of `exp(-rate t) S(t)`, is the value both engines target.
+
+```{python}
+from scipy.integrate import quad
+discounted_le = quad(lambda t: np.exp(-0.03 * t) * reference.survival(t), 0, np.inf)[0]
+round(discounted_le, 5)
+```
+
+## Sampling event times for an individual model
+
+`MicrosimModel.continuous` races one death time per person; `sample_time` draws them from the curve by inverse-transform sampling.
+
+```{python}
+from heormodel.models import MicrosimModel
+from heormodel.run import run_psa
+
+STATES, ARM = ("alive", "dead"), "Standard care"
+
+def event_times(params, intervention, state, attrs, rng):
+    curve = sv.weibull(params["shape"], params["scale"])  # curve for this draw
+    times = np.full((len(state), 2), np.inf)              # columns: to alive, to dead
+    alive = state == 0
+    times[alive, 1] = curve.sample_time(rng, int(alive.sum()))
+    return times
+
+def reward_rates(params, intervention, state, attrs):
+    alive = (state == 0).astype(float)
+    return np.zeros(len(state)), alive  # no cost; one life-year per year alive
+
+continuous = MicrosimModel.continuous(
+    states=STATES, event_times=event_times, state_reward_rates=reward_rates,
+    interventions=[ARM], horizon=80.0, n_individuals=200_000,
+    discount_rate=0.03, effect="lifeyears")
+```
+
+The sampled cohort recovers the analytic discounted life expectancy within Monte Carlo error.
+
+```{python}
+draws = pd.DataFrame({"shape": [1.2], "scale": [6.0]}, index=pd.RangeIndex(1, name="iteration"))
+run_psa(continuous, draws, seed=1, sequential=True).outcomes.summary().loc[ARM, "lifeyears"]
+```
+
+## Per-cycle transition probabilities for a cohort model
+
+`to_transition_matrix` builds the age-varying transition array `MarkovModel` accepts from cause-specific curves; here one cause takes the cohort from alive to dead.
+
+```{python}
+from heormodel.models import CohortSpec, MarkovModel
+
+N_CYCLES = 60
+
+def transitions_and_rewards(params, intervention):
+    curve = sv.weibull(params["shape"], params["scale"])
+    transition = sv.to_transition_matrix({("alive", "dead"): curve}, STATES, N_CYCLES)
+    return CohortSpec(transition, np.zeros(2), np.array([1.0, 0.0]))
+
+cohort = MarkovModel(
+    states=STATES, interventions=[ARM], transitions_and_rewards=transitions_and_rewards,
+    n_cycles=N_CYCLES, initial_state="alive", discount_rate=0.03,
+    cycle_correction="half_cycle", effect="lifeyears")
+cohort.evaluate(draws).summary().loc[ARM, "lifeyears"]
+```
+
+The cohort lands within the half-cycle correction error of the continuous value, so a model author gets the same answer whichever engine they use.
+
+## Fitting the curve and carrying its uncertainty
+
+A real analysis fits the curve to data first. `lifelines` fits a Weibull model to a right-censored sample by maximum likelihood.
+
+```{python}
+from lifelines import WeibullFitter
+
+rng = np.random.default_rng(20260714)
+event_time = reference.sample_time(rng, 300)   # a 300-patient trial
+observed = np.minimum(event_time, 12.0)         # administrative censoring at 12 years
+fit = WeibullFitter().fit(observed, (event_time <= 12.0).astype(float))
+round(fit.rho_, 3), round(fit.lambda_, 3)       # fitted shape and scale
+```
+
+`sample_params` draws parameter sets from the fit's asymptotic distribution onto the iteration index, and `from_lifelines` rebuilds the curve for each draw, so `run_psa` propagates the estimation uncertainty like any other parameter.
+
+```{python}
+def fitted_event_times(params, intervention, state, attrs, rng):
+    curve = sv.from_lifelines(fit, params)  # curve at this draw's sampled parameters
+    times = np.full((len(state), 2), np.inf)
+    alive = state == 0
+    times[alive, 1] = curve.sample_time(rng, int(alive.sum()))
+    return times
+
+fitted = MicrosimModel.continuous(
+    states=STATES, event_times=fitted_event_times, state_reward_rates=reward_rates,
+    interventions=[ARM], horizon=80.0, n_individuals=20_000, discount_rate=0.03, effect="lifeyears")
+params = sv.sample_params(fit, 1_000, seed=1)
+life_years = run_psa(fitted, params, seed=2).outcomes.effects_wide()[ARM]
+round(life_years.mean(), 3), np.round(np.percentile(life_years, [2.5, 97.5]), 3)
+```
+
+The 95% credible interval contains the analytic 4.927, and as the trial size grows the estimates converge to shape 1.2 and scale 6.0 and the interval shrinks toward that value.

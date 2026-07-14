@@ -37,8 +37,8 @@ website:
               text: Calibration workflow
             - href: tutorials/parameter-inputs.qmd
               text: Parameter inputs from data
-            - href: tutorials/survival-bridge.qmd
-              text: Survival analysis bridge
+            - href: tutorials/survival-models.qmd
+              text: Survival models
             - href: tutorials/dsa.qmd
               text: Deterministic sensitivity analysis
         - section: Replications
@@ -132,6 +132,21 @@ quartodoc:
         - queue_waits
         - state_occupancy
         - LifeTable
+    - title: Survival analysis (`heormodel.survival`)
+      desc: Fitted parametric survival curves as engine inputs, with a lifelines adapter, curve algebra, and hazard-to-transition conversion. Requires the `survival` extra.
+      package: heormodel.survival
+      contents:
+        - SurvivalCurve
+        - exponential
+        - weibull
+        - gompertz
+        - from_lifelines
+        - sample_params
+        - apply_hazard_ratio
+        - apply_acceleration_factor
+        - mix
+        - splice
+        - to_transition_matrix
     - title: Run loop (`heormodel.run`)
       desc: Drive a model over parameter draws, or ingest external results tables.
       package: heormodel.run
