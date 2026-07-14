@@ -76,6 +76,8 @@ website:
               text: Discrete-event simulation
             - href: tutorials/seir-vaccination.qmd
               text: Compartmental transmission model
+            - href: tutorials/survival-bridge.qmd
+              text: Survival analysis bridge
         - section: Sensitivity and value of information
           contents:
             - href: tutorials/dsa.qmd
