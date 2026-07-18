@@ -12,7 +12,7 @@ This tutorial shows how to extend the [cohort replication](mdm-cohort.qmd) with 
 
 ## Specifying age-varying transitions and rewards
 
-The model function returns a per-cycle transition array of shape `(n_cycles, n_states, n_states)`: the Healthy-to-Dead rate follows a US life table, scaled by hazard ratios in the Sick and Sicker states. `transition_cost` and `transition_effect` attach a one-time cost of dying, a cost of onset, and a disutility of onset to the flows between states; the engine accrues them on the flow and discounts them with the state rewards.
+The model function returns a per-cycle transition array of shape `(n_cycles, n_states, n_states)`: the death rate follows a US life table in the Healthy state and is scaled by hazard ratios in the Sick and Sicker states. `transition_cost` and `transition_effect` attach a one-time cost of dying, a cost of onset, and a disutility of onset to the flows between states; the engine accrues them on the flow and discounts them with the state rewards.
 
 ```{python}
 import numpy as np
@@ -62,7 +62,7 @@ engine = MarkovModel(states=STATES, interventions=INTERVENTIONS, transitions_and
 
 ## Reproducing the published base case
 
-Running the model once at the article's point estimates should reproduce its published table exactly, the same check used in the time-independent replication. Age-varying mortality lowers life expectancy, so every intervention accrues fewer quality-adjusted life-years than in the time-independent model. Intervention A is dominated; Intervention B and Intervention AB stay on the frontier.
+Running the model once at the article's point estimates should reproduce its published table exactly, the same check used in the time-independent replication. Age-varying mortality lowers life expectancy, so every intervention accrues fewer quality-adjusted life-years than in the time-independent model. Intervention A is dominated; Intervention B and Intervention AB remain on the frontier.
 
 ```{python}
 from heormodel.cea import icer_table
