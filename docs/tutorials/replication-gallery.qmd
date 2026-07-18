@@ -11,7 +11,7 @@ This page collects four published Sick-Sicker cost-effectiveness tutorials, repr
 | [Microsimulation](mdm-microsim.qmd) | `MicrosimModel`, `duration_groups` | Matches within Monte Carlo error |
 | [Discrete-event simulation](mdm-des.qmd) | `MicrosimModel`, continuous clock | Matches the published figures within Monte Carlo error |
 
-The discrete-event source publishes figures rather than result tables. Its page reproduces the epidemiological curves, the cost axis, and the frontier structure of the published figures, matching the companion code on the two points that move the numbers: transition rewards accrued over the sojourn that ends in each transition, and six parameters the companion draws but never reads held at their base case.
+The discrete-event source publishes figures rather than result tables. Its page reproduces the survival and prevalence trajectories, the cost axis, and the frontier structure of the published figures, matching the companion code on the two points that affect the results: transition rewards accrued over the sojourn that ends in each transition, and six parameters the companion draws but never reads held at their base case.
 
 ## Sources
 
