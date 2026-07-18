@@ -67,7 +67,8 @@ The following mechanics are adapted from [Rules for writing software tutorials](
 - 500 words is a guide for trimming bloat, not a hard ceiling to hit by deleting explanation. If a page runs longer because it walks through several worked steps or explains genuinely non-obvious choices, let it; if it runs longer because of throat-clearing or repetition, cut that instead. A page padded with filler to reach 500 words is as wrong as one that cuts reasoning to stay under it.
 - Quarto pages link to each other rather than repeating content. The first paragraph of a page situates it relative to existing pages: what it covers and where to go next. Do not state what it "assumes"; either the page is self-contained or it links to the page that supplies the missing piece.
 - For quarto notebooks or any doc that executes code, render it and verify the prose matches the code output, including plots, after writing.
-- Before adding an external link, open it and confirm it resolves to the reputable page you intend, a method's documentation, a textbook chapter, a peer-reviewed article. Do not cite a URL you have not checked, and do not guess a link from a plausible-looking address. A dead or wrong link is worse than no link.
+- Before adding an external link, open it and confirm it resolves to the reputable page you intend, a method's documentation, a textbook chapter, a peer-reviewed article, or a Wikipedia article on the method. Do not cite a URL you have not checked, and do not guess a link from a plausible-looking address. A dead or wrong link is worse than no link.
+- Link sparingly. Link the one or two methods a reader is most likely to want to read further on, not every technical term. A page dense with links reads as an index, not a tutorial.
 
 ## Vocabulary
 
