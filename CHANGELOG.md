@@ -10,6 +10,29 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ## [Unreleased]
 
+### Added
+
+- Three calibration tutorials and example scripts that, with the surrogate
+  tutorial, form a sequence on one shared three-state Markov model and one
+  observed survey, so the posteriors are comparable across methods:
+  `examples/calibrate_abc.py` (approximate Bayesian computation on the model),
+  `examples/calibrate_sbi.py` (neural posterior estimation on the model), and
+  `examples/calibrate_microsim.py` (a stochastic microsimulation whose replicate
+  noise a Gaussian process surrogate carries into a posterior that is wider than
+  the deterministic one and narrows as the simulated population grows)
+  ([#66](https://github.com/pedroliman/heormodel/issues/66)).
+
+### Changed
+
+- The surrogate-accelerated calibration tutorial now runs both approximate
+  Bayesian computation and neural posterior estimation against the same Gaussian
+  process surrogate and matches them to a direct calibration, a like-for-like
+  comparison that replaces pairing one method with the surrogate and the other
+  with the model. The calibration target is a binomial survey of 1,000 people
+  rather than an added measurement error, so the sampling error in the data and
+  the noise in the model are represented separately
+  ([#66](https://github.com/pedroliman/heormodel/issues/66)).
+
 ## [0.7.4] - 2026-07-18
 
 ### Added

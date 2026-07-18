@@ -82,7 +82,7 @@ round(evpi(outcomes, wtp=50_000), 1)
 # 2738.7
 ```
 
-Beyond this workflow, the package supports microsimulations, discrete-event simulation models, and compartmental transmission models written as ordinary differential equations (the `ODEModel` engine, with a susceptible-exposed-infectious-recovered vaccination example). A calibration function calibrates some parameters, takes others from the literature, then runs a full probabilistic sensitivity analysis. When the model is expensive to run, a surrogate-accelerated calibration tutorial trains a Gaussian process on a small design and calibrates through it with the `sbi` package, reaching the same posterior with about a hundred times fewer model runs.
+Beyond this workflow, the package supports microsimulations, discrete-event simulation models, and compartmental transmission models written as ordinary differential equations (the `ODEModel` engine, with a susceptible-exposed-infectious-recovered vaccination example). A calibration function calibrates some parameters, takes others from the literature, then runs a full probabilistic sensitivity analysis. When the model is expensive to run, a surrogate-accelerated calibration tutorial trains a Gaussian process on a small design and calibrates through it, with both approximate Bayesian computation and neural posterior estimation, reaching the same posterior as a direct run at about a hundred times fewer model runs. A further tutorial calibrates a stochastic microsimulation, where the surrogate also carries the model's replicate noise into the posterior.
 
 ## Development
 
