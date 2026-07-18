@@ -8,9 +8,13 @@ title: Surrogate-accelerated calibration
 
 <!-- colab-badge:end -->
 
-This tutorial shows how to calibrate a model when each run is expensive, by fitting a fast surrogate of the model on a small design and running the inference against the surrogate instead. It trains a [Gaussian process](https://scikit-learn.org/stable/modules/gaussian_process.html) on a few dozen model runs, then calibrates twice against it, once with approximate Bayesian computation (ABC) and once with neural posterior estimation, and checks both against a direct ABC run on the model. All three posteriors agree, and the surrogate reaches them with about sixty model runs against the thousands a direct calibration takes. It builds on the [ABC](calibrate-abc.qmd) and [simulation-based inference](calibrate-sbi.qmd) tutorials, walks through [`examples/surrogate_calibration.py`](https://github.com/pedroliman/heormodel/blob/main/examples/surrogate_calibration.py), and needs both extras: `uv pip install 'heormodel[calibration,surrogate]'`.
+This tutorial shows how to calibrate a model that is expensive to run (i.e., a single mode run takes more than only a few seconds). In those cases, we want to have an efficient approach to first learn the relationships between the model inputs and calibration targets, then use that surrogate model (a.k.a. metamodel) in a calibration routine. We do this by fitting a fast surrogate of the model on a small experimental design and running the inference against the surrogate instead. 
 
-The first two tutorials each calibrated the model directly and each spent thousands of model runs. A surrogate moves that cost up front into a fixed design: run the model a few dozen times, fit a fast approximation of its output, and let the inference query the approximation without running the model again. The tutorial makes two points. The surrogate is faithful, so inference against it reproduces the direct posterior. And the two inference methods, run on the same surrogate, agree, so the method and the surrogate are independent choices.
+In this example we fit a [Gaussian process](https://scikit-learn.org/stable/modules/gaussian_process.html) (GP) on a few dozen model runs, then calibrates twice against it, once with approximate Bayesian computation (ABC) and once with neural posterior estimation, and checks whether each approach can recover a ground truth parameter. We like a GP because (a) it is fast to run, and (b) it also learns the variation coming from the underlying model, and as such, better reflects uncertainty than other surrogates that don't have any concept of uncertainty (like neural networks).
+
+This tutorial builds on the [ABC](calibrate-abc.qmd) and [simulation-based inference](calibrate-sbi.qmd) tutorials, walks through [`examples/surrogate_calibration.py`](https://github.com/pedroliman/heormodel/blob/main/examples/surrogate_calibration.py), and needs both extras: `uv pip install 'heormodel[calibration,surrogate]'`.
+
+The first two tutorials each calibrated the model directly and each need at least a few thousands of model runs for the inference approach to work. A surrogate moves that cost up front into a fixed design: run the model a few dozen times, fit a fast approximation of its output, and let the inference method use the surrogate without running the model again. The tutorial makes two points. The surrogate is faithful, so inference against it reproduces the direct posterior. And the two inference methods, run on the same surrogate, agree, so the method and the surrogate are independent choices.
 
 ## Specifying the model and the target
 
@@ -66,7 +70,7 @@ observed.round(4)
 
 ## Fitting a Gaussian process surrogate
 
-The surrogate runs the model only on a fixed design, chosen once. Latin hypercube sampling spreads 60 points across the two-parameter box so each parameter's range is evenly covered, which a uniform random draw of the same size would leave patchier. Sixty points is a deliberately small budget, to show how few runs the surrogate needs.
+We start by creating a Latin hypercube sample, using only 60 points for calibrating two-parameters. Sixty points is a deliberately small budget, to show that the surrogate can fit the model well even with a few runs for a relatively straightforward calibration exercise.
 
 ```{python}
 import warnings
@@ -87,7 +91,7 @@ design_runs = model_runs["count"]
 print(f"{design_runs} model runs for the design")
 ```
 
-A Gaussian process regresses each target on the two parameters. It suits a small design of a smooth, deterministic function: it interpolates the design points and reports its own uncertainty away from them. One Gaussian process is fit per target, each with a squared-exponential correlation and a small noise term for numerical stability.
+A Gaussian process regresses each target on the two parameters. It suits a small design of a smooth function: it interpolates the design points and reports its own uncertainty away from them. One Gaussian process is fit per target. A more thorough treatment on GPs is beyond the scope of this tutorial, see the [GP regression chapter](https://bookdown.org/rbg/surrogates/chap5.html) and the [scikit-learn documentation on GPs](https://scikit-learn.org/stable/modules/gaussian_process.html) to learn more.
 
 ```{python}
 kernel = ConstantKernel(1.0) * RBF([0.1, 0.1]) + WhiteKernel(1e-6, (1e-10, 1e-2))
@@ -98,7 +102,7 @@ surrogates = [
 ]
 ```
 
-Before trusting the surrogate, check it against model runs that were not in its design. Predicting 300 fresh points and comparing to the model gives the root-mean-square error per target.
+Before trusting the surrogate, we of course need to check it against model runs that were not in its design. Predicting 300 fresh points and comparing to the model gives the root-mean-square error per target.
 
 ```{python}
 holdout = scale(LatinHypercube(d=2, seed=99).random(300), low, high)
@@ -108,7 +112,7 @@ rmse = np.sqrt(((predicted - holdout_targets) ** 2).mean(axis=0))
 print("hold-out RMSE per target:", rmse.round(5))
 ```
 
-The error is on the order of 0.0001, far below the sampling error of about 0.015 the calibration works against. At that scale the surrogate is indistinguishable from the model, so inference against it reaches the same posterior. These hold-out runs are a check, not part of the calibration budget.
+The error is on the order of 0.0001, so this is a great surrogate for this model. At that scale the surrogate is indistinguishable from the model, so inference with the surrogate should find the same posterior.
 
 ## Calibrating against the surrogate with both methods
 
@@ -172,7 +176,7 @@ sbi_surrogate = pd.DataFrame(
 
 ## Comparing against a direct calibration
 
-To confirm the surrogate did not distort the answer, run ABC once more against the model itself, the calibration of the first tutorial. This run spends the model budget the surrogate avoids.
+To confirm the surrogate did not distort the answer, run ABC once more against the model itself, the calibration of the first tutorial.
 
 ```{python}
 reference_rng = np.random.default_rng(2024)
@@ -223,17 +227,5 @@ axes[-1].legend(fontsize=7)
 fig.tight_layout()
 plt.show()
 ```
-
-## Reading the budget
-
-The surrogate reached the same posterior on the design's 60 runs, against the thousands the direct calibration spent.
-
-```{python}
-print(f"direct ABC model runs: {reference_runs}")
-print(f"surrogate model runs:  {design_runs}")
-print(f"ratio:                 {reference_runs / design_runs:.0f} times fewer")
-```
-
-The ratio is fixed by the design size and does not grow with the inference, so a slower model or a more demanding posterior widens the advantage rather than narrowing it. Two conditions limit the method. The surrogate is reliable only within the design region, so the prior bounds must contain the posterior, which the hold-out check and the prior support confirm here. The surrogate also adds its own approximation error, so its hold-out accuracy relative to the sampling error is what justifies replacing the model.
 
 Next: the [microsimulation tutorial](calibrate-microsim.qmd) calibrates a model whose runs are not only slow but random, where the surrogate also carries the model's own variability into the posterior.
