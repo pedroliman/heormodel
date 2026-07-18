@@ -68,7 +68,7 @@ outcomes = run_psa(engine, draws).outcomes
 icer_table(outcomes).round(1)
 ```
 
-The `icer_table` orders interventions by cost and reports incremental cost-effectiveness ratios along the efficiency frontier; the `status` column flags dominated (`D`) and extended-dominated (`ED`) interventions. All three interventions sit on the frontier here, with Treatment A entering near 11,000 per quality-adjusted life-year (QALY) and Treatment B near 52,000. `plot_ce_plane` scatters every iteration's incremental cost and effect against standard care, and `plot_ceac` reports the share of iterations in which each intervention has the highest net benefit, across a grid of willingness-to-pay thresholds:
+The `icer_table` orders interventions by cost and reports incremental cost-effectiveness ratios along the efficiency frontier; the `status` column flags dominated (`D`) and extended-dominated (`ED`) interventions. All three interventions lie on the frontier here, with Treatment A entering near 11,000 per quality-adjusted life-year (QALY) and Treatment B near 52,000. `plot_ce_plane` scatters every iteration's incremental cost and effect against standard care, and `plot_ceac` reports the share of iterations in which each intervention has the highest net benefit, across a grid of willingness-to-pay thresholds:
 
 ```{python}
 grid = np.linspace(0, 100_000, 41)
@@ -96,7 +96,7 @@ fig2.tight_layout()
 
 ## Where to go next
 
-- [Markov cohort model](tutorials/mdm-cohort.qmd): the standard state-transition model, then the [microsimulation engine](tutorials/microsim.qmd) as the step up in detail.
+- [Markov cohort model](tutorials/mdm-cohort.qmd): the standard state-transition model, then the [microsimulation engine](tutorials/microsim.qmd) as the more detailed alternative.
 - [Compartmental transmission model](tutorials/seir-vaccination.qmd): a susceptible-exposed-infectious-recovered vaccination model written as ordinary differential equations, for infectious-disease cost-effectiveness analysis.
 - [Bring your own outputs](tutorials/byo-outputs.qmd): an external results table through cost-effectiveness analysis, value of information, plots, and a run report.
 - [Full pipeline](tutorials/full-pipeline.qmd): parameters, `run_psa`, cost-effectiveness analysis, and value of information end to end.
