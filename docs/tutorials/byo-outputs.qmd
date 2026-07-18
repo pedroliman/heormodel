@@ -58,6 +58,8 @@ outcomes = as_outcomes(rows)
 outcomes.summary().round(2)
 ```
 
+Each row gives an intervention's mean cost and effect across the 2,000 iterations, confirming the table converted into the structure the analysis functions expect.
+
 ## Running the cost-effectiveness analysis
 
 `icer_table` orders interventions by cost and reports incremental cost-effectiveness ratios along the efficiency frontier.
@@ -68,7 +70,7 @@ from heormodel.cea import ceac, ceaf, icer_table
 icer_table(outcomes).round(3)
 ```
 
-The `status` column marks dominated (`D`) and extended-dominated (`ED`) interventions; here all three are non-dominated (`ND`), and the willingness-to-pay threshold of 30,000 sits between the two frontier incremental cost-effectiveness ratios, so the decision is genuinely uncertain. `ceac` and `ceaf` turn that uncertainty into acceptability curves across a grid of thresholds, reused below in the plots and the value-of-information ranking.
+The `status` column marks dominated (`D`) and extended-dominated (`ED`) interventions; here all three are non-dominated (`ND`), and the willingness-to-pay threshold of 30,000 lies between the two frontier incremental cost-effectiveness ratios, so the decision is genuinely uncertain. `ceac` and `ceaf` turn that uncertainty into acceptability curves across a grid of thresholds, reused below in the plots and the value-of-information ranking.
 
 ```{python}
 grid = np.linspace(0, 80_000, 51)
@@ -87,7 +89,9 @@ print(f"EVPI at WTP {WTP:,.0f}: {evpi(outcomes, WTP):,.1f}")
 evppi_ranking(outcomes, draws, WTP).round(1)
 ```
 
-## Plotting the frontier, acceptability, and tornado
+The ranking is sorted from the highest value downward, so the parameter at the top is the one whose resolution alone would most improve the decision at this threshold, and the first candidate for further data collection.
+
+## Plotting the cost-effectiveness plane, acceptability, and tornado
 
 The cost-effectiveness plane scatters every iteration's incremental cost and effect against a comparator, so the spread of the cloud shows the uncertainty that the table's point estimates alone cannot.
 
@@ -97,7 +101,7 @@ from heormodel.report import plot_ce_plane, plot_ceac, plot_frontier, plot_torna
 plot_ce_plane(outcomes, comparator="Standard care", wtp=WTP);
 ```
 
-The acceptability curves plot the same probabilities computed above as one line per intervention against the threshold, making the crossover in the decision visible at a glance.
+The acceptability curves plot the same probabilities computed above as one line per intervention against the threshold, making the crossover in the decision visible.
 
 ```{python}
 plot_ceac(ceac_df, ceaf_df=ceaf_df);
@@ -112,7 +116,7 @@ plot_tornado(td);
 
 ## Recording the run for reproducibility
 
-`capture_run` snapshots the seed, the parameter specifications, and the outcome shape into a record that serializes to JSON and renders as a run report, so a later reviewer can check what produced these numbers without rerunning the analysis.
+`capture_run` captures the seed, the parameter specifications, and the outcome shape into a record that saves as JSON and renders as a run report, so a later reviewer can check what produced these numbers without rerunning the analysis.
 
 ```{python}
 from heormodel.report import capture_run
