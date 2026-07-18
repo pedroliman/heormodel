@@ -2,6 +2,15 @@ project:
   type: website
   pre-render: _prerender.py
 
+execute:
+  # Reuse a tutorial's last computed output instead of re-running its code
+  # when the .qmd source has not changed since. Results land in _freeze/
+  # (gitignored; restored from the CI cache in .github/workflows/docs.yml).
+  # This matters most for the calibration tutorials, whose fits take
+  # minutes. To force one tutorial to re-execute, delete its directory
+  # under docs/_freeze/ before rendering.
+  freeze: auto
+
 website:
   title: heormodel
   site-url: https://pedroliman.github.io/heormodel/

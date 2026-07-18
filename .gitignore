@@ -21,6 +21,10 @@ docs/objects.json
 docs/changelog.md
 docs/index_files/
 
+# Quarto freeze cache (execution results); restored from the CI cache
+# instead of being committed, see .github/workflows/docs.yml
+docs/_freeze/
+
 /.quarto/
 **/*.quarto_ipynb
 

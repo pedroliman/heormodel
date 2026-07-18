@@ -104,6 +104,8 @@ uv run quartodoc build --config docs/_quarto.yml
 quarto preview docs
 ```
 
+Quarto's `freeze: auto` setting (`docs/_quarto.yml`) caches each tutorial's computed output under `docs/_freeze/`, gitignored, and reused whenever the tutorial's source has not changed. This skips re-running the calibration tutorials, whose fits take minutes, on every preview. Delete a tutorial's directory under `docs/_freeze/` to force it to re-execute. Continuous integration restores the same cache from `.github/workflows/docs.yml`.
+
 Each tutorial also carries an "Open in Colab" badge backed by a runnable notebook under `docs/_notebooks/`. Regenerate the badges and notebooks after editing a tutorial; continuous integration checks they stay in sync:
 
 ```bash

@@ -28,6 +28,12 @@ jobs:
       - uses: quarto-dev/quarto-actions/setup@v2
         with:
           version: 1.9.38
+      - uses: actions/cache@v4
+        with:
+          path: docs/_freeze
+          key: quarto-freeze-${{ hashFiles('docs/**/*.qmd', 'examples/**', 'src/heormodel/**', 'uv.lock') }}
+          restore-keys: |
+            quarto-freeze-
       - run: uv sync --extra docs
       - run: uv run quartodoc build --config docs/_quarto.yml
       - run: uv run quartodoc interlinks

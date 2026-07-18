@@ -1,14 +1,13 @@
-"""Value of information end to end, checked against closed-form values.
+"""Value of information end to end.
 
 This reproduces the Gaussian linear decision model that anchors the
 regression value-of-information literature (Strong, Oakley & Brennan, 2014,
 Medical Decision Making 34:311-326; Strong, Oakley, Brennan & Breeze, 2015,
 Medical Decision Making 35:570-583). Two interventions, standard care and a new
 drug, differ by an uncertain incremental effect ``dq`` (QALYs) and an
-uncertain incremental cost ``dc``, both Normal. For that model the
-incremental net benefit is Normal, so EVPI, per-parameter EVPPI, and the EVSI
-of a proposed effect study all have closed forms via the unit normal loss
-integral. The script prints each estimate next to its closed form.
+uncertain incremental cost ``dc``, both Normal. ``tests/test_voi.py`` checks
+this same model's EVPI, EVPPI, and EVSI against their closed forms; this
+script demonstrates the workflow.
 
 The workflow is the standard one: a ``ParameterSet``, ``run_psa``, then the
 ``heormodel.voi`` estimators on the outcomes.
@@ -22,7 +21,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from scipy.stats import norm
 
 from heormodel.cea import expected_nmb, icer_table
 from heormodel.models import Outcomes
@@ -45,17 +43,6 @@ def new_drug(draws: pd.DataFrame) -> Outcomes:
     return Outcomes.from_wide(costs, effects)
 
 
-def emax0(mean: float, sd: float) -> float:
-    """E[max(0, X)] for X ~ Normal(mean, sd**2), the unit normal loss integral."""
-    return mean * norm.cdf(mean / sd) + sd * norm.pdf(mean / sd)
-
-
-def analytic_voi(s_conditional: float) -> float:
-    """VoI when the conditional mean incremental NB is Normal(m, s_conditional**2)."""
-    m = WTP * MU_Q - MU_C
-    return emax0(m, s_conditional) - max(0.0, m)
-
-
 def main() -> None:
     params = ParameterSet({"dq": Normal(MU_Q, SD_Q), "dc": Normal(MU_C, SD_C)})
     draws = params.sample(N, seed=2026)
@@ -71,23 +58,20 @@ def main() -> None:
     print("The new drug is adopted on the means; VoI prices the residual uncertainty.\n")
 
     # --- EVPI: the ceiling on research value --------------------------------
-    s_total = np.hypot(WTP * SD_Q, SD_C)
-    print("EVPI (value of resolving all uncertainty), per person:")
-    print(f"  estimate {evpi(outcomes, WTP):>10,.0f}   closed form {analytic_voi(s_total):>10,.0f}")
+    print(f"EVPI (value of resolving all uncertainty), per person: {evpi(outcomes, WTP):,.0f}")
 
     # --- EVPPI: which parameters that value attaches to ---------------------
     ranking = evppi_ranking(outcomes, draws, WTP)
-    closed = {"dq": analytic_voi(WTP * SD_Q), "dc": analytic_voi(SD_C)}
     print("\nEVPPI by parameter (spline metamodel, two parameters):")
     for p in ranking.index:
-        print(f"  {p:>3}  estimate {ranking[p]:>10,.0f}   closed form {closed[p]:>10,.0f}")
+        print(f"  {p:>3}  {ranking[p]:>10,.0f}")
     print(f"  ranking: {' > '.join(ranking.index)}")
 
     # --- EVSI: the value of a proposed effect study, by sample size ---------
     sizes = (25, 50, 100, 200, 400, 800)
     est_by_size = {}
     print("\nEVSI of a two-arm effect study, per person:")
-    print(f"  {'n/arm':>6}  {'estimate':>10}  {'closed form':>12}")
+    print(f"  {'n/arm':>6}  {'estimate':>10}")
     for n_trial in sizes:
         tau = SIGMA / np.sqrt(n_trial)
         rng = np.random.default_rng(n_trial)
@@ -96,8 +80,7 @@ def main() -> None:
         )
         est = evsi_regression(outcomes, summaries, WTP)
         est_by_size[n_trial] = est
-        s_evsi = WTP * SD_Q**2 / np.hypot(SD_Q, tau)
-        print(f"  {n_trial:>6}  {est:>10,.0f}  {analytic_voi(s_evsi):>12,.0f}")
+        print(f"  {n_trial:>6}  {est:>10,.0f}")
 
     # --- expected net benefit of sampling, with the sample size to fund -----
     evsi = pd.Series(est_by_size)
