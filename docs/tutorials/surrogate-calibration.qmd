@@ -8,13 +8,13 @@ title: Surrogate-accelerated calibration
 
 <!-- colab-badge:end -->
 
-This tutorial shows how to calibrate a model when each model run is expensive, by training a fast surrogate of the model and doing the inference against the surrogate instead. It trains a Gaussian process on a small Latin hypercube design of the model's calibration targets, runs simulation-based inference with the `sbi` package against that surrogate, and checks the result against a reference calibration run with approximate Bayesian computation (ABC) on the model itself. The two posteriors agree, and the surrogate path reaches that posterior with about a hundred times fewer model runs. It builds on the [calibration workflow](calibration-workflow.qmd) and walks through [`examples/surrogate_calibration.py`](https://github.com/pedroliman/heormodel/blob/main/examples/surrogate_calibration.py). It needs two extras: `uv pip install 'heormodel[calibration,surrogate]'`.
+This tutorial shows how to calibrate a model when each run is expensive, by fitting a fast surrogate of the model on a small design and running the inference against the surrogate instead. It trains a Gaussian process on a few dozen model runs, then calibrates twice against it, once with approximate Bayesian computation (ABC) and once with neural posterior estimation, and checks both against a direct ABC run on the model. All three posteriors agree, and the surrogate reaches them with about sixty model runs against the thousands a direct calibration takes. It builds on the [ABC](calibrate-abc.qmd) and [simulation-based inference](calibrate-sbi.qmd) tutorials, walks through [`examples/surrogate_calibration.py`](https://github.com/pedroliman/heormodel/blob/main/examples/surrogate_calibration.py), and needs both extras: `uv pip install 'heormodel[calibration,surrogate]'`.
 
-A surrogate is worth its cost when the model is slow to run. ABC calls the model thousands of times, so a model that takes a minute per run requires days to calibrate. A surrogate moves that cost up front into a small, fixed design: run the model a few dozen times, fit a fast approximation, and the inference then queries the approximation without further model runs.
+The first two tutorials each calibrated the model directly and each spent thousands of model runs. A surrogate moves that cost up front into a fixed design: run the model a few dozen times, fit a fast approximation of its output, and let the inference query the approximation without running the model again. The tutorial makes two points. The surrogate is faithful, so inference against it reproduces the direct posterior. And the two inference methods, run on the same surrogate, agree, so the method and the surrogate are independent choices.
 
-## Specifying the disease model and its calibration targets
+## Specifying the model and the target
 
-The model is a three-state cohort state-transition (Markov) model over Healthy, Sick, and Dead, run for 40 annual cycles from a healthy cohort. Two per-cycle transition probabilities are unknown and will be calibrated: the Healthy to Sick probability `p_HS` and the Sick to Dead probability `p_SD`. Background mortality from Healthy is held fixed. The calibration targets are the Sick-state prevalence at cycles 8, 16, and 28: an early, middle, and late reading of the Sick-state prevalence trajectory, which together separate the inflow probability `p_HS` from the outflow probability `p_SD`.
+The model and the target are those of the previous two tutorials: a three-state cohort model calibrated to the Sick-state prevalence at three cycles, measured in a sample of 1,000 people, generated from known truth with the shared seed.
 
 ```{python}
 import numpy as np
@@ -27,7 +27,11 @@ N_CYCLES = 40
 TARGET_CYCLES = (8, 16, 28)
 TARGET_LABELS = [f"sick_c{cycle}" for cycle in TARGET_CYCLES]
 BACKGROUND_MORTALITY = 0.01
-MEASUREMENT_SD = 0.01  # standard error on each observed prevalence
+CALIBRATED = ("p_HS", "p_SD")
+BOUNDS = {"p_HS": (0.02, 0.20), "p_SD": (0.05, 0.35)}
+TRUTH = {"p_HS": 0.08, "p_SD": 0.15}
+SURVEY_SIZE = 1_000
+SURVEY_SEED = 20260718
 
 def transitions_and_rewards(params, intervention):
     p_HS, p_SD = params["p_HS"], params["p_SD"]
@@ -43,98 +47,49 @@ engine = MarkovModel(
     transitions_and_rewards=transitions_and_rewards,
     n_cycles=N_CYCLES, cycle_correction="none",
 )
-```
-
-The calibration reads three numbers from the cohort trace. A counter wraps the target function so both methods can report how many times they ran the model, which is the quantity this tutorial is about.
-
-```{python}
 model_runs = {"count": 0}
 
-def model_targets(params):
-    """Sick-state prevalence at the target cycles. One real model run."""
+def prevalence(params):
+    """Sick-state prevalence at the target cycles; one model run, counted."""
     model_runs["count"] += 1
     occupancy = engine.trace(pd.Series(params), INTERVENTION)["sick"].to_numpy()
     return np.array([occupancy[cycle] for cycle in TARGET_CYCLES])
+
+def draw_survey(prevalences, rng):
+    return rng.binomial(SURVEY_SIZE, np.clip(prevalences, 0, 1)) / SURVEY_SIZE
+
+true_prevalence = prevalence(TRUTH)
+observed = draw_survey(true_prevalence, np.random.default_rng(SURVEY_SEED))
+epsilon = 0.5 * float(np.sqrt((true_prevalence * (1 - true_prevalence) / SURVEY_SIZE).sum()))
+observed.round(4)
 ```
 
-The targets are generated from known values, `p_HS = 0.08` and `p_SD = 0.15`, so calibration has a right answer to recover. Each prevalence is observed with a measurement error of 0.01, the sampling error a prevalence estimate from a survey of a few thousand people would carry. That error defines the likelihood both methods will target.
+## Fitting a Gaussian process surrogate
 
-```{python}
-CALIBRATED = ("p_HS", "p_SD")
-BOUNDS = {"p_HS": (0.02, 0.20), "p_SD": (0.05, 0.35)}
-TRUTH = {"p_HS": 0.08, "p_SD": 0.15}
-
-observed = model_targets(TRUTH)
-dict(zip(TARGET_LABELS, observed.round(4)))
-```
-
-## Calibrating against the model with approximate Bayesian computation
-
-The reference posterior comes from `abc_calibrate`, which runs sequential Monte Carlo ABC against the model. The simulator is stochastic: it adds the measurement error to the model's targets, so ABC targets the same posterior the surrogate path will, the parameters given a noisy prevalence reading, rather than an exact match to a deterministic curve. The acceptance threshold anneals down to the measurement-error scale.
-
-```{python}
-import os
-os.environ["ABC_LOG_LEVEL"] = "WARNING"  # quiet pyabc's per-population logging
-
-from heormodel.calibrate import abc_calibrate
-from heormodel.params import Uniform
-
-abc_noise = np.random.default_rng(2024)
-
-def abc_simulator(params):
-    noisy = model_targets(params) + abc_noise.normal(0.0, MEASUREMENT_SD, len(observed))
-    return dict(zip(TARGET_LABELS, noisy))
-
-model_runs["count"] = 0
-reference = abc_calibrate(
-    abc_simulator,
-    priors={name: Uniform(*BOUNDS[name]) for name in CALIBRATED},
-    observed=dict(zip(TARGET_LABELS, observed)),
-    population_size=300,
-    max_populations=10,
-    min_epsilon=MEASUREMENT_SD * np.sqrt(len(observed)),
-    n_posterior=3_000,
-    seed=1,
-)
-abc_posterior = reference.posterior
-abc_runs = model_runs["count"]
-print(f"{abc_runs} model runs over {reference.n_populations} populations")
-abc_posterior.mean().round(4)
-```
-
-The posterior means recover the true values. The cost is in the run count: reaching this posterior took several thousand evaluations of the model, because every accepted particle in every population is one model run, and most proposals are rejected.
-
-## Fitting a Gaussian process surrogate on a small design
-
-The surrogate path runs the model only on a fixed design, chosen once. Latin hypercube sampling spreads 60 points across the two-parameter box so that each parameter's range is evenly covered, which a uniform random draw of the same size would leave patchier. Sixty points is a deliberately small budget, to show how few runs the surrogate requires.
-
-```{python}
-from scipy.stats.qmc import LatinHypercube, scale
-
-low = np.array([BOUNDS[name][0] for name in CALIBRATED])
-high = np.array([BOUNDS[name][1] for name in CALIBRATED])
-
-model_runs["count"] = 0
-unit_design = LatinHypercube(d=2, seed=7).random(60)
-design = pd.DataFrame(scale(unit_design, low, high), columns=list(CALIBRATED))
-design_targets = np.array([model_targets(row) for row in design.to_dict("records")])
-design_runs = model_runs["count"]
-print(f"{design_runs} model runs for the design")
-```
-
-A Gaussian process regresses each target on the two parameters. It suits a small design of a smooth, deterministic model: it interpolates the design points and reports its own uncertainty away from them, and 60 points is ample for a smooth function of two inputs. One Gaussian process is fit per target, each with a squared-exponential correlation and a small noise term for numerical stability.
+The surrogate runs the model only on a fixed design, chosen once. Latin hypercube sampling spreads 60 points across the two-parameter box so each parameter's range is evenly covered, which a uniform random draw of the same size would leave patchier. Sixty points is a deliberately small budget, to show how few runs the surrogate needs.
 
 ```{python}
 import warnings
+from scipy.stats.qmc import LatinHypercube, scale
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel
 
-# The model is smooth, so the marginal-likelihood optimizer sometimes reports
-# non-convergence while still fitting well (the hold-out check below confirms it).
-# Silence that cosmetic warning.
-warnings.filterwarnings("ignore", category=ConvergenceWarning)
+warnings.filterwarnings("ignore", category=ConvergenceWarning)  # cosmetic; hold-out confirms fit
+low = np.array([BOUNDS[name][0] for name in CALIBRATED])
+high = np.array([BOUNDS[name][1] for name in CALIBRATED])
 
+model_runs["count"] = 0
+design = pd.DataFrame(scale(LatinHypercube(d=2, seed=7).random(60), low, high),
+                     columns=list(CALIBRATED))
+design_targets = np.array([prevalence(row) for row in design.to_dict("records")])
+design_runs = model_runs["count"]
+print(f"{design_runs} model runs for the design")
+```
+
+A Gaussian process regresses each target on the two parameters. It suits a small design of a smooth, deterministic function: it interpolates the design points and reports its own uncertainty away from them. One Gaussian process is fit per target, each with a squared-exponential correlation and a small noise term for numerical stability.
+
+```{python}
 kernel = ConstantKernel(1.0) * RBF([0.1, 0.1]) + WhiteKernel(1e-6, (1e-10, 1e-2))
 surrogates = [
     GaussianProcessRegressor(kernel=kernel, normalize_y=True, n_restarts_optimizer=5)
@@ -143,107 +98,142 @@ surrogates = [
 ]
 ```
 
-Before trusting the surrogate for inference, check it against model runs that were not in its design. Predicting 300 fresh points and comparing to the model gives the root-mean-square error per target.
+Before trusting the surrogate, check it against model runs that were not in its design. Predicting 300 fresh points and comparing to the model gives the root-mean-square error per target.
 
 ```{python}
-model_runs["count"] = 0
 holdout = scale(LatinHypercube(d=2, seed=99).random(300), low, high)
-holdout_targets = np.array([model_targets(dict(zip(CALIBRATED, row))) for row in holdout])
-predicted = np.column_stack([surrogate.predict(holdout) for surrogate in surrogates])
+holdout_targets = np.array([prevalence(dict(zip(CALIBRATED, row))) for row in holdout])
+predicted = np.column_stack([gp.predict(holdout) for gp in surrogates])
 rmse = np.sqrt(((predicted - holdout_targets) ** 2).mean(axis=0))
 print("hold-out RMSE per target:", rmse.round(5))
 ```
 
-The error is on the order of 0.0001, well below the 0.01 measurement error the calibration works against. At that scale the surrogate is indistinguishable from the model, so inference against it reaches the same posterior. These hold-out runs are a validation check, not part of the calibration budget.
+The error is on the order of 0.0001, far below the sampling error of about 0.015 the calibration works against. At that scale the surrogate is indistinguishable from the model, so inference against it reaches the same posterior. These hold-out runs are a check, not part of the calibration budget.
 
-## Running neural posterior estimation against the surrogate
+## Calibrating against the surrogate with both methods
 
-Simulation-based inference learns the posterior directly from simulated parameter-and-output pairs, without an explicit likelihood. The `sbi` package's neural posterior estimation trains a conditional density estimator on pairs drawn from the prior, then evaluates it at the observed targets to return the posterior. Every pair comes from the surrogate, so this stage requires no model runs. The simulator adds the same measurement error, so the density estimator learns the same noisy-observation likelihood ABC used.
+Both methods now use the surrogate as their simulator. Each evaluation predicts the prevalence from the Gaussian process and draws a sample of it, so the surrogate simulators carry the same sampling error the direct calibrations did, without running the model.
 
 ```{python}
-import contextlib
-import io
+import os
+os.environ["ABC_LOG_LEVEL"] = "WARNING"
 import logging
-logging.getLogger("sbi").setLevel(logging.WARNING)  # quiet sbi's per-epoch logging
+logging.getLogger("sbi").setLevel(logging.WARNING)
 
-import torch
+from heormodel.calibrate import abc_calibrate
+from heormodel.params import Uniform
+
+priors = {name: Uniform(*BOUNDS[name]) for name in CALIBRATED}
+observed_map = dict(zip(TARGET_LABELS, observed))
+
+abc_surrogate_rng = np.random.default_rng(2024)
+
+def surrogate_prevalence(params):
+    point = np.array([[params[name] for name in CALIBRATED]])
+    return np.clip([gp.predict(point)[0] for gp in surrogates], 0, 1)
+
+def abc_surrogate_simulator(params):
+    drawn = draw_survey(surrogate_prevalence(params), abc_surrogate_rng)
+    return dict(zip(TARGET_LABELS, drawn))
+
+abc_surrogate = abc_calibrate(
+    abc_surrogate_simulator, priors=priors, observed=observed_map,
+    population_size=400, max_populations=15, min_epsilon=epsilon, n_posterior=3_000, seed=1,
+).posterior
+```
+
+Neural posterior estimation trains on 10,000 pairs, all from the surrogate, so this stage runs the model zero more times.
+
+```{python}
+import contextlib, io, torch
 from sbi.inference import NPE
 from sbi.utils import BoxUniform
 
 torch.manual_seed(0)
-surrogate_noise = np.random.default_rng(11)
+sbi_rng = np.random.default_rng(11)
 prior = BoxUniform(low=torch.tensor(low, dtype=torch.float32),
                    high=torch.tensor(high, dtype=torch.float32))
 
-def surrogate_simulator(theta):
-    mean = np.column_stack([surrogate.predict(theta.numpy()) for surrogate in surrogates])
-    noisy = mean + surrogate_noise.normal(0.0, MEASUREMENT_SD, mean.shape)
-    return torch.tensor(noisy, dtype=torch.float32)
+def sbi_surrogate_simulator(theta):
+    mean = np.column_stack([gp.predict(theta.numpy()) for gp in surrogates])
+    return torch.tensor(draw_survey(mean, sbi_rng), dtype=torch.float32)
 
 theta = prior.sample((10_000,))
 inference = NPE(prior=prior, show_progress_bars=False)
-with contextlib.redirect_stdout(io.StringIO()):  # quiet sbi's training progress print
-    inference.append_simulations(theta, surrogate_simulator(theta)).train()
-neural_posterior = inference.build_posterior()
-```
-
-The trained estimator is amortized: conditioning it on the observed targets returns the posterior without any further model or surrogate runs.
-
-```{python}
-samples = neural_posterior.sample(
-    (3_000,), x=torch.tensor(observed, dtype=torch.float32), show_progress_bars=False
+with contextlib.redirect_stdout(io.StringIO()):
+    inference.append_simulations(theta, sbi_surrogate_simulator(theta)).train()
+sbi_surrogate = pd.DataFrame(
+    inference.build_posterior().sample(
+        (3_000,), x=torch.tensor(observed, dtype=torch.float32), show_progress_bars=False
+    ).numpy(),
+    columns=list(CALIBRATED),
 )
-sbi_posterior = pd.DataFrame(samples.numpy(), columns=list(CALIBRATED))
-sbi_posterior.mean().round(4)
 ```
 
-The neural posterior means match the true values and the ABC means.
+## Comparing against a direct calibration
 
-## Comparing the two posteriors
-
-Side by side, the two posteriors agree on both the location and the spread of each parameter.
+To confirm the surrogate did not distort the answer, run ABC once more against the model itself, the calibration of the first tutorial. This run spends the model budget the surrogate avoids.
 
 ```{python}
+reference_rng = np.random.default_rng(2024)
+
+def reference_simulator(params):
+    return dict(zip(TARGET_LABELS, draw_survey(prevalence(params), reference_rng)))
+
+model_runs["count"] = 0
+reference = abc_calibrate(
+    reference_simulator, priors=priors, observed=observed_map,
+    population_size=400, max_populations=15, min_epsilon=epsilon, n_posterior=3_000, seed=1,
+).posterior
+reference_runs = model_runs["count"]
+```
+
+The three posteriors agree on the location and the spread of both parameters.
+
+```{python}
+def describe(name, draws):
+    return {f"{name}_mean": draws.mean().reindex(CALIBRATED).to_numpy(),
+            f"{name}_sd": draws.std().reindex(CALIBRATED).to_numpy()}
+
 summary = pd.DataFrame({
     "truth": [TRUTH[name] for name in CALIBRATED],
-    "abc_mean": abc_posterior.mean().reindex(CALIBRATED).to_numpy(),
-    "abc_sd": abc_posterior.std().reindex(CALIBRATED).to_numpy(),
-    "sbi_mean": sbi_posterior.mean().reindex(CALIBRATED).to_numpy(),
-    "sbi_sd": sbi_posterior.std().reindex(CALIBRATED).to_numpy(),
+    **describe("direct", reference),
+    **describe("abc_surr", abc_surrogate),
+    **describe("sbi_surr", sbi_surrogate),
 }, index=list(CALIBRATED))
 summary.round(4)
 ```
 
-The means agree to within about 0.001, and the standard deviations to within about 0.001. Overlaying the marginal posteriors shows the same thing: the two histograms cover each other, both centered on the dashed true value.
+The surrogate posteriors, from either method, sit on top of the direct posterior and on the truth.
 
 ```{python}
 import matplotlib.pyplot as plt
 
-fig, axes = plt.subplots(1, 2, figsize=(9, 3.5))
+fig, axes = plt.subplots(1, len(CALIBRATED), figsize=(9, 3.5))
 for axis, name in zip(axes, CALIBRATED):
-    axis.hist(abc_posterior[name], bins=40, density=True, alpha=0.5, label="ABC (pyabc)")
-    axis.hist(sbi_posterior[name], bins=40, density=True, alpha=0.5, label="surrogate + sbi")
+    axis.hist(reference[name], bins=40, density=True, alpha=0.4, label="direct ABC")
+    axis.hist(abc_surrogate[name], bins=40, density=True, alpha=0.4, label="ABC on surrogate")
+    axis.hist(sbi_surrogate[name], bins=40, density=True, histtype="step",
+              linewidth=1.5, label="SBI on surrogate")
     axis.axvline(TRUTH[name], color="black", linestyle="--", linewidth=1, label="truth")
     axis.set_xlabel(name)
     axis.set_yticks([])
 axes[0].set_ylabel("posterior density")
-axes[-1].legend(fontsize=8)
+axes[-1].legend(fontsize=7)
 fig.tight_layout()
 plt.show()
 ```
 
-## Comparing the model-run budget
+## Reading the budget
 
-The surrogate's advantage is the reduced run count. Both methods return the same posterior, but ABC required several thousand model runs, while the surrogate required only the 60 runs of its design.
+The surrogate reached the same posterior on the design's 60 runs, against the thousands the direct calibration spent.
 
 ```{python}
-print(f"ABC model runs:       {abc_runs}")
-print(f"Surrogate model runs: {design_runs}")
-print(f"Ratio:                {abc_runs / design_runs:.0f} times fewer")
+print(f"direct ABC model runs: {reference_runs}")
+print(f"surrogate model runs:  {design_runs}")
+print(f"ratio:                 {reference_runs / design_runs:.0f} times fewer")
 ```
 
-The surrogate uses more than a hundred times fewer model runs. That ratio is fixed by the design size and does not grow with the inference, so a slower model or a more demanding posterior increases the advantage rather than reducing it. The neural posterior estimation and the 10,000 surrogate simulations that trained it add no model runs, because they run against the Gaussian process.
+The ratio is fixed by the design size and does not grow with the inference, so a slower model or a more demanding posterior widens the advantage rather than narrowing it. Two conditions limit the method. The surrogate is reliable only within the design region, so the prior bounds must contain the posterior, which the hold-out check and the prior support confirm here. The surrogate also adds its own approximation error, so its hold-out accuracy relative to the sampling error is what justifies replacing the model.
 
-Two conditions limit the method. The surrogate is reliable only within the design region, so the prior bounds must contain the posterior, which the hold-out check and the prior support confirm here. The surrogate also adds its own approximation error, so its hold-out accuracy relative to the measurement error is what justifies replacing the model, as shown above.
-
-Next: the [calibration workflow](calibration-workflow.qmd) mixes a calibrated posterior with literature parameters and carries both through cost-effectiveness and value-of-information analysis.
+Next: the [microsimulation tutorial](calibrate-microsim.qmd) calibrates a model whose runs are not only slow but random, where the surrogate also carries the model's own variability into the posterior.

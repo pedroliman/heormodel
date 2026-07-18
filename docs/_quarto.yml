@@ -35,8 +35,14 @@ website:
               text: Value of information
             - href: tutorials/calibration-workflow.qmd
               text: Calibration workflow
+            - href: tutorials/calibrate-abc.qmd
+              text: Calibrating with ABC
+            - href: tutorials/calibrate-sbi.qmd
+              text: Calibrating with simulation-based inference
             - href: tutorials/surrogate-calibration.qmd
               text: Surrogate-accelerated calibration
+            - href: tutorials/calibrate-microsim.qmd
+              text: Calibrating a stochastic microsimulation
             - href: tutorials/parameter-inputs.qmd
               text: Parameter inputs from data
             - href: tutorials/dsa.qmd

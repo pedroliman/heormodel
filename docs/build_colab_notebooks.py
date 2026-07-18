@@ -43,7 +43,10 @@ BADGE_END = "<!-- colab-badge:end -->"
 EXTRAS = {
     "des": "des",
     "calibration-workflow": "calibration",
+    "calibrate-abc": "calibration",
+    "calibrate-sbi": "surrogate",
     "surrogate-calibration": "calibration,surrogate",
+    "calibrate-microsim": "surrogate",
 }
 
 # Tutorials whose code loads files from the repository, so the notebook clones it.
