@@ -12,7 +12,7 @@ This tutorial shows how to build an infectious-disease cost-effectiveness model 
 
 ## Specifying the compartments and their dynamics
 
-The model follows a closed population of 100,000 through an epidemic of a directly transmitted, non-fatal infection. Five compartments track the susceptible (S), the exposed but not yet infectious (E), the infectious (I), the recovered and immune (R), and the vaccinated and immune (V). The `dynamics_and_rewards` function returns an `ODESpec`: the right-hand side of the system (the rate of change of each compartment), the initial compartment sizes, and the reward rates. The force of infection is `beta * I / N`, where `N` is the living population and `beta` follows from the basic reproduction number, so a susceptible person's rate of infection is proportional to the current infectious prevalence. Only the vaccination program vaccinates; the comparator sets the vaccination rate to zero, which is the branch-on-name pattern the engines share.
+The model follows a closed population of 100,000 through an epidemic of a directly transmitted, non-fatal infection. Five compartments track the susceptible (S), the exposed but not yet infectious (E), the infectious (I), the recovered and immune (R), and the vaccinated and immune (V). The `dynamics_and_rewards` function returns an `ODESpec`: the right-hand side of the system (the rate of change of each compartment), the initial compartment sizes, and the reward rates. The force of infection is `beta * I / N`, where `N` is the living population and `beta` follows from the basic reproduction number, so a susceptible person's rate of infection is proportional to the current infectious prevalence. Only the vaccination program vaccinates; the comparator sets the vaccination rate to zero, selecting each arm by its name as the other engines do.
 
 Rewards use the two channels the engine offers, matched to continuous time. Quality-adjusted life-years accrue on compartment occupancy through `state_effect`: everyone healthy contributes one per year and the infectious contribute less while ill, so averted illness raises the effect. Costs fall on flows rather than states: `event_rates` returns the per-year rate of two events, doses administered and new infections, and `event_cost` charges a one-time amount to each. The engine integrates the discounted reward flows alongside the compartments.
 
@@ -51,7 +51,7 @@ engine = ODEModel(states=STATES, interventions=INTERVENTIONS,
 
 ## Reading the epidemic curves
 
-`trajectory` integrates the compartments for one parameter set and returns them over time, which is useful for inspecting the model before trusting its cost-effectiveness output. Plotting the two arms side by side shows what the program does: without vaccination the susceptible pool is drawn down by infection, producing a wave of recovered individuals, while under the program susceptibles move to the vaccinated compartment before the epidemic can take hold, and the infectious wave never builds.
+`trajectory` integrates the compartments for one parameter set and returns them over time, which is useful for inspecting the model before relying on its cost-effectiveness output. Plotting the two arms side by side shows what the program does: without vaccination the susceptible pool is drawn down by infection, producing a wave of recovered individuals, while under the program susceptibles move to the vaccinated compartment before the epidemic establishes, and the infectious wave never builds.
 
 ```{python}
 import matplotlib.pyplot as plt
@@ -68,11 +68,11 @@ axes[0].set_ylabel("People"); axes[1].legend(loc="center right")
 plt.show()
 ```
 
-Vaccination cuts the total number ever infected over the ten-year horizon from about 73,000 to under 100, nearly eliminating the epidemic.
+Vaccination reduces the total number ever infected over the ten-year horizon from about 73,000 to under 100, nearly eliminating the epidemic.
 
-## The base-case cost-effectiveness result
+## Computing the base-case cost-effectiveness result
 
-Integrating each arm once at the point estimates gives the deterministic cost-effectiveness result. Vaccination is not cost-saving here: it costs more than the treatment it averts, because the doses reach nearly everyone while the treatment cost per infection is modest. It is cost-effective, buying the quality-adjusted life-years from averted illness at an incremental cost-effectiveness ratio around 3,200 per quality-adjusted life-year, far below a 50,000 threshold.
+Integrating each arm once at the point estimates gives the deterministic cost-effectiveness result. Vaccination is not cost-saving here: it costs more than the treatment it averts, because the doses reach nearly everyone while the treatment cost per infection is modest. It is cost-effective, buying the health gains from averted illness at an incremental cost-effectiveness ratio around 3,200 per quality-adjusted life-year, far below a 50,000 threshold.
 
 ```{python}
 from heormodel.cea import icer_table
@@ -109,14 +109,14 @@ plot_ceac(ceac(outcomes, np.linspace(0, 30_000, 61)))
 plt.show()
 ```
 
-The expected value of perfect information measures what remains at stake at a given threshold. It is positive at 50,000 because the decision is not the same in every draw: when the reproduction number is low the outbreak is small, few infections are there to avert, and the program does not earn back its dose cost, so no vaccination is the better choice in those draws.
+The expected value of perfect information measures what remains at stake at a given threshold. It is positive at 50,000 because the decision is not the same in every draw: when the reproduction number is low the outbreak is small, few infections remain to avert, and the program does not recover its dose cost, so no vaccination is the better choice in those draws.
 
 ```{python}
 from heormodel.voi import evpi, evppi_ranking
 print(f"EVPI at WTP 50,000: {evpi(outcomes, 50_000.0):,.0f}")
 ```
 
-Partitioning that value across the parameters confirms where it lives. The expected value of partial perfect information ranks the reproduction number far above every other parameter, at a partial value on the order of the overall expected value of perfect information itself; both are regression estimates, so the partial value can land a little above the total. Resolving how transmissible the pathogen is would remove essentially all of the decision uncertainty, because it determines how large the averted epidemic would have been.
+Partitioning that value across the parameters confirms which parameter it comes from. The expected value of partial perfect information ranks the reproduction number far above every other parameter, at a partial value on the order of the overall expected value of perfect information itself; both are regression estimates, so the partial value can be slightly above the total. Resolving how transmissible the pathogen is would remove essentially all of the decision uncertainty, because it determines how large the averted epidemic would have been.
 
 ```{python}
 evppi_ranking(outcomes, draws, 50_000.0).round(0).head()
@@ -124,4 +124,4 @@ evppi_ranking(outcomes, draws, 50_000.0).round(0).head()
 
 ## Where this fits
 
-The ordinary differential equation engine adds transmission dynamics to the engine set, alongside the [cohort](mdm-cohort.qmd), [microsimulation](microsim.qmd), and [discrete-event](des.qmd) engines. Because it returns the same `Outcomes` structure, the cost-effectiveness and value-of-information analysis is the code you already know. The engine is deterministic: one parameter set gives one epidemic trajectory. A stochastic counterpart, where the epidemic can fade out by chance in a small population, is planned as a follow-up.
+The ordinary differential equation engine adds transmission dynamics to the engine set, alongside the [cohort](mdm-cohort.qmd), [microsimulation](microsim.qmd), and [discrete-event](des.qmd) engines. Because it returns the same `Outcomes` structure, the cost-effectiveness and value-of-information analysis reuses the same code as the other engines. The engine is deterministic: one parameter set gives one epidemic trajectory. A stochastic counterpart, where the epidemic can fade out by chance in a small population, is planned as a follow-up.
