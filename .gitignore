@@ -23,3 +23,6 @@ docs/index_files/
 
 /.quarto/
 **/*.quarto_ipynb
+
+# Isolated agent worktrees created during background subagent runs
+.claude/worktrees/
