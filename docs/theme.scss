@@ -131,6 +131,14 @@ div.sourceCode {
   margin-bottom: 2rem;
 }
 
+// Keywords section at the end of the page.
+.keywords-section {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(128, 128, 128, 0.2);
+  font-size: 0.95rem;
+}
+
 // Dark mode: lift the teal so links and accents keep contrast on the dark ground.
 .quarto-dark {
   $accent-dark: lighten(#12807c, 18%);
