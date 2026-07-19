@@ -154,5 +154,5 @@ model type; document that a large clamp signals mis-specified curves.
 - Phase 2: `heormodel.models.PartSurvModel` and `PartSurvSpec` exported from
   `heormodel.models`, a `trace` parallel to `MarkovModel.trace` returning the
   occupancy curves, docstring worked examples, tests, a website tutorial, a
-  `docs/concepts/engines.qmd` update describing the `curves` callback, and API
+  `devdocs/engines.md` update describing the `curves` callback, and API
   reference and changelog entries.

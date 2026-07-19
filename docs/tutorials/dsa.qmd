@@ -1,5 +1,6 @@
 ---
 title: Deterministic sensitivity analysis
+description: "Run the three deterministic sensitivity designs, one-way, one-at-a-time, and grid, and read them as tornado and heatmap reports."
 ---
 
 <!-- colab-badge:start -->

@@ -1,5 +1,6 @@
 ---
 title: Calibrating with simulation-based inference
+description: "Calibrate the same disease model with neural posterior estimation, a form of simulation-based inference, and recover the same posterior as approximate Bayesian computation."
 ---
 
 <!-- colab-badge:start -->

@@ -93,17 +93,29 @@ def strip_badge_region(body: str) -> str:
     return pattern.sub("", body).lstrip("\n")
 
 
-def rewrite_links(markdown: str) -> str:
+def strip_div_fences(markdown: str) -> str:
+    """Drop Quarto fenced-div lines that a notebook cannot render.
+
+    Card grids and other layout use `::: {.grid}` fences that Quarto turns into
+    HTML but Colab would show as literal text. Removing the fence lines keeps the
+    content inside them (headings, links, prose) and drops only the markup.
+    """
+    kept = [line for line in markdown.split("\n") if not line.lstrip().startswith(":::")]
+    return "\n".join(kept)
+
+
+def rewrite_links(markdown: str, base_dir: str) -> str:
     """Point cross-references to other pages at the published site.
 
-    Links in the tutorials are written relative to `docs/tutorials/`. Colab has no
-    site to resolve them against, so rewrite each `.qmd` target to its rendered
-    page under the site URL.
+    Links in a page are written relative to that page's folder under `docs/`.
+    Colab has no site to resolve them against, so rewrite each `.qmd` target to
+    its rendered page under the site URL. `base_dir` is the page's folder relative
+    to `docs/` (for example `tutorials` for a tutorial, `.` for the home page).
     """
 
     def replace(match: re.Match[str]) -> str:
         target, fragment = match.group(1), match.group(2) or ""
-        rel = (Path("tutorials") / target).as_posix()
+        rel = (Path(base_dir) / target).as_posix()
         parts: list[str] = []
         for part in rel.split("/"):
             if part == "..":
@@ -116,11 +128,12 @@ def rewrite_links(markdown: str) -> str:
     return re.sub(r"\]\(([^)]+\.qmd)(#[^)]*)?\)", replace, markdown)
 
 
-def parse_cells(body: str) -> list[tuple[str, str]]:
+def parse_cells(body: str, base_dir: str) -> list[tuple[str, str]]:
     """Split a tutorial body into ("markdown"|"code", text) cells.
 
     Executable `python` blocks become code cells; everything else, including plain
-    fenced blocks and tables, stays in markdown.
+    fenced blocks and tables, stays in markdown. `base_dir` resolves relative
+    `.qmd` links for the page's folder under `docs/`.
     """
     cells: list[tuple[str, str]] = []
     lines = body.split("\n")
@@ -130,7 +143,7 @@ def parse_cells(body: str) -> list[tuple[str, str]]:
         text = "\n".join(buffer).strip("\n")
         buffer.clear()
         if text.strip():
-            cells.append(("markdown", rewrite_links(text)))
+            cells.append(("markdown", rewrite_links(strip_div_fences(text), base_dir)))
 
     index = 0
     while index < len(lines):
@@ -220,7 +233,8 @@ def process(page: Path, anchor: str | None = None) -> bool:
     text = page.read_text()
     header, raw_body = split_front_matter(text)
     body = strip_badge_region(raw_body)
-    cells = parse_cells(body)
+    base_dir = page.parent.relative_to(DOCS).as_posix()
+    cells = parse_cells(body, base_dir)
     stem = page.stem
 
     if not any(kind == "code" for kind, _ in cells):

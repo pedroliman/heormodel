@@ -1,5 +1,6 @@
 ---
 title: Parameter inputs from data
+description: "Turn point values, an exported draw matrix, or a weighted posterior sample into the parameter draw matrix `run_psa` expects."
 ---
 
 <!-- colab-badge:start -->

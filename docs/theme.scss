@@ -1,0 +1,155 @@
+/*-- scss:defaults --*/
+
+// A thin layer over flatly (light) and darkly (dark). One muted teal accent
+// drives links, the navbar, active sidebar items, and buttons; the rest tunes
+// typography rhythm and component spacing. No web fonts, so the site stays fast
+// and renders offline.
+
+$primary: #12807c;
+$link-color: $primary;
+
+$font-family-sans-serif: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+$headings-font-weight: 600;
+$border-radius: 0.5rem;
+
+// Slightly more open body text than the Bootstrap default.
+$line-height-base: 1.6;
+
+// Let long-form content breathe a little wider than the 800px default.
+$content-max-width: 860px;
+
+/*-- scss:rules --*/
+
+body {
+  letter-spacing: 0.01em;
+}
+
+// Headings sit a touch closer to the section they open.
+h2, h3, h4 {
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.01em;
+}
+
+// Navbar: a heavier brand and a quiet underline on the active section.
+.navbar-brand {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.navbar .navbar-nav .nav-link {
+  font-weight: 500;
+
+  &.active,
+  &:hover {
+    opacity: 1;
+  }
+}
+
+// Active sidebar item reads as selected through a left accent bar, not just color.
+.sidebar-item .sidebar-item-container .active {
+  font-weight: 600;
+  border-left: 3px solid $primary;
+  padding-left: 0.5rem;
+  margin-left: -0.5rem;
+}
+
+.sidebar nav[role="doc-toc"] a.active,
+#TOC a.active {
+  border-left: 2px solid $primary;
+  font-weight: 600;
+}
+
+// Section labels in the docked sidebar.
+.sidebar-section .sidebar-item-container,
+.sidebar .sidebar-item-section > .sidebar-item-container {
+  font-weight: 600;
+}
+
+// Cards: used by the tutorials listing and the home-page grid. A soft border,
+// rounded corners, and a small lift on hover.
+.card {
+  border: 1px solid rgba(128, 128, 128, 0.2);
+  border-radius: $border-radius;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    border-color: rgba($primary, 0.5);
+  }
+}
+
+// Headings and text sit flush inside a card, without the page heading margins.
+.card {
+  h3, h4, h5, p {
+    margin-top: 0;
+  }
+
+  p:last-child {
+    margin-bottom: 0;
+  }
+}
+
+// Listing cards link the whole card; keep the title in the accent on hover.
+.quarto-grid-item .card-title {
+  font-weight: 600;
+}
+
+.quarto-grid-item:hover .card-title {
+  color: $primary;
+}
+
+// The listing category headings that separate the tutorial groups.
+.quarto-listing {
+  margin-top: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+// Buttons on the home page.
+.btn-primary {
+  --bs-btn-bg: #{$primary};
+  --bs-btn-border-color: #{$primary};
+  --bs-btn-hover-bg: #{darken($primary, 8%)};
+  --bs-btn-hover-border-color: #{darken($primary, 8%)};
+  font-weight: 500;
+}
+
+// Code blocks: rounded, with a quiet accent rule down the left edge.
+div.sourceCode {
+  border-radius: $border-radius;
+  border-left: 3px solid rgba($primary, 0.45);
+}
+
+// Tables read cleaner with a lighter grid and a little more row padding.
+.table > :not(caption) > * > * {
+  padding: 0.5rem 0.75rem;
+}
+
+// The title banner used on the home page.
+.quarto-title-block .quarto-title-banner {
+  margin-bottom: 2rem;
+}
+
+// Dark mode: lift the teal so links and accents keep contrast on the dark ground.
+.quarto-dark {
+  $accent-dark: lighten(#12807c, 18%);
+
+  a,
+  .quarto-grid-item:hover .card-title {
+    color: $accent-dark;
+  }
+
+  .sidebar-item .sidebar-item-container .active {
+    border-left-color: $accent-dark;
+  }
+
+  div.sourceCode {
+    border-left-color: rgba($accent-dark, 0.5);
+  }
+
+  .card:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    border-color: rgba($accent-dark, 0.5);
+  }
+}

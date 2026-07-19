@@ -1,5 +1,6 @@
 ---
 title: Discrete-event simulation replication
+description: "Reproduce the continuous-time Sick-Sicker discrete-event simulation of Lopez-Mendez and others (2026)."
 ---
 
 <!-- colab-badge:start -->

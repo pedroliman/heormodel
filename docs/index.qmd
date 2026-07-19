@@ -1,9 +1,10 @@
 ---
 title: heormodel
+subtitle: "Health economic evaluation in Python: parameter sampling, simulation across model types, cost-effectiveness analysis, and value-of-information analysis for model-based health technology assessment."
 author: Pedro Nascimento de Lima
+title-block-banner: true
+sidebar: false
 ---
-
-Health economic evaluation in Python: parameter sampling, simulation across model types, cost-effectiveness analysis, and value-of-information analysis for model-based health technology assessment.
 
 ## Install
 
@@ -96,11 +97,36 @@ fig2.tight_layout()
 
 ## Where to go next
 
-- [Markov cohort model](tutorials/mdm-cohort.qmd): the standard state-transition model, then the [microsimulation engine](tutorials/microsim.qmd) as the more detailed alternative.
-- [Compartmental transmission model](tutorials/seir-vaccination.qmd): a susceptible-exposed-infectious-recovered vaccination model written as ordinary differential equations, for infectious-disease cost-effectiveness analysis.
-- [Bring your own outputs](tutorials/byo-outputs.qmd): an external results table through cost-effectiveness analysis, value of information, plots, and a run report.
-- [Full pipeline](tutorials/full-pipeline.qmd): parameters, `run_psa`, cost-effectiveness analysis, and value of information end to end.
-- [Calibration workflow](tutorials/calibration-workflow.qmd): calibrate some parameters, take the rest from the literature, mix both with `mix_draws`, then run the same analyses.
-- [Surrogate-accelerated calibration](tutorials/surrogate-calibration.qmd): train a Gaussian process surrogate of a Markov model on a small design, calibrate it with the `sbi` package, and match the calibration workflow's posterior with about a hundred times fewer model runs.
-- [API reference](reference/index.qmd): every public function, generated from docstrings.
-- [Changelog](changelog.md): what has shipped.
+::: {.grid}
+
+::: {.g-col-12 .g-col-md-4 .card .p-3}
+#### [Browse the tutorials](tutorials/index.qmd)
+Every tutorial, in the order a reader learns the package, from the standard workflow through the model engines to calibration.
+:::
+
+::: {.g-col-12 .g-col-md-4 .card .p-3}
+#### [Full pipeline](tutorials/full-pipeline.qmd)
+Parameters, `run_psa`, cost-effectiveness, and value of information end to end.
+:::
+
+::: {.g-col-12 .g-col-md-4 .card .p-3}
+#### [Cohort state-transition model](tutorials/mdm-cohort.qmd)
+The standard engine, validated against a published result, with the microsimulation engine as the detailed alternative.
+:::
+
+::: {.g-col-12 .g-col-md-4 .card .p-3}
+#### [Compartmental transmission model](tutorials/seir-vaccination.qmd)
+A susceptible-exposed-infectious-recovered vaccination model for infectious-disease cost-effectiveness analysis.
+:::
+
+::: {.g-col-12 .g-col-md-4 .card .p-3}
+#### [Calibration workflow](tutorials/calibration-workflow.qmd)
+Calibrate some parameters, take the rest from the literature, and mix them with `mix_draws`.
+:::
+
+::: {.g-col-12 .g-col-md-4 .card .p-3}
+#### [API reference](reference/index.qmd)
+Every public function, generated from docstrings.
+:::
+
+:::

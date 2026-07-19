@@ -1,5 +1,6 @@
 ---
 title: Markov vs microsimulation models
+description: "Build one model as both a cohort trace and an individual simulation from the same rates, to cross-validate the engines and show what heterogeneity adds."
 ---
 
 <!-- colab-badge:start -->

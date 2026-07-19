@@ -1,5 +1,6 @@
 ---
 title: Calibrating with ABC
+description: "Calibrate a parameter to observed data with approximate Bayesian computation, the first of four calibration tutorials that share one disease model."
 ---
 
 <!-- colab-badge:start -->

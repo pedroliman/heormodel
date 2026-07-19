@@ -16,32 +16,61 @@ website:
   site-url: https://pedroliman.github.io/heormodel/
   repo-url: https://github.com/pedroliman/heormodel
   page-navigation: true
+  back-to-top-navigation: true
   google-analytics: "G-J6M5ECXYJC"
+  search:
+    location: navbar
+    type: overlay
+  navbar:
+    title: heormodel
+    left:
+      - href: index.qmd
+        text: Get started
+      - href: tutorials/index.qmd
+        text: Tutorials
+      - href: reference/index.qmd
+        text: Reference
+    right:
+      - href: changelog.md
+        text: Changelog
+      - icon: github
+        href: https://github.com/pedroliman/heormodel
+        aria-label: GitHub repository
   sidebar:
-    - id: main
+    - id: tutorials
+      title: Tutorials
       style: docked
-      search: true
       contents:
-        - href: index.qmd
-          text: Overview
-        - section: Tutorials
+        - href: tutorials/index.qmd
+          text: All tutorials
+        - section: Getting started
           contents:
-            - href: tutorials/mdm-cohort.qmd
-              text: Markov cohort model
-            - href: tutorials/microsim.qmd
-              text: Microsimulation engine
+            - href: tutorials/full-pipeline.qmd
+              text: Full pipeline
             - href: tutorials/byo-outputs.qmd
               text: Bring your own outputs
+            - href: tutorials/parameter-inputs.qmd
+              text: Parameter inputs from data
+        - section: Model engines
+          contents:
+            - href: tutorials/mdm-cohort.qmd
+              text: Cohort state-transition model
+            - href: tutorials/microsim.qmd
+              text: Microsimulation engine
             - href: tutorials/markov-vs-microsim.qmd
               text: Markov vs microsimulation models
             - href: tutorials/des.qmd
               text: Discrete-event simulation
             - href: tutorials/seir-vaccination.qmd
               text: Compartmental transmission model
-            - href: tutorials/full-pipeline.qmd
-              text: Full pipeline
+        - section: Sensitivity and value of information
+          contents:
+            - href: tutorials/dsa.qmd
+              text: Deterministic sensitivity analysis
             - href: tutorials/voi.qmd
               text: Value of information
+        - section: Calibration
+          contents:
             - href: tutorials/calibration-workflow.qmd
               text: Calibration workflow
             - href: tutorials/calibrate-abc.qmd
@@ -52,10 +81,6 @@ website:
               text: Surrogate-accelerated calibration
             - href: tutorials/calibrate-microsim.qmd
               text: Calibrating a stochastic microsimulation
-            - href: tutorials/parameter-inputs.qmd
-              text: Parameter inputs from data
-            - href: tutorials/dsa.qmd
-              text: Deterministic sensitivity analysis
         - section: Replications
           contents:
             - href: tutorials/replication-gallery.qmd
@@ -66,30 +91,22 @@ website:
               text: Microsimulation replication
             - href: tutorials/mdm-des.qmd
               text: Discrete-event simulation replication
-        - section: Concepts
-          contents:
-            - href: concepts/engines.qmd
-              text: Engines
-        - section: Reference & Info
-          contents:
-            - href: reference/index.qmd
-              text: API reference
-            - href: changelog.md
-              text: Changelog
-  navbar:
+  page-footer:
+    left: |
+      © 2026 [Pedro Nascimento de Lima](https://pedrodelima.com)
     right:
       - icon: github
         href: https://github.com/pedroliman/heormodel
-  page-footer: |
-    © 2026 [Pedro Nascimento de Lima](https://pedrodelima.com)
+        aria-label: GitHub repository
 
 format:
   html:
     theme:
-      light: flatly
-      dark: darkly
+      light: [flatly, theme.scss]
+      dark: [darkly, theme.scss]
     toc: true
     code-copy: true
+    code-tools: true
 
 metadata-files:
   - reference/_sidebar.yml

@@ -1,0 +1,107 @@
+---
+title: Tutorials
+description: Every tutorial, in the order a reader learns the package, from the standard analysis workflow through the model engines to calibration and replications.
+toc: false
+listing:
+  - id: getting-started
+    contents:
+      - full-pipeline.qmd
+      - byo-outputs.qmd
+      - parameter-inputs.qmd
+    type: grid
+    grid-columns: 3
+    fields: [title, description]
+    sort: false
+    categories: false
+    filter-ui: false
+    sort-ui: false
+  - id: model-engines
+    contents:
+      - mdm-cohort.qmd
+      - microsim.qmd
+      - markov-vs-microsim.qmd
+      - des.qmd
+      - seir-vaccination.qmd
+    type: grid
+    grid-columns: 3
+    fields: [title, description]
+    sort: false
+    categories: false
+    filter-ui: false
+    sort-ui: false
+  - id: sensitivity-voi
+    contents:
+      - dsa.qmd
+      - voi.qmd
+    type: grid
+    grid-columns: 3
+    fields: [title, description]
+    sort: false
+    categories: false
+    filter-ui: false
+    sort-ui: false
+  - id: calibration
+    contents:
+      - calibration-workflow.qmd
+      - calibrate-abc.qmd
+      - calibrate-sbi.qmd
+      - surrogate-calibration.qmd
+      - calibrate-microsim.qmd
+    type: grid
+    grid-columns: 3
+    fields: [title, description]
+    sort: false
+    categories: false
+    filter-ui: false
+    sort-ui: false
+  - id: replications
+    contents:
+      - replication-gallery.qmd
+      - mdm-cohort-timedep.qmd
+      - mdm-microsim.qmd
+      - mdm-des.qmd
+    type: grid
+    grid-columns: 3
+    fields: [title, description]
+    sort: false
+    categories: false
+    filter-ui: false
+    sort-ui: false
+---
+
+This page lists the tutorials in the order a reader learns the package: the standard analysis workflow first, then one tutorial per model engine, then sensitivity and value-of-information analysis, calibration, and replications of published models. Each group builds on the ones before it, and within a group the prerequisite comes first.
+
+## Getting started
+
+The standard probabilistic sensitivity analysis runs in four steps: specify parameters, sample draws, evaluate a model, and analyze cost-effectiveness and value of information. The three tutorials here cover that workflow, and how to supply results or parameters computed outside the package.
+
+:::{#getting-started}
+:::
+
+## Model engines
+
+Each engine builds a different kind of model and then runs the same analysis, so only the model-building step changes between them. The cohort state-transition model is the standard engine; the microsimulation, discrete-event, and compartmental engines add the patient history, resource contention, and disease transmission a cohort average cannot represent.
+
+:::{#model-engines}
+:::
+
+## Sensitivity and value of information
+
+Deterministic sensitivity analysis asks which parameters move the result; value-of-information analysis asks what resolving the remaining uncertainty is worth. Both read the outcomes an engine produces, so they apply after any of the model tutorials.
+
+:::{#sensitivity-voi}
+:::
+
+## Calibration
+
+Calibration fits model parameters to observed data and carries the fitted uncertainty into the analysis. The workflow tutorial comes first, the next three compare inference methods on one shared model, and the last calibrates a stochastic microsimulation.
+
+:::{#calibration}
+:::
+
+## Replications
+
+Each replication reproduces a published cost-effectiveness analysis, matching its deterministic result before extending it to a probabilistic analysis. Together they check the package against known answers and show complete worked models.
+
+:::{#replications}
+:::

@@ -1,5 +1,6 @@
 ---
 title: Microsimulation replication
+description: "Reproduce the Sick-Sicker microsimulation of Krijkamp and others (2018) with `MicrosimModel`."
 ---
 
 <!-- colab-badge:start -->

@@ -1,6 +1,6 @@
 # Architecture
 
-This page explains the two guarantees that hold everywhere in `heormodel`: one standard outcome structure as the integration point, and the shared iteration index. It assumes the [quickstart](https://pedroliman.github.io/heormodel/); [engines](https://pedroliman.github.io/heormodel/concepts/engines.html) covers the model side of the contract.
+This page explains the two guarantees that hold everywhere in `heormodel`: one standard outcome structure as the integration point, and the shared iteration index. It assumes the [quickstart](https://pedroliman.github.io/heormodel/); [engines](engines.md) covers the model side of the contract.
 
 ## The outcome structure is the integration point
 
@@ -52,4 +52,4 @@ outcomes.iterations.equals(draws.index)
 
 Every engine names its arms the same way: `interventions` is a sequence of names or `Intervention(name, decision_levers)` objects, and every model function receives the intervention name so an arm can branch on it. `Intervention` also carries an `is_comparator` flag marking the PICOTS comparator (the reference arm), which each engine reads at construction and carries onto the `Outcomes` it returns as `Outcomes.comparator`; `heormodel.cea.ce_plane` and the tornado plots fall back to it when their own `comparator` argument is omitted. `Intervention` is the one shared value object the engines carry today. Two others were considered and deferred: `Timeline` (a cycle grid or a continuous horizon with its correction) and `Population` (size, attribute sampler, initial state). Their structural benefit, a single home for vocabulary shared across engines, pays off mainly when a fifth engine arrives; until then the flat keyword constructors read better in the two-state docstring examples. Add them when the engine roster grows, reusing them across engines rather than re-spelling the concepts.
 
-Next: [engines](https://pedroliman.github.io/heormodel/concepts/engines.html) describes what `ModelEngine` requires and what a contract on outputs means in practice.
+Next: [engines](engines.md) describes what `ModelEngine` requires and what a contract on outputs means in practice.

@@ -1,5 +1,6 @@
 ---
 title: Replication gallery
+description: "Four published Sick-Sicker cost-effectiveness tutorials reproduced with `heormodel`, one per model type."
 ---
 
 This page collects four published Sick-Sicker cost-effectiveness tutorials, reproduced with `heormodel`, one per model type. Each replication first matches the source's deterministic results, then runs the same model through `heormodel.cea` and `heormodel.voi` to show how a probabilistic analysis extends it.

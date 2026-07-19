@@ -1,5 +1,6 @@
 ---
 title: Compartmental transmission model
+description: "Build an infectious-disease model with `ODEModel`, a susceptible-exposed-infectious-recovered model of a vaccination program."
 ---
 
 <!-- colab-badge:start -->

@@ -1,5 +1,6 @@
 ---
 title: Calibrating a stochastic microsimulation
+description: "Calibrate a stochastic microsimulation, carrying its simulation noise into the posterior with a Gaussian process surrogate."
 ---
 
 <!-- colab-badge:start -->

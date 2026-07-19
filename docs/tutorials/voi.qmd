@@ -1,5 +1,6 @@
 ---
 title: Value of information
+description: "Run the value-of-information workflow: expected value of perfect, partial perfect, and sample information."
 ---
 
 <!-- colab-badge:start -->

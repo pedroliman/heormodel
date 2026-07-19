@@ -1,5 +1,6 @@
 ---
 title: Calibration workflow
+description: "Mix calibrated parameters with literature parameters in one probabilistic analysis using `mix_draws`."
 ---
 
 <!-- colab-badge:start -->

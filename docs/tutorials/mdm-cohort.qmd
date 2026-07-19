@@ -1,5 +1,6 @@
 ---
 title: Cohort state-transition model
+description: "Build a cohort state-transition model with `MarkovModel` and validate it against a published Sick-Sicker result."
 ---
 
 <!-- colab-badge:start -->

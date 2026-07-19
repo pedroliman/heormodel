@@ -1,5 +1,6 @@
 ---
 title: Surrogate-accelerated calibration
+description: "Fit a fast surrogate of an expensive model on a small design, then calibrate against the surrogate instead of the model."
 ---
 
 <!-- colab-badge:start -->

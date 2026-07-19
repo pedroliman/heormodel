@@ -1,5 +1,6 @@
 ---
 title: Bring your own outputs
+description: "Take a costs-and-effects table computed elsewhere through cost-effectiveness, value of information, plots, and a reproducibility record, without building a model engine."
 ---
 
 <!-- colab-badge:start -->

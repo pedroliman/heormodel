@@ -24,6 +24,17 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Changed
 
+- The documentation website now uses a top navigation bar with a contextual
+  sidebar per section, the tutorials are grouped into an ordered learning path
+  (getting started, model engines, sensitivity and value of information,
+  calibration, replications) with prerequisites first, and a new tutorials
+  landing page (`docs/tutorials/index.qmd`) shows a card grid per group. The
+  home page keeps the runnable quickstart with a title banner and a card grid,
+  and a `docs/theme.scss` layer adds one accent color and typography polish over
+  the flatly and darkly themes. The engine concept page moved out of the website
+  to `devdocs/engines.md`
+  ([#70](https://github.com/pedroliman/heormodel/issues/70)).
+
 - The surrogate-accelerated calibration tutorial now runs both approximate
   Bayesian computation and neural posterior estimation against the same Gaussian
   process surrogate and matches them to a direct calibration, a like-for-like

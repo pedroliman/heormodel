@@ -21,13 +21,17 @@ def rewrite_links(text: str) -> str:
 
 
 def promote_title(text: str) -> str:
-    """Lift a leading level-1 heading into YAML front matter."""
+    """Lift a leading level-1 heading into YAML front matter.
+
+    The changelog is a standalone page in no sidebar, so `sidebar: false` keeps a
+    section's sidebar from showing beside it.
+    """
     lines = text.split("\n")
     if not lines or not lines[0].startswith("# "):
         return text
     title = lines[0][2:].strip()
     body = "\n".join(lines[1:]).lstrip("\n")
-    return f'---\ntitle: "{title}"\n---\n\n{body}'
+    return f'---\ntitle: "{title}"\nsidebar: false\n---\n\n{body}'
 
 
 def convert(src: Path, dest: Path) -> None:

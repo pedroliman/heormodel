@@ -1,5 +1,6 @@
 ---
 title: Full pipeline
+description: "Run the standard probabilistic sensitivity analysis end to end: parameters, sampled draws, `run_psa`, then cost-effectiveness and value of information."
 ---
 
 <!-- colab-badge:start -->
@@ -96,4 +97,4 @@ from heormodel.run import running_means
 running_means(outcomes).plot(xlabel="iterations", ylabel="mean cost");
 ```
 
-The [engines](../concepts/engines.qmd) concept page describes the model types `run_psa` can run. Next: the [value of information](voi.qmd) tutorial takes the cohort state-transition model from the [cohort tutorial](mdm-cohort.qmd) through the expected value of perfect, partial perfect, and sample information.
+The [model engine tutorials](index.qmd) cover the model types `run_psa` can run: cohort state-transition, microsimulation, discrete-event, and compartmental. Next: the [value of information](voi.qmd) tutorial takes the cohort state-transition model from the [cohort tutorial](mdm-cohort.qmd) through the expected value of perfect, partial perfect, and sample information.

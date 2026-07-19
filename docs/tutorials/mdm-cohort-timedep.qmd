@@ -1,5 +1,6 @@
 ---
 title: Time-dependent cohort model
+description: "Extend the cohort replication with age-varying mortality and one-time transition rewards."
 ---
 
 <!-- colab-badge:start -->

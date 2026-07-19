@@ -1,5 +1,6 @@
 ---
 title: Discrete-event simulation engine
+description: "Build a resource-constrained model with `DESModel`, for a scarce shared resource that makes patients queue."
 ---
 
 <!-- colab-badge:start -->
@@ -104,6 +105,6 @@ trace = run_psa(engine, draws.iloc[[0]], seed=seeds.entropy, collect="events").e
 (queue_waits(trace).groupby("intervention", sort=False)["wait"].mean() * 365).round(1)
 ```
 
-The single specialist leaves patients waiting weeks; the second clears the queue to about a day. See the [engines](../concepts/engines.qmd) concept page for how this model type compares with the others.
+The single specialist leaves patients waiting weeks; the second clears the queue to about a day. See the other [model engine tutorials](index.qmd) for the cohort state-transition, microsimulation, and compartmental engines this one sits alongside.
 
 Next: the [full pipeline tutorial](full-pipeline.qmd) walks through the whole workflow, from `ParameterSet` sampling through `run_psa` to the analysis functions.
