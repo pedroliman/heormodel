@@ -130,6 +130,7 @@ metadata-files:
   - reference/_sidebar.yml
 
 filters:
+  - keywords
   - interlinks
 
 interlinks:
