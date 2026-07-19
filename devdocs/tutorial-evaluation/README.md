@@ -100,4 +100,26 @@ The individual pages need light editing; the sequence needs a deliberate second 
 5. Move the calibration workflow after the ABC tutorial.
 
 The per-tutorial files carry the page-level detail behind these findings.
+
+## Specific edits for the cross-cutting findings
+
+These are copy-ready changes for the findings above. Each per-tutorial file carries the same level of specificity for its own page.
+
+Finding 1, forward links. Set each tutorial's closing "Next:" link to the next page in the sidebar order, and add the two missing links:
+
+- `full-pipeline.qmd`: change the closing link so "Next:" points to `byo-outputs.qmd`, not `voi.qmd`.
+- `byo-outputs.qmd`: point "Next:" to `parameter-inputs.qmd`, not `mdm-cohort.qmd`.
+- `parameter-inputs.qmd`: point "Next:" to `mdm-cohort.qmd`, not `dsa.qmd`.
+- `mdm-cohort.qmd`: point "Next:" to `microsim.qmd`, not `voi.qmd`.
+- `des.qmd`: point "Next:" to `seir-vaccination.qmd`, not `full-pipeline.qmd`.
+- `seir-vaccination.qmd`: add a closing line, "Next: [deterministic sensitivity analysis](dsa.qmd) asks which parameters move the result, before [value of information](voi.qmd) asks what resolving the remaining uncertainty is worth."
+- `dsa.qmd`: point "Next:" to `voi.qmd`, not `replication-gallery.qmd`.
+- `voi.qmd`: add a closing line, "Next: the [calibration workflow](calibration-workflow.qmd) fits model parameters to data and carries the fitted uncertainty into the same analysis."
+- `calibration-workflow.qmd`: point "Next:" to `calibrate-abc.qmd`, not `parameter-inputs.qmd` (see finding 7).
+
+Finding 2, value of information used before it is taught. At the first EVPI figure in `full-pipeline.qmd` (the "Analyzing cost-effectiveness and value of information" section), add after the sentence that prints the EVPI: "The expected value of perfect information is the average gain from resolving all parameter uncertainty before deciding, an upper bound on what any study could be worth; the [value of information](voi.qmd) tutorial defines it and the related measures in full." Add the same one-clause pointer at the first EVPI in `byo-outputs.qmd`, `microsim.qmd`, `des.qmd`, and `seir-vaccination.qmd`, so each interprets its number against a named, linked definition rather than assuming it.
+
+Finding 4, replication gallery. In `replication-gallery.qmd`, the intro sentence "Each replication first matches the source's deterministic results, then runs the same model through `heormodel.cea` and `heormodel.voi` to show how a probabilistic analysis extends it" is true only for the cohort and discrete-event pages. Replace it with: "Each replication first matches the source's deterministic results. The cohort and discrete-event pages then run the same model through `heormodel.cea` and `heormodel.voi` to show how a probabilistic analysis extends it; the time-dependent and microsimulation pages stop at the deterministic match." The stronger fix is to add a short probabilistic sensitivity analysis to `mdm-cohort-timedep.qmd` and `mdm-microsim.qmd` so the original sentence holds; the per-tutorial files for those two give the exact code to add.
+
+Finding 7, calibration workflow placement. Move `calibration-workflow.qmd` to follow `calibrate-abc.qmd` in both `docs/_quarto.yml` (the sidebar `contents` list) and `docs/tutorials/index.qmd` (the `calibration` listing). Then `calibrate-abc.qmd`'s self-description, "the first of four calibration tutorials that share one disease model," becomes true, and the workflow page no longer calls `abc_calibrate` before approximate Bayesian computation is defined.
 </content>
