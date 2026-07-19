@@ -3,6 +3,7 @@ project:
   pre-render: _prerender.py
   resources:
     - robots.txt
+    - llms.txt
     - images/og-card.png
 
 lang: en

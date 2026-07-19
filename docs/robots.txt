@@ -1,4 +1,21 @@
+# All crawlers, including the ones that build answer engines and train or
+# ground large language models, are welcome to read the whole site.
 User-agent: *
+Allow: /
+
+# Named for clarity; the wildcard above already grants the same access.
+User-agent: GPTBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: ClaudeBot
+User-agent: Claude-Web
+User-agent: anthropic-ai
+User-agent: PerplexityBot
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+User-agent: CCBot
+User-agent: Bytespider
+User-agent: cohere-ai
 Allow: /
 
 Sitemap: https://pedroliman.github.io/heormodel/sitemap.xml

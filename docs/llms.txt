@@ -1,0 +1,50 @@
+# heormodel
+
+> heormodel is a Python package for health economic evaluation. It samples parameters from distributions, runs a cohort state-transition, microsimulation, discrete-event, or compartmental model over those draws, and reports cost-effectiveness, deterministic sensitivity, value-of-information, and Bayesian calibration results.
+
+The standard analysis runs in four steps: specify parameters, sample draws, evaluate a model, and analyze cost-effectiveness and value of information. Every model engine plugs into the same four steps, so only the model-building step changes between them. The pages below are listed in the order a reader learns the package.
+
+## Getting started
+
+- [Get started](https://pedroliman.github.io/heormodel/index.html): install the package and run a probabilistic sensitivity analysis of a three-state Markov cohort model, with cost-effectiveness and value-of-information output.
+- [Full pipeline](https://pedroliman.github.io/heormodel/tutorials/full-pipeline.html): the standard probabilistic sensitivity analysis end to end, from parameters and sampled draws through `run_psa` to cost-effectiveness and value of information.
+- [Bring your own outputs](https://pedroliman.github.io/heormodel/tutorials/byo-outputs.html): take a costs-and-effects table computed elsewhere through cost-effectiveness, value of information, plots, and a reproducibility record, without building a model engine.
+- [Parameter inputs from data](https://pedroliman.github.io/heormodel/tutorials/parameter-inputs.html): turn point values, an exported draw matrix, or a weighted posterior sample into the parameter draw matrix `run_psa` expects.
+
+## Model engines
+
+- [Cohort state-transition model](https://pedroliman.github.io/heormodel/tutorials/mdm-cohort.html): build a cohort state-transition model with `MarkovModel` and validate it against a published Sick-Sicker result.
+- [Microsimulation engine](https://pedroliman.github.io/heormodel/tutorials/microsim.html): build an individual-level model with `MicrosimModel`, for outcomes that depend on patient history or on heterogeneity a cohort average removes.
+- [Markov vs microsimulation models](https://pedroliman.github.io/heormodel/tutorials/markov-vs-microsim.html): build one model as both a cohort trace and an individual simulation from the same rates, to cross-validate the engines and show what heterogeneity adds.
+- [Discrete-event simulation engine](https://pedroliman.github.io/heormodel/tutorials/des.html): build a resource-constrained model with `DESModel`, for a scarce shared resource that makes patients queue.
+- [Compartmental transmission model](https://pedroliman.github.io/heormodel/tutorials/seir-vaccination.html): build an infectious-disease model with `ODEModel`, a susceptible-exposed-infectious-recovered model of a vaccination program.
+
+## Sensitivity and value of information
+
+- [Deterministic sensitivity analysis](https://pedroliman.github.io/heormodel/tutorials/dsa.html): run the three deterministic sensitivity designs, one-way, one-at-a-time, and grid, and read them as tornado and heatmap reports.
+- [Value of information](https://pedroliman.github.io/heormodel/tutorials/voi.html): the value-of-information workflow, computing the expected value of perfect, partial perfect, and sample information.
+
+## Calibration
+
+- [Calibration workflow](https://pedroliman.github.io/heormodel/tutorials/calibration-workflow.html): mix calibrated parameters with literature parameters in one probabilistic analysis using `mix_draws`.
+- [Calibrating with approximate Bayesian computation](https://pedroliman.github.io/heormodel/tutorials/calibrate-abc.html): calibrate a parameter to observed data with approximate Bayesian computation, the first of four calibration tutorials that share one disease model.
+- [Calibrating with simulation-based inference](https://pedroliman.github.io/heormodel/tutorials/calibrate-sbi.html): calibrate the same disease model with neural posterior estimation, a form of simulation-based inference, and recover the same posterior as approximate Bayesian computation.
+- [Surrogate-accelerated calibration](https://pedroliman.github.io/heormodel/tutorials/surrogate-calibration.html): fit a fast surrogate of an expensive model on a small design, then calibrate against the surrogate instead of the model.
+- [Calibrating a stochastic microsimulation](https://pedroliman.github.io/heormodel/tutorials/calibrate-microsim.html): calibrate a stochastic microsimulation, carrying its simulation noise into the posterior with a Gaussian process surrogate.
+
+## Replications
+
+- [Replication gallery](https://pedroliman.github.io/heormodel/tutorials/replication-gallery.html): four published Sick-Sicker cost-effectiveness tutorials reproduced with heormodel, one per model type.
+- [Time-dependent cohort model](https://pedroliman.github.io/heormodel/tutorials/mdm-cohort-timedep.html): extend the cohort replication with age-varying mortality and one-time transition rewards.
+- [Microsimulation replication](https://pedroliman.github.io/heormodel/tutorials/mdm-microsim.html): reproduce the Sick-Sicker microsimulation of Krijkamp and others (2018) with `MicrosimModel`.
+- [Discrete-event simulation replication](https://pedroliman.github.io/heormodel/tutorials/mdm-des.html): reproduce the continuous-time Sick-Sicker discrete-event simulation of Lopez-Mendez and others (2026).
+
+## Reference
+
+- [Tutorials](https://pedroliman.github.io/heormodel/tutorials/index.html): every tutorial in learning order, from the standard workflow through the model engines to calibration and replications.
+- [API reference](https://pedroliman.github.io/heormodel/reference/index.html): every public function, generated from docstrings.
+
+## Optional
+
+- [GitHub repository](https://github.com/pedroliman/heormodel): source code, issues, and the tutorial `.qmd` sources.
+- [Changelog](https://pedroliman.github.io/heormodel/changelog.html): notable changes by version.
