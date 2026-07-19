@@ -238,6 +238,7 @@ quartodoc:
       desc: Standard plots, provenance capture, and run reports.
       package: heormodel.report
       contents:
+        - format_icer_table
         - plot_ce_plane
         - plot_ceac
         - plot_expected_loss

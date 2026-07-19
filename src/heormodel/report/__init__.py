@@ -17,11 +17,13 @@ from heormodel.report.plots import (
     tornado_data,
 )
 from heormodel.report.provenance import RunRecord, capture_run
+from heormodel.report.tables import format_icer_table
 
 __all__ = [
     "PALETTE",
     "RunRecord",
     "capture_run",
+    "format_icer_table",
     "heatmap_data",
     "plot_ce_plane",
     "plot_ceac",

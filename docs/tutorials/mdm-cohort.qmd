@@ -58,7 +58,7 @@ engine = MarkovModel(states=STATES, interventions=INTERVENTIONS, transitions_and
 
 ## Reproducing the published base case
 
-Before sampling any uncertainty, running the model once at the article's point estimates checks that the transition matrix and rewards are specified correctly: the result should match the published table exactly. It does. Intervention A is dominated; the frontier runs standard of care, then Intervention B (incremental cost-effectiveness ratio about 73,000 per quality-adjusted life-year), then Intervention AB (about 126,000).
+Before sampling any uncertainty, running the model once at the article's point estimates checks that the transition matrix and rewards are specified correctly: the result should match the published table exactly. It does. Intervention A is dominated; the frontier runs standard of care, then Intervention B (incremental cost-effectiveness ratio, or ICER, about 73,000 per quality-adjusted life-year, or QALY), then Intervention AB (about 126,000).
 
 ```{python}
 from heormodel.cea import icer_table
@@ -75,6 +75,7 @@ The article's uncertainty distributions for each parameter become a `ParameterSe
 
 ```{python}
 from heormodel.params import Beta, Gamma, LogNormal, ParameterSet
+from heormodel.report import format_icer_table
 from heormodel.run import SeedManager, run_psa
 from heormodel.voi import evpi
 
@@ -88,10 +89,14 @@ params = ParameterSet({
 })
 draws = params.sample(1000, seed=SeedManager(20260705).generator())
 outcomes = run_psa(engine, draws, sequential=True).outcomes
-icer_table(outcomes).round(2)
+format_icer_table(outcomes)
 ```
 
-The mean frontier matches the deterministic ranking above. Whether that ranking holds at a given threshold in every draw, rather than only on average, is what the expected value of perfect information (EVPI) measures next:
+Because `outcomes` holds 1,000 parameter draws, the table reports a 95% uncertainty interval for every estimate, written as the point estimate followed by its 2.5th and 97.5th percentiles in parentheses. `format_icer_table` rounds costs and the ratio to whole units and effects to two decimals for reading; `icer_table` returns the same numbers unrounded, in separate `_lo` and `_hi` columns, for further computation. Incremental cost and effect are differences against the comparator, the cheapest frontier intervention still above the row in cost, formed within every draw and then summarized by percentiles rather than by differencing the two interventions' separate intervals.
+
+The ICER is a frontier quantity, so it is blank for a dominated intervention, and the status column carries the dominance label instead. Intervention A is dominated: it costs about 25,000 more than Intervention B for about 0.6 fewer QALYs, the negative incremental effect that marks the dominance. The mean frontier matches the deterministic ranking above: standard of care, then Intervention B at about 76,000 per QALY (95% interval about 52,000 to 104,000), then Intervention AB at about 122,000 (about 80,000 to 188,000). The interval on the ratio is wider for Intervention AB because its incremental effect over Intervention B, about 0.98 QALYs against 1.42, is smaller, so a given spread in incremental cost produces a wider range of ratios.
+
+Whether that ranking holds at a given threshold in every draw, rather than only on average, is what the expected value of perfect information (EVPI) measures next:
 
 ```{python}
 print(f"EVPI at WTP 100,000: {evpi(outcomes, 100_000.0):,.0f}")

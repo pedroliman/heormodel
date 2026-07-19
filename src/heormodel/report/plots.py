@@ -301,7 +301,7 @@ def plot_frontier(
     """
     ax = ax or plt.subplots()[1]
     effect_name = effect or (source.effect if isinstance(source, Outcomes) else "effect")
-    table = icer_table(source, effect=effect)
+    table = icer_table(source, effect=effect, interval=None)
     colors = intervention_colors([str(s) for s in table.index])
     on = table[table["status"] == STATUS_ND]
     ax.plot(on["effect"], on["cost"], color="0.55", lw=1.4, zorder=1)

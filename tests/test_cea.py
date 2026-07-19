@@ -76,6 +76,36 @@ class TestValidationIncrementalAnalysis:
     def test_table_sorted_by_cost(self, reference_means):
         assert list(icer_table(reference_means).index) == ["A", "B", "E", "C", "D"]
 
+    def test_dominated_options_show_incrementals_but_no_icer(self, reference_means):
+        table = icer_table(reference_means)
+        # E is strongly dominated by B; its incremental against B (cost 100,
+        # effect 0.5) has a negative incremental effect, which marks the dominance.
+        assert table.loc["E", "inc_cost"] == pytest.approx(150.0)
+        assert table.loc["E", "inc_effect"] == pytest.approx(-0.1)
+        assert np.isnan(table.loc["E", "icer"])
+        # C is extendedly dominated; its incremental against B is positive but its
+        # ratio would exceed the next frontier segment, so the ICER stays blank.
+        assert table.loc["C", "inc_cost"] == pytest.approx(200.0)
+        assert table.loc["C", "inc_effect"] == pytest.approx(0.1)
+        assert np.isnan(table.loc["C", "icer"])
+
+    def test_reference_skips_dominated_options(self):
+        # X and Y are both extendedly dominated and adjacent in cost order. A
+        # dominated option cannot be a comparator, so Y is referenced against the
+        # frontier option A, not against X, and B skips both to reference A.
+        means = pd.DataFrame(
+            {"cost": [0.0, 100.0, 150.0, 200.0], "effect": [0.0, 0.10, 0.15, 0.90]},
+            index=["A", "X", "Y", "B"],
+        )
+        table = icer_table(means)
+        assert list(table["status"]) == [STATUS_ND, STATUS_ED, STATUS_ED, STATUS_ND]
+        # cost minus incremental cost recovers the comparator's cost; every
+        # non-cheapest row references A at cost 0.
+        reference_cost = table["cost"] - table["inc_cost"]
+        assert reference_cost.loc["X"] == pytest.approx(0.0)
+        assert reference_cost.loc["Y"] == pytest.approx(0.0)
+        assert reference_cost.loc["B"] == pytest.approx(0.0)
+
 
 class TestIcerEdgeCases:
     def test_duplicate_interventions_keep_first(self):
@@ -106,6 +136,176 @@ class TestIcerEdgeCases:
         e = pd.DataFrame({"A": [0.0, 0.0], "B": [1.0, 1.0]})
         table = icer_table(Outcomes.from_wide(c, e))
         assert table.loc["B", "icer"] == pytest.approx(100.0)
+
+
+class TestIcerUncertaintyIntervals:
+    """Intervals from a probabilistic PSA, with paired incremental measures."""
+
+    @pytest.fixture
+    def psa_outcomes(self) -> Outcomes:
+        rng = np.random.default_rng(0)
+        n = 4000
+        costs = pd.DataFrame(
+            {
+                "A": rng.normal(0.0, 1.0, n),
+                "B": rng.normal(100.0, 20.0, n),
+                "D": rng.normal(400.0, 60.0, n),
+            }
+        )
+        effects = pd.DataFrame(
+            {
+                "A": rng.normal(0.0, 0.01, n),
+                "B": rng.normal(0.5, 0.05, n),
+                "D": rng.normal(1.0, 0.08, n),
+            }
+        )
+        return Outcomes.from_wide(costs, effects, effect="qaly")
+
+    def test_interval_columns_present_and_ordered(self, psa_outcomes):
+        table = icer_table(psa_outcomes)
+        expected = []
+        for estimate in ("cost", "effect", "inc_cost", "inc_effect", "icer"):
+            expected += [estimate, f"{estimate}_lo", f"{estimate}_hi"]
+        expected.append("status")
+        assert list(table.columns) == expected
+
+    def test_no_intervals_for_mean_table(self, reference_means):
+        assert "cost_lo" not in icer_table(reference_means).columns
+
+    def test_no_intervals_when_suppressed(self, psa_outcomes):
+        assert "cost_lo" not in icer_table(psa_outcomes, interval=None).columns
+
+    def test_point_estimates_unchanged_by_intervals(self, psa_outcomes):
+        with_ci = icer_table(psa_outcomes)
+        without = icer_table(psa_outcomes, interval=None)
+        for col in ("cost", "effect", "inc_cost", "inc_effect", "icer"):
+            np.testing.assert_allclose(
+                with_ci[col].to_numpy(dtype=float), without[col].to_numpy(dtype=float)
+            )
+
+    def test_incremental_interval_is_paired_not_marginal(self, psa_outcomes):
+        # The paired difference D minus B per draw, then its percentiles, is
+        # narrower than differencing the two strategies' separate intervals,
+        # because the two costs move together across draws under common draws.
+        table = icer_table(psa_outcomes)
+        costs = psa_outcomes.costs_wide()
+        paired = (costs["D"] - costs["B"]).to_numpy()
+        lo, hi = np.percentile(paired, [2.5, 97.5])
+        assert table.loc["D", "inc_cost_lo"] == pytest.approx(lo)
+        assert table.loc["D", "inc_cost_hi"] == pytest.approx(hi)
+
+    def test_icer_interval_from_paired_ratio(self, psa_outcomes):
+        table = icer_table(psa_outcomes)
+        costs = psa_outcomes.costs_wide()
+        effects = psa_outcomes.effects_wide("qaly")
+        ratio = (costs["D"] - costs["B"]).to_numpy() / (effects["D"] - effects["B"]).to_numpy()
+        lo, hi = np.percentile(ratio, [2.5, 97.5])
+        assert table.loc["D", "icer_lo"] == pytest.approx(lo)
+        assert table.loc["D", "icer_hi"] == pytest.approx(hi)
+
+    def test_interval_brackets_point_estimate(self, psa_outcomes):
+        table = icer_table(psa_outcomes)
+        for estimate in ("cost", "effect", "inc_cost", "inc_effect", "icer"):
+            point = table[estimate]
+            lo, hi = table[f"{estimate}_lo"], table[f"{estimate}_hi"]
+            valid = point.notna()
+            assert (lo[valid] <= point[valid] + 1e-9).all()
+            assert (point[valid] <= hi[valid] + 1e-9).all()
+
+    def test_cheapest_frontier_intervention_has_no_incremental_interval(self, psa_outcomes):
+        table = icer_table(psa_outcomes)
+        assert np.isnan(table.loc["A", "inc_cost_lo"])
+        assert np.isnan(table.loc["A", "icer_hi"])
+
+    def test_interval_level_widens_the_band(self, psa_outcomes):
+        wide = icer_table(psa_outcomes, interval=0.99)
+        narrow = icer_table(psa_outcomes, interval=0.5)
+        assert wide.loc["B", "cost_lo"] < narrow.loc["B", "cost_lo"]
+        assert wide.loc["B", "cost_hi"] > narrow.loc["B", "cost_hi"]
+
+    def test_rejects_out_of_range_interval(self, psa_outcomes):
+        with pytest.raises(ValueError):
+            icer_table(psa_outcomes, interval=1.5)
+
+    def test_dominated_option_gets_incremental_interval_but_no_icer_interval(self):
+        rng = np.random.default_rng(3)
+        n = 3000
+        # E is strongly dominated by B (cheaper and more effective on average).
+        costs = pd.DataFrame(
+            {
+                "A": rng.normal(0.0, 10.0, n),
+                "B": rng.normal(100.0, 10.0, n),
+                "E": rng.normal(250.0, 10.0, n),
+            }
+        )
+        effects = pd.DataFrame(
+            {
+                "A": rng.normal(0.0, 0.05, n),
+                "B": rng.normal(0.50, 0.05, n),
+                "E": rng.normal(0.40, 0.05, n),
+            }
+        )
+        out = Outcomes.from_wide(costs, effects, effect="qaly")
+        table = icer_table(out)
+
+        assert table.loc["E", "status"] == STATUS_D
+        # E's incremental interval is paired against its comparator B.
+        lo, hi = np.percentile((costs["E"] - costs["B"]).to_numpy(), [2.5, 97.5])
+        assert table.loc["E", "inc_cost_lo"] == pytest.approx(lo)
+        assert table.loc["E", "inc_cost_hi"] == pytest.approx(hi)
+        # but the ICER stays blank for a dominated option, point and interval.
+        assert np.isnan(table.loc["E", "icer"])
+        assert np.isnan(table.loc["E", "icer_lo"])
+        assert np.isnan(table.loc["E", "icer_hi"])
+
+    def test_near_efficient_strategy_keeps_a_fixed_comparator(self):
+        # The frontier is settled once on the means, then every draw compares an
+        # intervention against the same cheaper frontier neighbour. A strategy
+        # that is nearly efficient (extendedly dominated in expectation, but on
+        # the frontier in many single draws) must not become a comparator: if the
+        # frontier were recomputed per draw, the comparison would keep changing
+        # and the paired incremental distribution would be meaningless.
+        rng = np.random.default_rng(7)
+        n = 4000
+        # Means A(0, 0) and B(200, 0.70) are on the frontier; N(100, 0.30) sits
+        # just above the A-B line, so it is extendedly dominated on average.
+        costs = pd.DataFrame(
+            {
+                "A": rng.normal(0.0, 15.0, n),
+                "N": rng.normal(100.0, 15.0, n),
+                "B": rng.normal(200.0, 15.0, n),
+            }
+        )
+        effects = pd.DataFrame(
+            {
+                "A": rng.normal(0.0, 0.12, n),
+                "N": rng.normal(0.30, 0.12, n),
+                "B": rng.normal(0.70, 0.12, n),
+            }
+        )
+        out = Outcomes.from_wide(costs, effects, effect="qaly")
+        table = icer_table(out)
+
+        # N is extendedly dominated in expectation, so its ICER stays blank, but
+        # its incremental cost and effect against its comparator A are shown.
+        assert table.loc["N", "status"] == STATUS_ED
+        assert np.isnan(table.loc["N", "icer_lo"])
+        assert not np.isnan(table.loc["N", "inc_cost_lo"])
+
+        # N would be efficient in a sizeable share of single draws, so a per-draw
+        # frontier would sometimes compare B against N. Confirm the setup exercises
+        # that hazard before asserting the fix holds.
+        slope = (costs["B"] - costs["A"]) / (effects["B"] - effects["A"])
+        n_below_chord = (costs["N"] < costs["A"] + (effects["N"] - effects["A"]) * slope).mean()
+        assert n_below_chord > 0.2
+
+        # Both B and N take A as their comparator in every draw: the frontier is
+        # fixed on the means, so N never becomes B's comparator. Each interval
+        # equals the percentiles of that intervention's cost minus A's cost.
+        for name in ("B", "N"):
+            lo, hi = np.percentile((costs[name] - costs["A"]).to_numpy(), [2.5, 97.5])
+            assert table.loc[name, "inc_cost_lo"] == pytest.approx(lo)
+            assert table.loc[name, "inc_cost_hi"] == pytest.approx(hi)
 
 
 @pytest.fixture

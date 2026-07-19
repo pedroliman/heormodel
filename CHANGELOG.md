@@ -27,6 +27,22 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Added
 
+- 95% uncertainty intervals in the incremental cost-effectiveness ratio (ICER)
+  table. When `icer_table` receives a probabilistic `Outcomes` with more than
+  one iteration, each of `cost`, `effect`, `inc_cost`, `inc_effect`, and `icer`
+  gains `_lo`/`_hi` interval columns; the level is set by `interval=` (default
+  0.95) and `interval=None` omits them. Dominance and the frontier are settled
+  once on the mean costs and effects, and the incremental measures, which are
+  differences between interventions, are formed within each parameter draw in a
+  paired way before being summarized by percentiles. Incremental cost and effect
+  are now shown for every intervention against its comparator, the cheapest
+  frontier intervention still above it in cost, so a dominated intervention
+  carries the negative incremental effect or excess cost that marks it; the ICER
+  stays a frontier quantity, blank for dominated interventions. `heormodel.report`
+  gains `format_icer_table`, which renders that table for reading, with each
+  estimate rounded and written as `point (low, high)`
+  ([#81](https://github.com/pedroliman/heormodel/issues/81)).
+
 - Search-engine metadata across the documentation website: a site-wide meta
   description, Open Graph and Twitter card tags with a preview image, a
   `robots.txt` that points to the generated sitemap, `WebSite` and
