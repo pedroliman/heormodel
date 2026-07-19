@@ -101,7 +101,7 @@ fig2.tight_layout()
 
 ::: {.g-col-12 .g-col-md-4 .card .p-3}
 #### [Browse the tutorials](tutorials/index.qmd)
-Every tutorial, ordered as a learning path from the standard workflow through the model engines to calibration.
+Every tutorial, in the order a reader learns the package, from the standard workflow through the model engines to calibration.
 :::
 
 ::: {.g-col-12 .g-col-md-4 .card .p-3}

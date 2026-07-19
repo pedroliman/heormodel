@@ -1,6 +1,6 @@
 ---
 title: Tutorials
-description: Every tutorial, ordered as a learning path from the standard analysis workflow through the model engines to calibration and published replications.
+description: Every tutorial, in the order a reader learns the package, from the standard analysis workflow through the model engines to calibration and replications.
 toc: false
 listing:
   - id: getting-started
@@ -69,39 +69,39 @@ listing:
     sort-ui: false
 ---
 
-The tutorials are ordered as a learning path. Each group builds on the ones before it, and within a group the prerequisite tutorial comes first. A reader new to the package can read top to bottom; a reader who knows the workflow can jump to the group they need.
+This page lists the tutorials in the order a reader learns the package: the standard analysis workflow first, then one tutorial per model engine, then sensitivity and value-of-information analysis, calibration, and replications of published models. Each group builds on the ones before it, and within a group the prerequisite comes first.
 
 ## Getting started
 
-These tutorials cover the standard probabilistic sensitivity analysis workflow: specify parameters, sample draws, run a model, and analyze cost-effectiveness and value of information. Start here to see the pipeline every engine plugs into, then how to feed it results or parameters computed elsewhere.
+The standard probabilistic sensitivity analysis runs in four steps: specify parameters, sample draws, evaluate a model, and analyze cost-effectiveness and value of information. The three tutorials here cover that workflow, and how to supply results or parameters computed outside the package.
 
 :::{#getting-started}
 :::
 
 ## Model engines
 
-Each tutorial covers one model type: it builds a model, then runs the same analysis as the getting-started workflow, so the engine is the only part that changes. The cohort state-transition model comes first as the standard engine, and the microsimulation, discrete-event, and compartmental engines follow for the problems a cohort average cannot represent.
+Each engine builds a different kind of model and then runs the same analysis, so only the model-building step changes between them. The cohort state-transition model is the standard engine; the microsimulation, discrete-event, and compartmental engines add the patient history, resource contention, and disease transmission a cohort average cannot represent.
 
 :::{#model-engines}
 :::
 
 ## Sensitivity and value of information
 
-These two analyses quantify what the uncertainty in a model means for the decision. Deterministic sensitivity analysis asks which parameters move the result, and value-of-information analysis prices resolving the remaining uncertainty. Both read the same outcomes the engines produce.
+Deterministic sensitivity analysis asks which parameters move the result; value-of-information analysis asks what resolving the remaining uncertainty is worth. Both read the outcomes an engine produces, so they apply after any of the model tutorials.
 
 :::{#sensitivity-voi}
 :::
 
 ## Calibration
 
-These tutorials fit model parameters to observed data, then carry the fitted uncertainty into the same analysis. The calibration workflow comes first, then three inference methods on a shared model, and finally calibration of a stochastic microsimulation.
+Calibration fits model parameters to observed data and carries the fitted uncertainty into the analysis. The workflow tutorial comes first, the next three compare inference methods on one shared model, and the last calibrates a stochastic microsimulation.
 
 :::{#calibration}
 :::
 
 ## Replications
 
-These tutorials reproduce published cost-effectiveness analyses with `heormodel`, each matching the source's deterministic result before extending it to a probabilistic analysis. Read them to check the package against known answers and to see complete worked models.
+Each replication reproduces a published cost-effectiveness analysis, matching its deterministic result before extending it to a probabilistic analysis. Together they check the package against known answers and show complete worked models.
 
 :::{#replications}
 :::
