@@ -56,7 +56,7 @@ WTP = 100_000.0
 
 ## Running a one-way sweep
 
-`one_way` varies a single parameter across the listed values, holding the rest at base. Here the incremental net monetary benefit of Intervention AB over standard of care falls as the treatment-B cost rises, crossing zero near its base value.
+`one_way` varies a single parameter across the listed values, holding the rest at base. The result each design reads is the incremental net monetary benefit of one intervention over its comparator, $\text{INMB} = \lambda\,\Delta E - \Delta C$, which is positive exactly when the intervention is cost-effective at the threshold $\lambda$. Here the incremental net monetary benefit of Intervention AB over standard of care falls as the treatment-B cost rises, crossing zero near its base value.
 
 ```{python}
 from heormodel.cea import nmb

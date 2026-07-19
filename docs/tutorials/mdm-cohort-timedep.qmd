@@ -13,7 +13,7 @@ This tutorial shows how to extend the [cohort replication](mdm-cohort.qmd) with 
 
 ## Specifying age-varying transitions and rewards
 
-The model function returns a per-cycle transition array of shape `(n_cycles, n_states, n_states)`: the death rate follows a US life table in the Healthy state and is scaled by hazard ratios in the Sick and Sicker states. `transition_cost` and `transition_effect` attach a one-time cost of dying, a cost of onset, and a disutility of onset to the flows between states; the engine accrues them on the flow and discounts them with the state rewards.
+What makes the model time-dependent is that the transition matrix now changes from cycle to cycle rather than staying fixed. The death rate follows a US life table, so at cycle $t$, when the cohort has aged to $a_0 + t$, the Healthy-state death probability is $p_{HD}(t) = 1 - e^{-\text{mort}(a_0 + t)}$, scaled by hazard ratios in the Sick and Sicker states. The model function returns the whole sequence at once, a per-cycle transition array of shape `(n_cycles, n_states, n_states)`. `transition_cost` and `transition_effect` attach a one-time cost of dying, a cost of onset, and a disutility of onset to the flows between states; the engine accrues them on the flow and discounts them with the state rewards.
 
 ```{python}
 import numpy as np

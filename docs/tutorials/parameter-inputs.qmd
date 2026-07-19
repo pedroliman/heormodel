@@ -72,7 +72,11 @@ The summary is the same probabilistic analysis a native `ParameterSet` sample wo
 
 ## Resampling a weighted posterior
 
-A calibration or a bootstrap may return parameter rows with a weight column instead of an already-uniform sample. `resample_posterior` draws whole rows with replacement in proportion to the weights, so any correlation between parameters in the posterior survives, then drops the weight column, giving a plain draw matrix `run_psa` can use. Resampling to an `n` larger than the input adds no information; it only smooths Monte Carlo noise in downstream expectations.
+A calibration or a bootstrap may return parameter rows with a weight column instead of an already-uniform sample. `resample_posterior` draws whole rows with replacement, each row $i$ with probability proportional to its weight,
+
+$$\Pr(\text{row } i) = \frac{w_i}{\sum_j w_j},$$
+
+so any correlation between parameters in the posterior survives, then drops the weight column, giving a plain draw matrix `run_psa` can use. Resampling to an `n` larger than the input adds no information; it only smooths Monte Carlo noise in downstream expectations.
 
 ```{python}
 grid = params.sample(500, seed=2)

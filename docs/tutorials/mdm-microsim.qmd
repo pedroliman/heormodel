@@ -13,7 +13,7 @@ This tutorial shows how to reproduce the Sick-Sicker microsimulation of Krijkamp
 
 ## Modeling duration-dependent risk and a treatment effect modifier
 
-Two features rule out a cohort average: mortality rises with the number of consecutive years spent in the Sick and Sicker states, and a per-individual effect modifier scales the treatment utility. The duration count does not reset across the Sick to Sicker progression, so the engine tracks it with `duration_groups`, a counter over a set of states that `time_in_state` (one exact state) cannot express. The counter is 0 on the first sick cycle; mortality reads it as `dur + 1` and utility reads it directly.
+Two features rule out a cohort average: mortality rises with the number of consecutive years spent in the Sick and Sicker states, and a per-individual effect modifier scales the treatment utility. Duration enters the death rate through a multiplier on the hazard: with `dur` full years already spent sick, the Sick-to-Dead probability is $p_{SD} = 1 - e^{-\text{hr}\cdot r_{HD}\,(1 + (\text{dur}+1)\,\text{rp})}$, where `rp` is the per-year proportional increase. The duration count does not reset across the Sick to Sicker progression, so the engine tracks it with `duration_groups`, a counter over a set of states that `time_in_state` (one exact state) cannot express. The counter is 0 on the first sick cycle; mortality reads it as `dur + 1` and utility reads it directly.
 
 ```{python}
 import numpy as np

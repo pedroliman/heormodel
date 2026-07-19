@@ -234,6 +234,6 @@ sweep = pd.DataFrame({
 sweep.round(4)
 ```
 
-At 8,000 the posterior standard deviation has nearly returned to the survey-only floor, because a four-fold larger population halves the replicate standard deviation. The width the model's noise adds is a statement about the simulation budget: with more runs, or larger runs, it shrinks. Reporting it keeps the calibration honest about how much of the posterior uncertainty comes from the data and how much from the model that was run a finite number of times.
+At 8,000 the posterior standard deviation has nearly returned to the survey-only floor, because the replicate noise falls with population like the Monte Carlo error of any microsimulation mean, $\sigma_\text{rep} \propto 1/\sqrt{N}$, so a four-fold larger population halves it. The width the model's noise adds is a statement about the simulation budget: with more runs, or larger runs, it shrinks. Reporting it keeps the calibration honest about how much of the posterior uncertainty comes from the data and how much from the model that was run a finite number of times.
 
 This completes the calibration sequence: [ABC](calibrate-abc.qmd) and [simulation-based inference](calibrate-sbi.qmd) on a deterministic model, [both methods on a surrogate](surrogate-calibration.qmd), and a stochastic model whose noise the surrogate carries into the posterior.

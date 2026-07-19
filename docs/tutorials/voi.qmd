@@ -62,7 +62,7 @@ outcomes = run_psa(engine, draws).outcomes
 
 Value-of-information estimates need more draws than a mean cost-effectiveness estimate does, so this run uses 10,000 iterations against the cohort tutorial's 1,000.
 
-## Calculating the Expected Value of Perfect Information (EVPI)
+## Calculating the expected value of perfect information (EVPI)
 
 EVPI is the difference between a decision made with perfect information and one made with current information, an upper bound on the value of any research.
 
@@ -74,7 +74,11 @@ evpi(outcomes, WTP)
 
 ## Ranking parameters with EVPPI
 
-EVPPI is the value of resolving one parameter while the rest stay uncertain. It identifies which parameters drive the decision uncertainty, so `evppi_ranking` sweeps each of the model's 16 parameters and sorts them into a research priority list.
+The expected value of partial perfect information (EVPPI) is the value of resolving one parameter, or a group, while the rest stay uncertain. It replaces the inner maximization of EVPI with an expectation taken over only the parameter of interest $\phi$,
+
+$$\text{EVPPI}_\phi = \mathbb{E}_\phi\!\left[\max_d \mathbb{E}_{\theta \mid \phi}\, \text{NMB}_d\right] - \max_d \mathbb{E}_\theta\, \text{NMB}_d,$$
+
+so it identifies which parameters drive the decision uncertainty. `evppi_ranking` sweeps each of the model's 16 parameters and sorts them into a research priority list.
 
 ```{python}
 from heormodel.voi import evppi, evppi_ranking
@@ -85,9 +89,9 @@ ranking.round(1)
 
 `u_S1`, the Sick-state utility under standard of care, dominates the ranking: Intervention A's entire benefit is raising that utility to `u_trtA`, so whether the true `u_S1` is already close to `u_trtA` decides whether Intervention A is worth its cost. The two treatment costs `c_trtA` and `c_trtB` follow, with everything else contributing almost nothing at this threshold. The `spline` metamodel used by default handles one parameter at a time well; `method="gp"` (a Gaussian process) suits groups of many parameters evaluated jointly.
 
-## Expected Value of Sample Information (EVSI)
+## Expected value of sample information (EVSI)
 
-EVSI is the value of a study of finite sample size. Since `u_S1` drives the ranking, consider a preference-based utility survey of Sick patients, each reporting a health-utility score with the sampling standard deviation typical of an instrument like the EQ-5D-5L in a chronic-disease population. `simulate_summaries` draws one survey summary per parameter draw from its true `u_S1`, and `evsi_regression` computes the value from the fitted conditional means.
+EVSI is the value of a study of finite sample size, the practical counterpart to the perfect-information measures above, which assume a parameter is resolved exactly. Since `u_S1` drives the ranking, consider a preference-based utility survey of Sick patients, each reporting a health-utility score with the sampling standard deviation typical of an instrument like the EQ-5D-5L in a chronic-disease population. `simulate_summaries` draws one survey summary per parameter draw from its true `u_S1`, and `evsi_regression` computes the value from the fitted conditional means.
 
 ```{python}
 from heormodel.voi import evsi_regression, simulate_summaries
@@ -130,7 +134,7 @@ fig.colorbar(sm, ax=ax, label="survey size (patients)");
 
 ## Expected net benefit of sampling (ENBS)
 
-So, how many patients should the survey enrol? The expected net benefit of sampling (ENBS) answers that by multiplying the per-person EVSI by the population it would inform and discounting to a present value, then subtracting the survey's cost. Suppose 2,000 patients enter the Sick state each year for 10 years, discounted at 3% a year, and each would benefit from a decision informed by the resolved utility. The survey costs a fixed 100,000 to set up plus 300 per participant. An ENBS at or above zero is the condition for running the survey; the size that maximizes it is the one worth funding.
+How many patients should the survey enroll? The expected net benefit of sampling (ENBS) answers that by multiplying the per-person EVSI by the population it would inform and discounting to a present value, then subtracting the survey's cost. Suppose 2,000 patients enter the Sick state each year for 10 years, discounted at 3% a year, and each would benefit from a decision informed by the resolved utility. The survey costs a fixed 100,000 to set up plus 300 per participant. An ENBS at or above zero is the condition for running the survey; the size that maximizes it is the one worth funding.
 
 ```{python}
 i_wtp = int(np.where(grid == WTP)[0][0])

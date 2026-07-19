@@ -14,7 +14,7 @@ This tutorial shows how to mix two parameter sources in one analysis: some param
 
 ## Specifying the disease model
 
-A three-state continuous-time Markov chain runs over Healthy, Sick, and Dead from age 40. Two rates are unknown and will be calibrated: the Healthy to Sick onset hazard and the excess Sick to Dead progression hazard. Treatment scales the progression hazard by `rr_progression`, a literature parameter, extending time in the Sick state. Discounted state occupancy is the closed-form integral of the transition matrix, `e0 @ inv(r I - Q)`, so no cycle loop is needed.
+A three-state continuous-time Markov chain runs over Healthy, Sick, and Dead from age 40. Two rates are unknown and will be calibrated: the Healthy to Sick onset hazard and the excess Sick to Dead progression hazard. Treatment scales the progression hazard by `rr_progression`, a literature parameter, extending time in the Sick state. Discounted state occupancy has a closed form: for a chain with generator matrix $Q$ and discount rate $r$, the expected discounted years spent in each state, starting from the initial distribution $e_0$, are $e_0 (rI - Q)^{-1}$, so no cycle loop is needed. The `occupancy` function evaluates this for every draw at once.
 
 ```{python}
 import numpy as np

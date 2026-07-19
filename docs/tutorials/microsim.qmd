@@ -123,7 +123,7 @@ The treatment cost and its effect `rr_tx` lead the ranking: they determine wheth
 
 ## Validating against the cohort closed form
 
-With constant transitions and no heterogeneity, a microsimulation must converge to the exact cohort calculation as the population grows; this section checks that it does, since a mismatch here would point to a bug rather than sampling noise. The engine and the cohort share the same discounting and half-cycle convention, so the only expected gap is Monte Carlo error.
+A microsimulation estimates each expected outcome as the mean over the $N$ simulated individuals, $\bar X = \frac{1}{N}\sum_{i=1}^{N} X_i$, whose Monte Carlo standard error falls as $\sigma/\sqrt{N}$: quadrupling the population halves it. With constant transitions and no heterogeneity, that mean must converge to the exact cohort calculation as the population grows; this section checks that it does, since a mismatch here would point to a bug rather than sampling noise. The engine and the cohort share the same discounting and half-cycle convention, so the only expected gap is that Monte Carlo error.
 
 ```{python}
 P = np.array([[0.80, 0.15, 0.05], [0.0, 0.90, 0.10], [0.0, 0.0, 1.0]])

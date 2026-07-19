@@ -81,7 +81,15 @@ ceaf_df = ceaf(outcomes, grid)
 
 ## Ranking parameters by their value of information
 
-The expected value of perfect information (EVPI) puts a monetary value, at the willingness-to-pay threshold, on resolving every remaining source of uncertainty at once. `evppi_ranking` breaks that value down by parameter instead, so a research budget can target whichever one drives the decision the most; it needs the draw matrix as well as the outcomes, linked to it by the shared iteration index.
+Value-of-information analysis works on the net monetary benefit of each intervention, which places cost and effect on one scale at the willingness-to-pay threshold $\lambda$,
+
+$$\text{NMB}_d(\theta) = \lambda E_d(\theta) - C_d(\theta).$$
+
+The expected value of perfect information (EVPI) puts a monetary value on resolving every remaining source of uncertainty at once. It is the gain from choosing the best intervention for each parameter draw $\theta$ rather than the single intervention that is best on average,
+
+$$\text{EVPI} = \mathbb{E}_\theta\!\left[\max_d \text{NMB}_d(\theta)\right] - \max_d \mathbb{E}_\theta\!\left[\text{NMB}_d(\theta)\right].$$
+
+`evppi_ranking` breaks that value down by parameter instead, so a research budget can target whichever one drives the decision the most; it needs the draw matrix as well as the outcomes, linked to it by the shared iteration index.
 
 ```{python}
 from heormodel.voi import evpi, evppi_ranking

@@ -14,7 +14,7 @@ This tutorial shows how to run the standard probabilistic sensitivity analysis w
 
 ## Specifying and sampling parameters
 
-Distributions are specified directly or from published mean and standard error. `ParameterSet.sample` returns a draw matrix, one row per iteration; a Spearman rank correlation can be requested per parameter pair.
+The workflow begins by describing each uncertain parameter as a probability distribution and drawing a sample from it. A distribution is specified directly, as with `Normal(0.70, 0.10)`, or from a published mean and standard error, as with `Beta.from_mean_se`. `ParameterSet.sample` returns a draw matrix with one row per iteration, and a Spearman rank correlation can be imposed on any pair of parameters to reflect a known dependence.
 
 ```{python}
 from heormodel.params import Beta, Gamma, Normal, ParameterSet
@@ -70,7 +70,11 @@ outcomes.summary().round(3)
 
 ## Analyzing cost-effectiveness and value of information
 
-Nothing from here on is specific to a decision tree: the same `icer_table`, `evpi`, and `evppi_ranking` calls apply to the `Outcomes` any model produces.
+Nothing from here on is specific to a decision tree: the same `icer_table`, `evpi`, and `evppi_ranking` calls apply to the `Outcomes` any model produces. The incremental cost-effectiveness ratio (ICER) compares the more effective intervention against its next cheaper alternative,
+
+$$\text{ICER} = \frac{C_1 - C_0}{E_1 - E_0},$$
+
+where $C$ is expected cost and $E$ expected effect in quality-adjusted life-years (QALYs). The intervention is cost-effective when its ICER stays below the willingness-to-pay threshold $\lambda$.
 
 ```{python}
 import numpy as np
@@ -80,7 +84,7 @@ from heormodel.voi import evpi, evppi_ranking
 icer_table(outcomes).round(3)
 ```
 
-Treatment is the more expensive, more effective intervention. Whether its incremental cost-effectiveness ratio stays below a given willingness-to-pay threshold, and how much resolving that uncertainty would be worth, are the questions the expected value of perfect information (EVPI) and the per-parameter ranking answer next.
+Treatment is the more expensive, more effective intervention. Whether its ICER stays below a given willingness-to-pay threshold, and how much resolving the parameter uncertainty would be worth, are the questions the expected value of perfect information (EVPI) and the per-parameter ranking answer next.
 
 ```{python}
 WTP = 50_000.0
