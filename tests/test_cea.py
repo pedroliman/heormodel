@@ -197,6 +197,53 @@ class TestIcerUncertaintyIntervals:
         with pytest.raises(ValueError):
             icer_table(psa_outcomes, interval=1.5)
 
+    def test_near_efficient_strategy_keeps_a_fixed_comparator(self):
+        # The frontier is settled once on the means, then every draw compares an
+        # intervention against the same cheaper frontier neighbour. A strategy
+        # that is nearly efficient (extendedly dominated in expectation, but on
+        # the frontier in many single draws) must not become a comparator: if the
+        # frontier were recomputed per draw, the comparison would keep changing
+        # and the paired incremental distribution would be meaningless.
+        rng = np.random.default_rng(7)
+        n = 4000
+        # Means A(0, 0) and B(200, 0.70) are on the frontier; N(100, 0.30) sits
+        # just above the A-B line, so it is extendedly dominated on average.
+        costs = pd.DataFrame(
+            {
+                "A": rng.normal(0.0, 15.0, n),
+                "N": rng.normal(100.0, 15.0, n),
+                "B": rng.normal(200.0, 15.0, n),
+            }
+        )
+        effects = pd.DataFrame(
+            {
+                "A": rng.normal(0.0, 0.12, n),
+                "N": rng.normal(0.30, 0.12, n),
+                "B": rng.normal(0.70, 0.12, n),
+            }
+        )
+        out = Outcomes.from_wide(costs, effects, effect="qaly")
+        table = icer_table(out)
+
+        # N is off the frontier in expectation and carries no incremental interval.
+        assert table.loc["N", "status"] == STATUS_ED
+        assert np.isnan(table.loc["N", "inc_cost_lo"])
+        assert np.isnan(table.loc["N", "icer_hi"])
+
+        # N would be efficient in a sizeable share of single draws, so a per-draw
+        # frontier would sometimes compare B against N. Confirm the setup exercises
+        # that hazard before asserting the fix holds.
+        slope = (costs["B"] - costs["A"]) / (effects["B"] - effects["A"])
+        n_below_chord = (costs["N"] < costs["A"] + (effects["N"] - effects["A"]) * slope).mean()
+        assert n_below_chord > 0.2
+
+        # B's paired incremental uses A as its comparator in every draw, so its
+        # interval equals the percentiles of cost_B minus cost_A, not a mixture
+        # that sometimes differences against N.
+        lo, hi = np.percentile((costs["B"] - costs["A"]).to_numpy(), [2.5, 97.5])
+        assert table.loc["B", "inc_cost_lo"] == pytest.approx(lo)
+        assert table.loc["B", "inc_cost_hi"] == pytest.approx(hi)
+
 
 @pytest.fixture
 def simple_outcomes() -> Outcomes:
