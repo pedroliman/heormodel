@@ -159,4 +159,3 @@ The two agree to under 1% at 60,000 individuals, and the gap shrinks with the po
 `MicrosimModel.continuous` is set up the same way. Instead of per-cycle probabilities, `event_times` returns sampled times to each competing event; the engine takes the earliest, advances to it, and accrues continuously between events, valuing each segment through `state_reward_rates` (per-year flows rather than per-cycle amounts). On constant hazards it reproduces the exponential cohort solution.
 
 Next: [Markov vs microsimulation models](markov-vs-microsim.qmd) builds this microsimulation and a cohort twin from the same rates, cross-validates them, and shows what the individual model carries that the cohort averages away.
-```
