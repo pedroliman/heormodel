@@ -18,4 +18,4 @@ User-agent: Bytespider
 User-agent: cohere-ai
 Allow: /
 
-Sitemap: https://pedroliman.github.io/heormodel/sitemap.xml
+Sitemap: https://heormodel.pedrodelima.com/sitemap.xml

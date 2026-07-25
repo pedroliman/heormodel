@@ -31,7 +31,7 @@ NOTEBOOKS = DOCS / "_notebooks"
 GH_USER = "pedroliman"
 GH_REPO = "heormodel"
 GH_REF = "main"  # branch the notebooks install from and Colab opens from
-SITE_URL = "https://pedroliman.github.io/heormodel/"
+SITE_URL = "https://heormodel.pedrodelima.com/"
 BADGE_IMG = "https://colab.research.google.com/assets/colab-badge.svg"
 REPO_GIT = f"https://github.com/{GH_USER}/{GH_REPO}.git"
 

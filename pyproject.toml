@@ -28,7 +28,7 @@ dependencies = [
 ]
 
 [project.urls]
-Documentation = "https://pedroliman.github.io/heormodel/"
+Documentation = "https://heormodel.pedrodelima.com/"
 Repository = "https://github.com/pedroliman/heormodel"
 Changelog = "https://github.com/pedroliman/heormodel/blob/main/CHANGELOG.md"
 

@@ -1,6 +1,6 @@
 # Architecture
 
-This page explains the two guarantees that hold everywhere in `heormodel`: one standard outcome structure as the integration point, and the shared iteration index. It assumes the [quickstart](https://pedroliman.github.io/heormodel/); [engines](engines.md) covers the model side of the contract.
+This page explains the two guarantees that hold everywhere in `heormodel`: one standard outcome structure as the integration point, and the shared iteration index. It assumes the [quickstart](https://heormodel.pedrodelima.com/); [engines](engines.md) covers the model side of the contract.
 
 ## The outcome structure is the integration point
 
