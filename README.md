@@ -10,7 +10,7 @@
 
 `heormodel` covers the full cost-effectiveness analysis workflow in one package. It supports probabilistic parameter specification for a range of models: Markov cohort state-transition models, microsimulation models, and discrete-event simulation models. It builds the incremental cost-effectiveness ratio (ICER) table and runs value-of-information analysis. If you are not ready to port your model to Python, you can also bring your existing model results directly into the package.
 
-Read more in the documentation: [pedroliman.github.io/heormodel](https://pedroliman.github.io/heormodel/)
+Read more in the documentation: [heormodel.pedrodelima.com](https://heormodel.pedrodelima.com/)
 
 ## Install
 

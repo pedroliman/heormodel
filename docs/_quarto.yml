@@ -5,6 +5,7 @@ project:
     - robots.txt
     - llms.txt
     - images/og-card.png
+    - CNAME
 
 lang: en
 
@@ -19,7 +20,7 @@ execute:
 
 website:
   title: heormodel
-  site-url: https://pedroliman.github.io/heormodel/
+  site-url: https://heormodel.pedrodelima.com/
   repo-url: https://github.com/pedroliman/heormodel
   description: "Health economic evaluation in Python: parameter sampling, cost-effectiveness analysis, value of information, sensitivity analysis, and Bayesian calibration across cohort, microsimulation, discrete-event, and compartmental models."
   image: /images/og-card.png
