@@ -1,7 +1,6 @@
 ---
 title: heormodel
 pagetitle: "heormodel: cost-effectiveness modeling and value of information in Python"
-subtitle: "Health economic evaluation in Python: parameter sampling, simulation across model types, cost-effectiveness analysis, and value-of-information analysis for model-based health technology assessment."
 description: "heormodel is a Python package for cost-effectiveness modeling and value-of-information analysis: sample parameters, run a model, and report cost-effectiveness, sensitivity, and calibration results."
 keywords:
   - cost-effectiveness modeling
@@ -15,7 +14,6 @@ keywords:
   - discrete-event simulation
   - Bayesian calibration
   - Python
-author: Pedro Nascimento de Lima
 title-block-banner: true
 sidebar: false
 ---
