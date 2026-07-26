@@ -66,6 +66,14 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Changed
 
+- The documentation website's theme (`docs/theme.scss`) now uses Source
+  Serif 4 for body text and headings, JetBrains Mono for code, a slate-blue
+  accent (`#2C5F7C`), and a warm off-white background, with both fonts
+  self-hosted under the SIL Open Font License. A wide output table or a
+  computed figure now stays inside the content column instead of
+  overflowing into the page margin
+  ([#86](https://github.com/pedroliman/heormodel/issues/86)).
+
 - `plot_ce_plane` now draws each intervention's iterations as nested
   highest-density regions, the 50%, 80% and 95% regions of the cloud, rather
   than a scatter of points, which reads the spread more clearly once there are

@@ -1,16 +1,20 @@
 /*-- scss:defaults --*/
 
-// A thin layer over flatly (light) and darkly (dark). One muted teal accent
-// drives links, the navbar, active sidebar items, and buttons; the rest tunes
-// typography rhythm and component spacing. No web fonts, so the site stays fast
-// and renders offline.
+// A warm, serif-forward documentation style: Source Serif 4 for body text
+// and headings, JetBrains Mono for code, a slate-blue accent, and a warm
+// off-white background. The fonts are self-hosted from docs/fonts/web (SIL
+// Open Font License) so the site keeps rendering offline.
 
-$primary: #12807c;
+$primary: #2C5F7C;
 $link-color: $primary;
+$link-hover-color: #234c63;
 
-$font-family-sans-serif: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-$headings-font-weight: 600;
-$border-radius: 0.5rem;
+$font-family-sans-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+$font-family-base: $font-family-sans-serif;
+$font-family-monospace: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+$headings-font-family: $font-family-sans-serif;
+$headings-font-weight: 500;
+$border-radius: 0.375rem;
 
 // Slightly more open body text than the Bootstrap default.
 $line-height-base: 1.6;
@@ -20,21 +24,57 @@ $content-max-width: 860px;
 
 /*-- scss:rules --*/
 
+@font-face {
+  font-family: "Source Serif 4";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/web/source-serif-4-latin-400.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Source Serif 4";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/web/source-serif-4-latin-ext-400.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/web/jetbrains-mono-latin-400.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/web/jetbrains-mono-latin-ext-400.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+// The warm off-white (light) and near-black (dark) background, applied
+// outside the Sass variables so the same theme.scss can give flatly (light)
+// and darkly (dark) different values.
 body {
-  letter-spacing: 0.01em;
+  background-color: #fbf9f4;
 }
 
-// Headings sit a touch closer to the section they open.
-h2, h3, h4 {
-  margin-top: 2rem;
-  margin-bottom: 0.75rem;
-  letter-spacing: -0.01em;
+body.quarto-dark {
+  background-color: #16140f;
 }
 
-// Navbar: a heavier brand and a quiet underline on the active section.
-.navbar-brand {
-  font-weight: 700;
-  letter-spacing: -0.02em;
+// A quiet primary-tinted navbar, mixed from the page background rather than
+// a flat fill.
+.navbar {
+  background: color-mix(in oklab, color-mix(in oklab, var(--bs-body-bg, #fbf9f4) 95%, $primary) 95%, var(--bs-body-color, #212529));
 }
 
 .navbar .navbar-nav .nav-link {
@@ -126,6 +166,20 @@ div.sourceCode {
   padding: 0.5rem 0.75rem;
 }
 
+// A wide output table (many PSA summary columns, for instance) scrolls
+// within its own box instead of overflowing into the page margin.
+.cell-output-display {
+  overflow-x: auto;
+}
+
+// A computed figure carries its native pixel width in the img tag (higher
+// than the display size at fig-dpi 150); scale it down to the content
+// column instead of overflowing or getting clipped by the scroll box above.
+.cell-output-display img {
+  max-width: 100%;
+  height: auto;
+}
+
 // The title banner used on the home page.
 .quarto-title-block .quarto-title-banner {
   margin-bottom: 2rem;
@@ -139,9 +193,9 @@ div.sourceCode {
   font-size: 0.95rem;
 }
 
-// Dark mode: lift the teal so links and accents keep contrast on the dark ground.
+// Dark mode: a lightened slate blue keeps contrast on the dark ground.
 .quarto-dark {
-  $accent-dark: lighten(#12807c, 18%);
+  $accent-dark: #809fb0;
 
   a,
   .quarto-grid-item:hover .card-title {
