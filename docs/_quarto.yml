@@ -30,7 +30,7 @@ website:
     card-style: summary_large_image
   page-navigation: true
   back-to-top-navigation: true
-  google-analytics: "G-J6M5ECXYJC"
+  google-analytics: "G-49QZC8ZP1X"
   search:
     location: navbar
     type: overlay
