@@ -91,7 +91,7 @@ outcomes = run_psa(engine, draws, seed=seeds.entropy, sequential=True).outcomes
 outcomes.summary().round(3)
 ```
 
-Runs are parallel by default and produce the same numbers whether run in parallel or sequentially: each iteration is seeded by its position in the draw matrix, so the two agree exactly. This small run passes `sequential=True`.
+This run passes `sequential=True` because a run this small finishes quickly; larger runs are parallel by default, and the two give identical results.
 
 ## Branching on the intervention name versus using decision levers
 

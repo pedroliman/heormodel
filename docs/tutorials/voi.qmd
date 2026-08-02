@@ -14,7 +14,7 @@ This tutorial shows how to run the full value-of-information workflow: expected 
 
 ## Specifying the decision model
 
-The model is the four-state, four-intervention Sick-Sicker model from the cohort state-transition tutorial: standard of care, Intervention A (raises the Sick-state utility), Intervention B (slows progression from Sick to Sicker), and the combination AB, evaluated over 75 annual cycles. See that tutorial for the state machine and the parameter distributions; the code below reconstructs both so this page runs on its own.
+The model is the four-state, four-intervention Sick-Sicker model from the cohort state-transition tutorial: standard of care, Intervention A (raises the Sick-state utility), Intervention B (slows progression from Sick to Sicker), and the combination AB, evaluated over 75 annual cycles. See that tutorial for the state-transition model and the parameter distributions; the code below reconstructs both so this page runs on its own.
 
 ```{python}
 import numpy as np
