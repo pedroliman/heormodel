@@ -10,7 +10,7 @@ title: Survival analysis bridge
 
 This tutorial shows how to turn a fitted parametric survival curve into inputs the engines accept: sampled event times for `MicrosimModel.continuous` and per-cycle death probabilities for `MarkovModel`. The reference curve is Weibull, `S(t) = exp(-(t / scale) ** shape)` with shape 1.2 and scale 6.0 years, run as a two-state alive-and-dead model at a 3% discount rate. Full script: [`examples/survival_bridge.py`](https://github.com/pedroliman/heormodel/blob/main/examples/survival_bridge.py).
 
-## The survival curve
+## Defining the survival curve
 
 The survival function and its inverse are all the two engines need: one to integrate, one to sample from.
 
@@ -69,7 +69,7 @@ draws = pd.DataFrame({"shape": [SHAPE], "scale": [SCALE]}, index=pd.RangeIndex(1
 run_psa(continuous, draws, seed=1, sequential=True).outcomes.summary().loc[ARM, "lifeyears"]
 ```
 
-## Per-cycle transition probabilities for a cohort model
+## Building per-cycle transition probabilities for a cohort model
 
 The other consumer is `MarkovModel`: the per-cycle probability of dying is `1 - S(k+1) / S(k)`, stacked into an age-varying transition array.
 

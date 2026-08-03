@@ -1,5 +1,9 @@
 # 18. Survival analysis bridge
 
+Status: phase 1 shipped ([#58](https://github.com/pedroliman/heormodel/issues/58),
+`examples/survival_bridge.py`). Phase 2 (`heormodel.survival`) is pending until
+items 19 and 20 also replicate.
+
 Add the machinery that turns fitted parametric survival models into inputs the
 existing engines accept: time-varying transition probabilities for `MarkovModel`,
 competing event-time samplers for `MicrosimModel.continuous`, and the survival
