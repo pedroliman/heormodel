@@ -122,7 +122,7 @@ def _evaluate(
 def _split_batches(draws: pd.DataFrame, workers: int, batch_size: int | None) -> list[pd.DataFrame]:
     """Split draws into experiments (batches), preserving row order."""
     if batch_size is None:
-        n_batches = max(1, min(len(draws), abs(workers) * 4))
+        n_batches = max(1, min(len(draws), effective_n_jobs(workers) * 4))
     else:
         n_batches = max(1, int(np.ceil(len(draws) / batch_size)))
     splits = np.array_split(np.arange(len(draws)), n_batches)
