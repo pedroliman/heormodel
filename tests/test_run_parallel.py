@@ -5,11 +5,13 @@ import io
 import numpy as np
 import pandas as pd
 import pytest
+from joblib import effective_n_jobs
 
 from heormodel.models import MicrosimModel, Outcomes
 from heormodel.params import Normal, ParameterSet, Uniform
 from heormodel.run import run_psa
 from heormodel.run._progress import ProgressReporter, resolve_enabled
+from heormodel.run.runner import _split_batches
 
 
 def _model(draws: pd.DataFrame) -> Outcomes:
@@ -51,6 +53,21 @@ class TestNumbersIndependentOfWorkers:
         assert summary.loc["B", "cost"] == pytest.approx(279.164078, abs=1e-5)
         assert summary.loc["A", "qaly"] == pytest.approx(1.016360, abs=1e-5)
         assert summary.loc["B", "qaly"] == pytest.approx(1.516360, abs=1e-5)
+
+
+class TestSplitBatchesScalesWithCores:
+    def test_default_batch_count_uses_effective_n_jobs(self):
+        # A large draw matrix so the per-worker batch count, not len(draws),
+        # caps the split, whatever this machine's actual core count is.
+        draws = pd.DataFrame({"c": np.arange(1000)})
+        n_workers = effective_n_jobs(-1)
+        batches = _split_batches(draws, -1, batch_size=None)
+        assert len(batches) == n_workers * 4
+
+    def test_sequential_worker_count_still_yields_four_batches(self):
+        draws = pd.DataFrame({"c": np.arange(1000)})
+        batches = _split_batches(draws, 1, batch_size=None)
+        assert len(batches) == 4
 
 
 class TestProgressReporter:

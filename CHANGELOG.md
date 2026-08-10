@@ -28,6 +28,13 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Fixed
 
+- `run_psa`'s default batch count now scales with `joblib.effective_n_jobs`
+  instead of a fixed 4 batches. Previously `_split_batches` computed
+  `abs(n_jobs) * 4`, so the default `n_jobs=-1` always produced 4 batches
+  regardless of the machine's core count; on a machine with more than 4
+  cores, most `joblib.Parallel` workers received no batch and stayed idle
+  for the whole run ([#92](https://github.com/pedroliman/heormodel/issues/92)).
+
 - A stray, unmatched closing code fence at the end of `docs/tutorials/microsim.qmd`
   opened a never-closed code block that swallowed Quarto's hidden navigation
   markup, so the rendered microsimulation tutorial showed that markup as raw
