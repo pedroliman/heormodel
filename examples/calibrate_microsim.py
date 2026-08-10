@@ -151,6 +151,7 @@ def microsim_prevalence(param_rows: list[dict[str, float]], population: int) -> 
     occupancy = state_occupancy(
         events, states=STATES, initial_state="healthy",
         n_individuals=population, times=[float(cycle) for cycle in TARGET_CYCLES],
+        interventions=[INTERVENTION], iterations=draws.index,
     )
     result = np.zeros((len(draws), len(TARGET_CYCLES)))
     for iteration in range(len(draws)):

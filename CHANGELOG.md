@@ -30,10 +30,11 @@ Each entry links to the pull request that introduced it. Add a line under
 
 - `state_occupancy` silently dropped any `(intervention, iteration)` pair
   with no rows in `events`, e.g. an iteration in which nobody transitioned
-  during the horizon. It now accepts keyword-only `interventions` and
-  `iterations` arguments naming the full set the caller ran; a pair with no
-  events then appears in the result, entirely in `initial_state` at every
-  requested time, instead of being omitted without warning
+  during the horizon. It now takes two required keyword-only arguments,
+  `interventions` and `iterations`, naming the full set the caller ran; a
+  pair with no events appears in the result, entirely in `initial_state` at
+  every requested time, instead of being silently omitted. Every call site
+  in the package's examples and tutorials is updated to pass both
   ([#93](https://github.com/pedroliman/heormodel/issues/93)).
 
 - `run_psa`'s default batch count now scales with `joblib.effective_n_jobs`

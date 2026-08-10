@@ -31,7 +31,8 @@ def survival_and_prevalence(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Survival and disease-prevalence curves by intervention over a time grid.
 
-    Input: the event history, the model structure, the population size, and the
+    Input: the event history from the deterministic base-case run (a single
+    iteration, index 0), the model structure, the population size, and the
     horizon. Output: a tuple ``(survival, prevalence)`` of DataFrames indexed by
     time (years since the start) with one column per intervention, in the given
     intervention order.
@@ -40,6 +41,7 @@ def survival_and_prevalence(
     occupancy = state_occupancy(
         events, states=states, initial_state=initial_state,
         n_individuals=n_individuals, times=grid,
+        interventions=interventions, iterations=[0],
     ).droplevel("iteration")
     alive = 1.0 - occupancy[dead_state]
     survival = alive.unstack("intervention")[list(interventions)]

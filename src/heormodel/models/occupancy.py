@@ -23,8 +23,8 @@ def state_occupancy(
     initial_state: str,
     n_individuals: int,
     times: ArrayLike,
-    interventions: Sequence[str] | None = None,
-    iterations: Sequence[Any] | None = None,
+    interventions: Sequence[str],
+    iterations: Sequence[Any],
 ) -> pd.DataFrame:
     """Proportion of individuals in each state at each time.
 
@@ -48,31 +48,22 @@ def state_occupancy(
         n_individuals: Number of simulated individuals per intervention and
             iteration.
         times: Times at which to evaluate occupancy.
-        interventions: Every intervention that was run, in output order.
+        interventions: Every intervention actually run, in output order.
             An intervention in which nobody moves during a whole iteration
-            leaves no rows in ``events`` at all, so pass this explicitly
-            to keep such an intervention in the result; otherwise it
-            cannot be recovered from the log. Only takes effect together
-            with ``iterations``, or on its own when ``events`` already
-            contains at least one row for every relevant iteration under
-            some other intervention.
-        iterations: Every iteration that was run, e.g. the index of the
+            leaves no rows in ``events`` at all, so it cannot be recovered
+            from the log; naming it here is what keeps it in the result.
+        iterations: Every iteration actually run, e.g. the index of the
             parameter draws passed to ``run_psa``. An iteration in which
-            nobody moves leaves no rows in ``events`` and is otherwise
-            dropped from the result without warning; pass this explicitly
-            to keep it, entirely in ``initial_state`` at every requested
-            time. Only takes effect together with ``interventions``, or on
-            its own when ``events`` already contains at least one row for
-            every relevant intervention under some other iteration.
+            nobody moves leaves no rows in ``events`` either; naming it
+            here is what keeps it in the result, entirely in
+            ``initial_state`` at every requested time.
 
     Returns:
         DataFrame indexed by ``(intervention, iteration, time)`` with one
-        proportion column per state; rows sum to 1. Always includes every
-        ``(intervention, iteration)`` pair found in ``events``. When
-        ``interventions`` or ``iterations`` is given, also includes every
-        pair formed by crossing it with the other axis, which defaults to
-        what ``events`` already contains; a pair added this way, with no
-        event rows of its own, occupies ``initial_state`` at every
+        proportion column per state; rows sum to 1. Covers every pair
+        formed by crossing ``interventions`` with ``iterations``, plus any
+        additional pair already present in ``events``. A pair with no
+        event rows of its own occupies ``initial_state`` at every
         requested time.
 
     Example:
@@ -83,17 +74,14 @@ def state_occupancy(
         ...     "time": [1.0, 3.0, 2.0], "from_state": ["H", "S", "H"],
         ...     "to_state": ["S", "D", "D"]})
         >>> occ = state_occupancy(events, states=("H", "S", "D"),
-        ...     initial_state="H", n_individuals=4, times=[0.0, 2.5])
+        ...     initial_state="H", n_individuals=4, times=[0.0, 2.5],
+        ...     interventions=["care"], iterations=[0, 1])
         >>> float(occ.loc[("care", 0, 2.5), "H"])
         0.5
 
-        Iteration 1 has no rows in ``events``, so it is absent from ``occ``
-        above. Passing ``iterations`` adds it, entirely in
-        ``initial_state``:
+        Iteration 1 has no rows in ``events``, since nobody moved under it,
+        so it occupies ``initial_state`` at every requested time:
 
-        >>> occ = state_occupancy(events, states=("H", "S", "D"),
-        ...     initial_state="H", n_individuals=4, times=[0.0, 2.5],
-        ...     iterations=[0, 1])
         >>> occ.loc[("care", 1, 2.5)].tolist()
         [1.0, 0.0, 0.0]
     """
@@ -135,28 +123,18 @@ def state_occupancy(
             )
         frames.append(block(intervention, iteration, counts / n_individuals))
 
-    # Fill in every requested (intervention, iteration) pair with no event
-    # rows: nobody moved, so everyone is still in initial_state throughout.
-    # Only runs when the caller opts in via interventions or iterations;
-    # otherwise the result is exactly the pairs found in events, as before.
-    if interventions is not None or iterations is not None:
-        full_interventions = (
-            list(dict.fromkeys(interventions))
-            if interventions is not None
-            else list(dict.fromkeys(pair[0] for pair in seen))
-        )
-        full_iterations = (
-            list(dict.fromkeys(iterations))
-            if iterations is not None
-            else list(dict.fromkeys(pair[1] for pair in seen))
-        )
-        initial_proportions = np.zeros((len(grid), len(state_list)), dtype=np.float64)
-        initial_proportions[:, state_list.index(initial_state)] = 1.0
-        for intervention in full_interventions:
-            for iteration in full_iterations:
-                if (intervention, iteration) not in seen:
-                    frames.append(block(intervention, iteration, initial_proportions))
+    # Fill in every (intervention, iteration) pair the caller ran but that has
+    # no event rows: nobody moved, so everyone stays in initial_state throughout.
+    initial_proportions = np.zeros((len(grid), len(state_list)), dtype=np.float64)
+    initial_proportions[:, state_list.index(initial_state)] = 1.0
+    for intervention in dict.fromkeys(interventions):
+        for iteration in dict.fromkeys(iterations):
+            if (intervention, iteration) not in seen:
+                frames.append(block(intervention, iteration, initial_proportions))
 
     if not frames:
-        raise ValueError("events is empty.")
+        raise ValueError(
+            "No (intervention, iteration) pairs to report: events is empty "
+            "and interventions or iterations is empty."
+        )
     return pd.concat(frames)
