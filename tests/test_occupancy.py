@@ -70,6 +70,29 @@ class TestStateOccupancy:
         )
         assert np.isnan(_prevalence(occ, states=("S",), dead_state="D").iloc[0])
 
+    def test_zero_event_iteration_fills_initial_state(self):
+        # Iteration 1 never appears in the log, e.g. nobody transitioned
+        # during the horizon; it must still show up in the result rather
+        # than being silently dropped.
+        occ = state_occupancy(
+            _hand_log(), states=("H", "S", "D"), initial_state="H",
+            n_individuals=4, times=[0.0, 1.0, 2.5], iterations=[0, 1],
+        )
+        assert sorted(occ.index.get_level_values("iteration").unique()) == [0, 1]
+        for time in (0.0, 1.0, 2.5):
+            assert occ.loc[("care", 1, time)].tolist() == [1.0, 0.0, 0.0]
+        # Iteration 0, which does have events, is unaffected.
+        assert occ.loc[("care", 0, 2.5)].tolist() == [0.5, 0.25, 0.25]
+
+    def test_zero_event_intervention_fills_initial_state(self):
+        # An intervention absent from events entirely (nobody moved under
+        # it, in any iteration) must still appear when named explicitly.
+        occ = state_occupancy(
+            _hand_log(), states=("H", "S", "D"), initial_state="H",
+            n_individuals=4, times=[2.5], interventions=["care", "usual_care"],
+        )
+        assert occ.loc[("usual_care", 0, 2.5)].tolist() == [1.0, 0.0, 0.0]
+
     def test_rejects_unknown_states_and_missing_columns(self):
         with pytest.raises(ValueError, match="not listed in states"):
             state_occupancy(

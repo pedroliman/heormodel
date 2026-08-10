@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -22,6 +23,8 @@ def state_occupancy(
     initial_state: str,
     n_individuals: int,
     times: ArrayLike,
+    interventions: Sequence[str] | None = None,
+    iterations: Sequence[Any] | None = None,
 ) -> pd.DataFrame:
     """Proportion of individuals in each state at each time.
 
@@ -45,10 +48,32 @@ def state_occupancy(
         n_individuals: Number of simulated individuals per intervention and
             iteration.
         times: Times at which to evaluate occupancy.
+        interventions: Every intervention that was run, in output order.
+            An intervention in which nobody moves during a whole iteration
+            leaves no rows in ``events`` at all, so pass this explicitly
+            to keep such an intervention in the result; otherwise it
+            cannot be recovered from the log. Only takes effect together
+            with ``iterations``, or on its own when ``events`` already
+            contains at least one row for every relevant iteration under
+            some other intervention.
+        iterations: Every iteration that was run, e.g. the index of the
+            parameter draws passed to ``run_psa``. An iteration in which
+            nobody moves leaves no rows in ``events`` and is otherwise
+            dropped from the result without warning; pass this explicitly
+            to keep it, entirely in ``initial_state`` at every requested
+            time. Only takes effect together with ``interventions``, or on
+            its own when ``events`` already contains at least one row for
+            every relevant intervention under some other iteration.
 
     Returns:
         DataFrame indexed by ``(intervention, iteration, time)`` with one
-        proportion column per state; rows sum to 1.
+        proportion column per state; rows sum to 1. Always includes every
+        ``(intervention, iteration)`` pair found in ``events``. When
+        ``interventions`` or ``iterations`` is given, also includes every
+        pair formed by crossing it with the other axis, which defaults to
+        what ``events`` already contains; a pair added this way, with no
+        event rows of its own, occupies ``initial_state`` at every
+        requested time.
 
     Example:
         >>> import pandas as pd
@@ -61,6 +86,16 @@ def state_occupancy(
         ...     initial_state="H", n_individuals=4, times=[0.0, 2.5])
         >>> float(occ.loc[("care", 0, 2.5), "H"])
         0.5
+
+        Iteration 1 has no rows in ``events``, so it is absent from ``occ``
+        above. Passing ``iterations`` adds it, entirely in
+        ``initial_state``:
+
+        >>> occ = state_occupancy(events, states=("H", "S", "D"),
+        ...     initial_state="H", n_individuals=4, times=[0.0, 2.5],
+        ...     iterations=[0, 1])
+        >>> occ.loc[("care", 1, 2.5)].tolist()
+        [1.0, 0.0, 0.0]
     """
     missing = [c for c in _EVENT_COLUMNS if c not in events.columns]
     if missing:
@@ -74,10 +109,20 @@ def state_occupancy(
     if n_individuals <= 0:
         raise ValueError("n_individuals must be positive.")
     grid = np.atleast_1d(np.asarray(times, dtype=np.float64))
+
+    def block(intervention: str, iteration: Any, proportions: np.ndarray) -> pd.DataFrame:
+        index = pd.MultiIndex.from_arrays(
+            [np.repeat(intervention, len(grid)), np.repeat(iteration, len(grid)), grid],
+            names=[INTERVENTION_LEVEL, ITERATION_LEVEL, "time"],
+        )
+        return pd.DataFrame(proportions, index=index, columns=state_list)
+
     frames = []
+    seen: dict[tuple[str, Any], None] = {}
     for (intervention, iteration), group in events.groupby(
         [INTERVENTION_LEVEL, ITERATION_LEVEL], sort=False
     ):
+        seen[(intervention, iteration)] = None
         counts = np.zeros((len(grid), len(state_list)), dtype=np.float64)
         for j, state in enumerate(state_list):
             entries = np.sort(group.loc[group["to_state"] == state, "time"].to_numpy())
@@ -88,11 +133,30 @@ def state_occupancy(
                 + np.searchsorted(entries, grid, side="right")
                 - np.searchsorted(exits, grid, side="right")
             )
-        index = pd.MultiIndex.from_arrays(
-            [np.repeat(intervention, len(grid)), np.repeat(iteration, len(grid)), grid],
-            names=[INTERVENTION_LEVEL, ITERATION_LEVEL, "time"],
+        frames.append(block(intervention, iteration, counts / n_individuals))
+
+    # Fill in every requested (intervention, iteration) pair with no event
+    # rows: nobody moved, so everyone is still in initial_state throughout.
+    # Only runs when the caller opts in via interventions or iterations;
+    # otherwise the result is exactly the pairs found in events, as before.
+    if interventions is not None or iterations is not None:
+        full_interventions = (
+            list(dict.fromkeys(interventions))
+            if interventions is not None
+            else list(dict.fromkeys(pair[0] for pair in seen))
         )
-        frames.append(pd.DataFrame(counts / n_individuals, index=index, columns=state_list))
+        full_iterations = (
+            list(dict.fromkeys(iterations))
+            if iterations is not None
+            else list(dict.fromkeys(pair[1] for pair in seen))
+        )
+        initial_proportions = np.zeros((len(grid), len(state_list)), dtype=np.float64)
+        initial_proportions[:, state_list.index(initial_state)] = 1.0
+        for intervention in full_interventions:
+            for iteration in full_iterations:
+                if (intervention, iteration) not in seen:
+                    frames.append(block(intervention, iteration, initial_proportions))
+
     if not frames:
         raise ValueError("events is empty.")
     return pd.concat(frames)

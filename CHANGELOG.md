@@ -28,6 +28,14 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Fixed
 
+- `state_occupancy` silently dropped any `(intervention, iteration)` pair
+  with no rows in `events`, e.g. an iteration in which nobody transitioned
+  during the horizon. It now accepts keyword-only `interventions` and
+  `iterations` arguments naming the full set the caller ran; a pair with no
+  events then appears in the result, entirely in `initial_state` at every
+  requested time, instead of being omitted without warning
+  ([#93](https://github.com/pedroliman/heormodel/issues/93)).
+
 - `run_psa`'s default batch count now scales with `joblib.effective_n_jobs`
   instead of a fixed 4 batches. Previously `_split_batches` computed
   `abs(n_jobs) * 4`, so the default `n_jobs=-1` always produced 4 batches
