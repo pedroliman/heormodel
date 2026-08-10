@@ -97,6 +97,14 @@ class TestStateOccupancy:
         )
         assert occ.loc[("usual_care", 0, 2.5)].tolist() == [1.0, 0.0, 0.0]
 
+    def test_rejects_empty_result(self):
+        # events, interventions, and iterations agree on nothing to report.
+        with pytest.raises(ValueError, match="No \\(intervention, iteration\\) pairs"):
+            state_occupancy(
+                _hand_log().iloc[:0], states=("H", "S", "D"), initial_state="H",
+                n_individuals=4, times=[0.0], interventions=[], iterations=[],
+            )
+
     def test_rejects_unknown_states_and_missing_columns(self):
         with pytest.raises(ValueError, match="not listed in states"):
             state_occupancy(
