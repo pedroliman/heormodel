@@ -189,6 +189,13 @@ class TestContract:
     def test_is_model_engine(self):
         assert isinstance(_small_engine(), ModelEngine)
 
+    def test_float_iterations_sharing_an_integer_part_are_rejected(self):
+        draws = pd.DataFrame(
+            {"unused": [0.0, 0.0]}, index=pd.Index([12.1, 12.9], name="iteration")
+        )
+        with pytest.raises(ValueError, match="12.1"):
+            _small_engine().evaluate(draws)
+
     def test_iteration_index_preserved(self):
         draws = _draws(5)
         out = run_psa(_small_engine(), draws).outcomes

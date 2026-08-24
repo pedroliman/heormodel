@@ -12,6 +12,18 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Fixed
 
+- `iteration_key` truncated a non-integer float `iteration` label instead of
+  raising, so two distinct labels sharing an integer part, `12.1` and `12.9`,
+  both keyed to `12` and received the identical random stream in
+  `MicrosimModel` and `DESModel`, silently correlating draws meant to be
+  independent. This only affected a user-supplied float `iteration` column
+  reaching `run_psa` (for example via `heormodel.params.read_draws`); the
+  built-in draw-matrix constructors all produce integer `RangeIndex`es and
+  were unaffected. `iteration_key` now raises `ValueError`, naming the
+  offending label, when a float label is not integer-valued; integer-valued
+  floats (`12.0`), integer labels, and non-numeric labels (still hashed) are
+  unchanged ([#97](https://github.com/pedroliman/heormodel/issues/97)).
+
 - `gen_wcc`'s docstring called the `"simpson"` weights "Simpson's 1/3 rule"
   without qualification. They are not: the textbook rule's weights sum to
   `n_cycles`, so a constant reward stream integrates exactly, while

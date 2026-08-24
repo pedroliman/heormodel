@@ -37,12 +37,26 @@ _COST_COL = "cost"
 
 
 def iteration_key(label: Any) -> int:
-    """Turn an iteration label into a stable integer seed key."""
+    """Turn an iteration label into a stable integer seed key.
+
+    A non-numeric label is hashed instead of converted. A float label must be
+    integer-valued (``12.0``, not ``12.1``); otherwise two distinct labels that
+    truncate to the same integer, such as ``12.1`` and ``12.9``, would seed the
+    identical random stream.
+    """
     try:
-        return int(label)
+        as_int = int(label)
     except (TypeError, ValueError):
         digest = hashlib.blake2b(repr(label).encode(), digest_size=8).digest()
         return int.from_bytes(digest, "big")
+    if isinstance(label, float | np.floating) and label != as_int:
+        raise ValueError(
+            f"iteration label {label!r} is not integer-valued: truncating it to "
+            f"{as_int} would seed the same random stream as another iteration. "
+            "Round the iteration column to whole numbers or use distinct integer "
+            "labels."
+        )
+    return as_int
 
 
 def finalize_outcomes(
