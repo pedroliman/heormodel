@@ -10,6 +10,24 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ## [Unreleased]
 
+### Fixed
+
+- `gen_wcc`'s docstring called the `"simpson"` weights "Simpson's 1/3 rule"
+  without qualification. They are not: the textbook rule's weights sum to
+  `n_cycles`, so a constant reward stream integrates exactly, while
+  `"simpson"`'s weights sum to less than `n_cycles` and swap the textbook
+  rule's interior 2/3 and 4/3 coefficients. `gen_wcc` now documents that
+  `"simpson"` reproduces one specific published replication's convention,
+  not the textbook rule, and states the resulting underestimate on a
+  constant reward stream: 933.33 instead of 1000 for a cost of 100 per
+  cycle over 10 cycles with no discounting, against `"half_cycle"`.
+  `MarkovModel` and `MicrosimModel.discrete` now each document their own
+  `cycle_correction` default (`"simpson"` and `"half_cycle"` respectively)
+  and note that the other engine's default differs, so building both from
+  the same rates does not silently diverge. `gen_wcc`'s numeric weights are
+  unchanged; the pinned Sick-Sicker replication in `tests/test_markov.py`
+  still passes ([#96](https://github.com/pedroliman/heormodel/issues/96)).
+
 ### Added
 
 - Survival analysis bridge, phase 1 (roadmap item 18): `examples/survival_bridge.py`

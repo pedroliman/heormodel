@@ -16,8 +16,8 @@ Rewards follow the transition-dynamics convention. State rewards accrue on the
 occupancy trace. Optional transition rewards accrue on the flow between states,
 so a one-time cost of dying or a disutility of onset attaches to the transition
 rather than to a state. Discounting reuses `heormodel.models._accrual`, and the
-within-cycle correction offers Simpson's 1/3 rule, the half-cycle weights, or
-none.
+within-cycle correction offers `gen_wcc`'s ``"simpson"`` convention, the
+half-cycle weights, or none.
 """
 
 from __future__ import annotations
@@ -72,11 +72,22 @@ class CohortSpec:
 def gen_wcc(n_cycles: int, method: str = "simpson") -> NDArray[np.float64]:
     """Within-cycle correction weights over the ``n_cycles + 1`` cycle points.
 
+    ``"simpson"`` reproduces one specific published reference implementation's
+    within-cycle correction convention; it is not the textbook composite
+    Simpson's 1/3 rule. The textbook rule's weights sum to `n_cycles`, so a
+    constant reward stream integrates exactly; ``"simpson"``'s weights do not
+    sum to `n_cycles`, and its interior 2/3 and 4/3 coefficients fall on the
+    opposite positions from the textbook pattern. On a constant reward
+    stream this makes ``"simpson"`` less accurate than ``"half_cycle"``: with
+    a cost of 100 per cycle, no discounting, and 10 cycles, ``"half_cycle"``
+    returns the exact total of 1000, while ``"simpson"`` returns 933.33, a
+    6.7% underestimate that shrinks only slowly as the cycle count grows.
+
     Args:
         n_cycles: Number of cycles (transitions) in the model horizon.
-        method: ``"simpson"`` for Simpson's 1/3 rule, ``"half_cycle"`` for
-            half weights on the first and last point, or ``"none"`` for unit
-            weights.
+        method: ``"simpson"`` for the published convention described above,
+            ``"half_cycle"`` for half weights on the first and last point, or
+            ``"none"`` for unit weights.
 
     Returns:
         Weight vector of length ``n_cycles + 1``.
@@ -129,7 +140,12 @@ class MarkovModel(DeterministicEngine):
         discount_rate: Annual discount rate for costs and effects (0.03 by
             default).
         cycle_correction: ``"simpson"`` (default), ``"half_cycle"``, or
-            ``"none"``; see `gen_wcc`.
+            ``"none"``; see `gen_wcc`. The default keeps ``"simpson"`` to
+            reproduce a published cost-effectiveness replication;
+            `heormodel.models.microsim.MicrosimModel.discrete` defaults to
+            ``"half_cycle"`` instead for the same parameter, so the two
+            engines built from the same rates disagree unless
+            `cycle_correction` is passed explicitly to both.
         effect: Name of the primary effect column (QALYs by default).
 
     Example:

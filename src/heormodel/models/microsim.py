@@ -259,6 +259,11 @@ class MicrosimModel(_MicrosimBase):
                 default).
             cycle_correction: ``"half_cycle"`` (default), ``"simpson"``, or
                 ``"none"``; see `heormodel.models.markov.gen_wcc`.
+                `heormodel.models.markov.MarkovModel` defaults to
+                ``"simpson"`` instead for the same parameter, to reproduce a
+                published cost-effectiveness replication, so the two engines
+                built from the same rates disagree unless `cycle_correction`
+                is passed explicitly to both.
             n_individuals: Population size when ``population`` is a sampler or
                 ``None``.
             initial_state: Starting state label or index.
