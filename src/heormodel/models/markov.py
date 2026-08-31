@@ -274,6 +274,16 @@ class MarkovModel(DeterministicEngine):
     ) -> NDArray[np.float64]:
         P = np.asarray(transition, dtype=np.float64)
         R = np.asarray(reward, dtype=np.float64)
+        if R.shape != (self._n_states, self._n_states) and R.shape != (
+            self._n_cycles,
+            self._n_states,
+            self._n_states,
+        ):
+            raise ValueError(
+                f"transition reward must have shape "
+                f"{(self._n_states, self._n_states)} or "
+                f"{(self._n_cycles, self._n_states, self._n_states)}, got {R.shape}."
+            )
         out = np.zeros(self._n_cycles + 1, dtype=np.float64)
         for t in range(self._n_cycles):
             Pt = P[t] if P.ndim == 3 else P
