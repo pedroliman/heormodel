@@ -12,6 +12,18 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Fixed
 
+- `MarkovModel._transition_reward` did not validate the shape of
+  `transition_cost` or `transition_effect`; it multiplied the raw array
+  against the transition flow, so a per-state vector of shape `(n_states,)`,
+  the same shape as `state_cost`, broadcast silently across the flow matrix
+  instead of raising. Its sibling, `_state_reward`, already caught this class
+  of mistake. `_transition_reward` now validates the same way, raising
+  `ValueError` naming the expected and received shapes for anything other
+  than `(n_states, n_states)` or `(n_cycles, n_states, n_states)`. Correctly
+  shaped transition-attached rewards, constant or per-cycle, the "cost of
+  dying" pattern used in the package's Sick-Sicker replications, are
+  unaffected ([#101](https://github.com/pedroliman/heormodel/issues/101)).
+
 - `MarkovModel` checked only that a resolved `initial_state` summed to 1, not
   that each entry lay in `[0, 1]`. A data-derived starting distribution with a
   sign or rounding error, such as `[-0.5, 1.5]`, passed construction and

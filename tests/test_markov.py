@@ -185,6 +185,47 @@ def test_transition_reward_adds_one_time_cost():
     assert cost == pytest.approx(death_cost, abs=5.0)
 
 
+def test_per_cycle_transition_reward_matches_constant():
+    """A per-cycle transition reward equal every cycle matches the constant one."""
+    death_cost, n_cycles = 5000.0, 40
+
+    def model_constant(params, intervention):
+        P = np.array([[0.8, 0.2], [0.0, 1.0]])
+        tc = np.zeros((2, 2))
+        tc[0, 1] = death_cost
+        return CohortSpec(P, np.array([0.0, 0.0]), np.array([1.0, 0.0]), transition_cost=tc)
+
+    def model_per_cycle(params, intervention):
+        P = np.array([[0.8, 0.2], [0.0, 1.0]])
+        tc = np.zeros((n_cycles, 2, 2))
+        tc[:, 0, 1] = death_cost
+        return CohortSpec(P, np.array([0.0, 0.0]), np.array([1.0, 0.0]), transition_cost=tc)
+
+    common = dict(states=("a", "d"), interventions=("s",), n_cycles=n_cycles,
+                  discount_rate=0.0, cycle_correction="none")
+    cost_constant = MarkovModel(transitions_and_rewards=model_constant, **common).evaluate(
+        _draws()).summary().loc["s", "cost"]
+    cost_per_cycle = MarkovModel(transitions_and_rewards=model_per_cycle, **common).evaluate(
+        _draws()).summary().loc["s", "cost"]
+    assert cost_per_cycle == pytest.approx(cost_constant)
+
+
+def test_transition_reward_rejects_wrong_shape():
+    """A per-state vector passed as a transition reward raises instead of broadcasting."""
+    def model(params, intervention):
+        P = np.array([[0.8, 0.2], [0.0, 1.0]])
+        wrong = np.array([0.0, 5000.0])  # per-state shape, not per-transition
+        return CohortSpec(P, np.array([0.0, 0.0]), np.array([1.0, 0.0]),
+                          transition_cost=wrong)
+
+    engine = MarkovModel(
+        states=("a", "d"), interventions=("s",), transitions_and_rewards=model, n_cycles=40,
+        discount_rate=0.0, cycle_correction="none",
+    )
+    with pytest.raises(ValueError, match="transition reward must have shape"):
+        engine.evaluate(_draws())
+
+
 # -- occupancy trace --------------------------------------------------------
 
 
