@@ -81,6 +81,19 @@ class TestDistributions:
         with pytest.raises(ValueError):
             Dirichlet((1.0,))
 
+    def test_dirichlet_duplicate_names_raise(self):
+        with pytest.raises(ValueError, match="a"):
+            Dirichlet((1.0, 2.0, 3.0), names=("a", "a", "b"))
+
+    def test_dirichlet_none_and_unique_names_are_unaffected(self):
+        d = Dirichlet((1.0, 2.0, 3.0))
+        assert d.component_labels("p") == ["p[0]", "p[1]", "p[2]"]
+        assert d.sample(5, rng=1).shape == (5, 3)
+
+        d_named = Dirichlet((1.0, 2.0, 3.0), names=("a", "b", "c"))
+        assert d_named.component_labels("p") == ["p[a]", "p[b]", "p[c]"]
+        assert d_named.sample(5, rng=1).shape == (5, 3)
+
 
 class TestParameterSet:
     def test_draw_matrix_shape_and_index(self):
