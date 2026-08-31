@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import math
 from abc import ABC, abstractmethod
+from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
@@ -282,6 +283,11 @@ class Dirichlet:
             raise ValueError("Dirichlet concentrations must be positive.")
         if self.names is not None and len(self.names) != len(self.alpha):
             raise ValueError("names must match the number of concentrations.")
+        if self.names is not None:
+            counts = Counter(self.names)
+            duplicates = sorted(name for name, count in counts.items() if count > 1)
+            if duplicates:
+                raise ValueError(f"Dirichlet names must be unique; duplicated: {duplicates}.")
 
     @property
     def n_components(self) -> int:

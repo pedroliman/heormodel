@@ -12,6 +12,17 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Fixed
 
+- `Dirichlet.__post_init__` checked that `names` matched the concentration
+  count but not that its entries were unique. A copy-paste typo in a longer
+  transition-probability vector's names, such as `("stay", "stay", "die")`,
+  passed construction and silently produced two identically named columns in
+  the sampled draw matrix (`p[stay]`, `p[stay]`, `p[die]`); indexing that
+  column name then returned a `DataFrame` instead of a `Series`, far from the
+  actual mistake. Constructing a `Dirichlet` with duplicate `names` now
+  raises `ValueError` naming the duplicated label. `names=None` and unique
+  names are unaffected
+  ([#102](https://github.com/pedroliman/heormodel/issues/102)).
+
 - `MarkovModel._transition_reward` did not validate the shape of
   `transition_cost` or `transition_effect`; it multiplied the raw array
   against the transition flow, so a per-state vector of shape `(n_states,)`,
