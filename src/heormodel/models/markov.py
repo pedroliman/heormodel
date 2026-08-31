@@ -217,6 +217,13 @@ class MarkovModel(DeterministicEngine):
             vec = np.asarray(initial_state, dtype=np.float64)
             if vec.shape != (self._n_states,):
                 raise ValueError(f"initial_state array must have length {self._n_states}.")
+        out_of_bounds = (vec < -_PROB_TOL) | (vec > 1.0 + _PROB_TOL)
+        if out_of_bounds.any():
+            bad_idx = int(np.flatnonzero(out_of_bounds)[0])
+            raise ValueError(
+                f"Initial state entry for {self._states[bad_idx]!r} is "
+                f"{vec[bad_idx]:g}; each entry must lie in [0, 1]."
+            )
         if not np.isclose(vec.sum(), 1.0, atol=_PROB_TOL):
             raise ValueError("Initial state distribution must sum to 1.")
         return vec

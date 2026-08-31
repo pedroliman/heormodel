@@ -316,6 +316,24 @@ def test_initial_state_array_wrong_length_rejected():
                     n_cycles=3, initial_state=[1.0, 0.0, 0.0])
 
 
+def test_initial_state_out_of_bounds_rejected():
+    with pytest.raises(ValueError, match="'a' is 1.5"):
+        MarkovModel(states=("a", "d"), interventions=("s",), transitions_and_rewards=_absorbing,
+                    n_cycles=3, initial_state=[1.5, -0.5])
+    with pytest.raises(ValueError, match="'d' is -0.5"):
+        MarkovModel(states=("a", "d"), interventions=("s",), transitions_and_rewards=_absorbing,
+                    n_cycles=3, initial_state={"a": 0.5, "d": -0.5})
+
+
+def test_initial_state_within_bounds_still_accepted():
+    # an initial state with every entry in [0, 1] that sums to 1 is unaffected
+    # by the bounds check.
+    engine = MarkovModel(states=("a", "d"), interventions=("s",),
+                          transitions_and_rewards=_absorbing,
+                          n_cycles=3, initial_state=[0.3, 0.7])
+    assert engine.evaluate(_draws()).summary().loc["s", "qaly"] == pytest.approx(0.0)
+
+
 def test_bad_transition_shape_rejected():
     def model(params, intervention):
         return CohortSpec(np.zeros((3, 3)), np.zeros(2), np.zeros(2))

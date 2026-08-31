@@ -12,6 +12,17 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Fixed
 
+- `MarkovModel` checked only that a resolved `initial_state` summed to 1, not
+  that each entry lay in `[0, 1]`. A data-derived starting distribution with a
+  sign or rounding error, such as `[-0.5, 1.5]`, passed construction and
+  propagated into negative occupancy, negative cost, and negative
+  quality-adjusted life-years with no exception anywhere in the run. Building
+  `MarkovModel` now raises `ValueError`, naming the offending state and its
+  value, when `initial_state` (given as a state name, an array, or a mapping)
+  resolves to an entry outside `[0, 1]` beyond the same tolerance `_trace`
+  already uses for transition probabilities. A valid initial state is
+  unaffected ([#100](https://github.com/pedroliman/heormodel/issues/100)).
+
 - `iteration_key` truncated a non-integer float `iteration` label instead of
   raising, so two distinct labels sharing an integer part, `12.1` and `12.9`,
   both keyed to `12` and received the identical random stream in
