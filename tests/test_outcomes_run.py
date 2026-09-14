@@ -8,7 +8,7 @@ from heormodel.models import (
     ModelEngine,
     Outcomes,
 )
-from heormodel.params import Normal, ParameterSet, Uniform
+from heormodel.params import Normal, ParameterSet, Uniform, read_draws
 from heormodel.run import SeedManager, as_outcomes, run_psa, running_means
 
 
@@ -87,6 +87,27 @@ class TestOutcomes:
         assert out.select(["B"]).comparator is None
         assert out.select(["A", "B"]).comparator == "A"
 
+    def test_from_tidy_preserves_non_ascending_iteration_order(self):
+        df = pd.DataFrame(
+            {
+                "intervention": ["A", "A", "A", "B", "B", "B"],
+                "iteration": [102, 100, 101, 102, 100, 101],
+                "cost": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+                "qaly": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+            }
+        )
+        out = Outcomes.from_tidy(df)
+        assert out.iterations.tolist() == [102, 100, 101]
+        assert out.costs_wide().index.tolist() == [102, 100, 101]
+
+    def test_from_wide_preserves_non_ascending_iteration_order(self):
+        index = pd.Index([102, 100, 101], name="iteration")
+        c = pd.DataFrame({"A": [1.0, 2.0, 3.0], "B": [4.0, 5.0, 6.0]}, index=index)
+        e = pd.DataFrame({"A": [0.1, 0.2, 0.3], "B": [0.4, 0.5, 0.6]}, index=index)
+        out = Outcomes.from_wide(c, e)
+        assert out.iterations.tolist() == [102, 100, 101]
+        pd.testing.assert_frame_equal(out.costs_wide(), c, check_names=False)
+
 
 class TestByoOutputs:
     def test_as_outcomes_accepts_dataframe_and_custom_columns(self):
@@ -147,6 +168,19 @@ class TestRunPsa:
     def test_empty_draws_rejected(self):
         with pytest.raises(ValueError, match="empty"):
             run_psa(dummy_model, self.draws.iloc[:0])
+
+    def test_non_ascending_iteration_index_satisfies_output_contract(self):
+        df = pd.DataFrame({"subject_id": [102, 100, 101], "p_die": [0.1, 0.12, 0.09]})
+        draws = read_draws(df, iteration="subject_id")
+        assert draws.index.tolist() == [102, 100, 101]
+
+        def model(d: pd.DataFrame) -> Outcomes:
+            costs = pd.DataFrame({"A": d["p_die"] * 1000, "B": d["p_die"] * 900}, index=d.index)
+            effects = pd.DataFrame({"A": 1.0, "B": 1.1}, index=d.index)
+            return Outcomes.from_wide(costs, effects)
+
+        out = run_psa(model, draws, sequential=True).outcomes
+        assert out.iterations.tolist() == draws.index.tolist()
 
 
 class TestSeedManager:
