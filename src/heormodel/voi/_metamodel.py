@@ -9,9 +9,12 @@ expectations.
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel
 from sklearn.linear_model import LinearRegression
@@ -21,10 +24,56 @@ from sklearn.preprocessing import SplineTransformer, StandardScaler
 _GP_MAX_FIT = 500
 
 
+class _TensorProductSplineFeatures(BaseEstimator, TransformerMixin):  # type: ignore[misc]
+    """Per-column spline basis, plus pairwise tensor-product interactions.
+
+    Fits one cubic-spline basis per input column and, for every pair of
+    columns, appends the row-wise outer product of their two bases (a
+    tensor-product spline term). A linear model on the additive bases alone
+    can only sum each parameter's marginal effect on the outcome; the
+    tensor-product terms let it represent a product between two parameters,
+    such as a relative risk multiplying a baseline probability, which the
+    additive terms cannot. With one input column there is no pair to form,
+    so the output is exactly that column's additive spline basis.
+
+    Example:
+        >>> import numpy as np
+        >>> features = _TensorProductSplineFeatures(n_knots=4, degree=3)
+        >>> x = np.column_stack([np.linspace(-1, 1, 50), np.linspace(-1, 1, 50)])
+        >>> basis = features.fit_transform(x)
+        >>> basis.shape[1] > 2 * (4 + 3 - 1)  # additive bases plus interactions
+        True
+    """
+
+    def __init__(self, n_knots: int = 5, degree: int = 3) -> None:
+        self.n_knots = n_knots
+        self.degree = degree
+
+    def fit(self, x: NDArray[np.float64], y: NDArray[np.float64] | None = None) -> Any:
+        xv = np.asarray(x, dtype=np.float64)
+        self._splines_ = [
+            SplineTransformer(n_knots=self.n_knots, degree=self.degree, include_bias=False).fit(
+                xv[:, [j]]
+            )
+            for j in range(xv.shape[1])
+        ]
+        return self
+
+    def transform(self, x: NDArray[np.float64]) -> NDArray[np.float64]:
+        xv = np.asarray(x, dtype=np.float64)
+        bases = [spline.transform(xv[:, [j]]) for j, spline in enumerate(self._splines_)]
+        features = list(bases)
+        for j in range(len(bases)):
+            for k in range(j + 1, len(bases)):
+                interaction = bases[j][:, :, None] * bases[k][:, None, :]
+                features.append(interaction.reshape(xv.shape[0], -1))
+        return np.concatenate(features, axis=1)
+
+
 def _spline_pipeline(n_knots: int, degree: int) -> Pipeline:
     return make_pipeline(
         StandardScaler(),
-        SplineTransformer(n_knots=n_knots, degree=degree, include_bias=False),
+        _TensorProductSplineFeatures(n_knots=n_knots, degree=degree),
         LinearRegression(),
     )
 
@@ -43,9 +92,16 @@ def fitted_conditional_means(
     Args:
         x: Conditioning variables, one row per iteration.
         nb: Net benefit (iterations x interventions), aligned with ``x``.
-        method: ``"spline"`` (additive cubic-spline basis + linear model,
-            fast, default) or ``"gp"`` (Gaussian-process regression fitted
-            on a subsample of at most 500 points, then evaluated on all).
+        method: ``"spline"`` (cubic-spline basis per column, plus pairwise
+            tensor-product interaction terms when ``x`` has more than one
+            column, fed into a linear model; fast, default) or ``"gp"``
+            (Gaussian-process regression fitted on a subsample of at most
+            500 points, then evaluated on all). The tensor-product terms let
+            ``"spline"`` represent an interaction between two conditioning
+            variables, such as a relative risk multiplying a baseline
+            probability; with three or more grouped variables it still
+            captures every pairwise interaction, but not three-way ones,
+            so ``"gp"`` remains the more general, slower alternative.
         n_knots, degree: Spline basis controls (``method="spline"``).
         seed: Subsample seed (``method="gp"``).
 

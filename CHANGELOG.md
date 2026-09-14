@@ -12,6 +12,27 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Fixed
 
+- `evppi`'s `method="spline"` metamodel fit an additive cubic-spline basis,
+  one spline per parameter summed by a linear model, with no term for a
+  product between grouped parameters. Grouping parameters in `params` is
+  meant to value their interaction as well as their marginal effects, so a
+  joint net benefit driven by one parameter multiplying another, a relative
+  risk applied to a baseline probability, fitted as if the parameters acted
+  independently and understated the joint expected value of partial perfect
+  information (EVPPI), silently and with no warning: a synthetic case with a
+  pure interaction and no additive main effects returned 0.0195 against the
+  0.317 that `method="gp"` and the expected value of perfect information
+  (EVPI) upper bound agree on, a 94% understatement.
+  `heormodel.voi._metamodel` now builds a tensor-product spline basis when
+  more than one parameter is grouped: alongside each parameter's own spline
+  basis, it adds the pairwise products of every two parameters' bases, so
+  the linear model can represent their interaction. On the case above,
+  `method="spline"` now returns 0.317, matching `method="gp"` and the EVPI
+  upper bound. A single grouped parameter has no pair to interact with, so
+  its fitted values, and every existing single-parameter EVPPI and expected
+  value of sample information (EVSI) result, are unchanged
+  ([#106](https://github.com/pedroliman/heormodel/issues/106)).
+
 - `Outcomes.__init__` derived the canonical iteration index by unstacking the
   cost column, and `DataFrame.unstack` always sorts the level it unstacks, so
   `Outcomes.iterations`, `n_iterations`, `costs_wide`, and `effects_wide` came

@@ -158,6 +158,36 @@ class TestVoiProperties:
         value = evppi(sub, small, "e_b", WTP, method="gp", seed=0)
         assert value == pytest.approx(analytic_voi(WTP * SD_E), rel=0.25)
 
+    def test_joint_evppi_of_interacting_parameters(self):
+        """Regression test for issue #106.
+
+        Net benefit here is a pure interaction term, ``x * y``, with no
+        additive main effect from either parameter alone. An additive
+        metamodel, one that sums a separate function of each parameter, has
+        no way to represent this product, so a plain per-column spline
+        basis collapses the joint estimate toward zero; the tensor-product
+        interaction terms in `heormodel.voi._metamodel` fix that. Both
+        methods, and the expected value of perfect information (EVPI) upper
+        bound, should agree once the interaction is captured.
+        """
+        rng = np.random.default_rng(0)
+        n = 8000
+        x = rng.normal(size=n)
+        y = rng.normal(size=n)
+        idx = pd.RangeIndex(n, name="iteration")
+        draws = pd.DataFrame({"x": x, "y": y}, index=idx)
+        costs = pd.DataFrame({"A": np.zeros(n), "B": np.zeros(n)}, index=idx)
+        effects = pd.DataFrame({"A": np.zeros(n), "B": x * y}, index=idx)
+        outcomes = Outcomes.from_wide(costs, effects)
+
+        v_evpi = evpi(outcomes, wtp=1.0)
+        v_spline = evppi(outcomes, draws, ["x", "y"], wtp=1.0, method="spline")
+        v_gp = evppi(outcomes, draws, ["x", "y"], wtp=1.0, method="gp", seed=0)
+
+        assert v_evpi == pytest.approx(0.317, abs=0.02)
+        assert v_gp == pytest.approx(v_evpi, rel=0.05)
+        assert v_spline == pytest.approx(v_evpi, rel=0.10)
+
 
 class TestVoiGuards:
     def test_evppi_requires_shared_iteration_index(self, gaussian_model):
