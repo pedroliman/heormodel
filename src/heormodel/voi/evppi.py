@@ -40,7 +40,12 @@ def evppi(
         outcomes: Outcomes from a probabilistic sensitivity analysis.
         draws: Parameter draw matrix whose index equals the outcomes'
             iteration index (the shared-index contract).
-        params: Column name(s) in ``draws`` to value jointly.
+        params: Column name(s) in ``draws`` to value jointly. Grouping
+            parameters values their interaction as well as their marginal
+            effects: with ``method="spline"``, pairwise interactions between
+            grouped parameters are captured through tensor-product spline
+            terms (see `heormodel.voi._metamodel.fitted_conditional_means`),
+            and ``method="gp"`` captures interactions of any order.
         wtp: Willingness to pay per unit of effect.
         effect: Effect column (default: the primary effect).
         method: ``"spline"`` (default) or ``"gp"`` metamodel; see
