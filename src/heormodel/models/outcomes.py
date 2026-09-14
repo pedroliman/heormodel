@@ -86,12 +86,17 @@ class Outcomes:
         if comparator is not None and comparator not in self._interventions:
             raise KeyError(f"Unknown comparator intervention: {comparator!r}.")
         self.comparator = comparator
-        cost_wide = self.data[COST_COL].unstack(INTERVENTION_LEVEL)
-        if cost_wide.isna().any().any():
+        if self.data[COST_COL].unstack(INTERVENTION_LEVEL).isna().any().any():
             raise ValueError(
                 "Unbalanced panel: every intervention must be evaluated on the same iterations."
             )
-        self._iterations = cost_wide.index
+        # `unstack` above sorts the iteration axis, so it cannot supply the
+        # iteration order. Take the order from the first intervention's own
+        # rows instead, matching whatever order the caller's data was in
+        # (for example, the parameter draw index passed to `run_psa`).
+        first_rows = data.index.get_level_values(INTERVENTION_LEVEL) == self._interventions[0]
+        first_iterations = data.index.get_level_values(ITERATION_LEVEL)[first_rows]
+        self._iterations = pd.Index(list(dict.fromkeys(first_iterations)), name=ITERATION_LEVEL)
 
     # -- constructors ------------------------------------------------------
 
@@ -176,7 +181,7 @@ class Outcomes:
 
     @property
     def iterations(self) -> pd.Index:
-        """The shared iteration index."""
+        """The shared iteration index, in the order the constructor's data was in."""
         return self._iterations
 
     @property
@@ -200,7 +205,8 @@ class Outcomes:
             >>> Outcomes.from_wide(c, e).costs_wide().shape
             (1, 2)
         """
-        return self.data[COST_COL].unstack(INTERVENTION_LEVEL)[self._interventions]
+        wide = self.data[COST_COL].unstack(INTERVENTION_LEVEL)
+        return wide.loc[self._iterations, self._interventions]
 
     def effects_wide(self, column: str | None = None) -> pd.DataFrame:
         """An effect column as an (iterations x interventions) matrix.
@@ -209,7 +215,8 @@ class Outcomes:
             column: Effect column name; defaults to the primary effect.
         """
         col = column or self.effect
-        return self.data[col].unstack(INTERVENTION_LEVEL)[self._interventions]
+        wide = self.data[col].unstack(INTERVENTION_LEVEL)
+        return wide.loc[self._iterations, self._interventions]
 
     def summary(self) -> pd.DataFrame:
         """Mean of every outcome column per intervention.

@@ -12,6 +12,25 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Fixed
 
+- `Outcomes.__init__` derived the canonical iteration index by unstacking the
+  cost column, and `DataFrame.unstack` always sorts the level it unstacks, so
+  `Outcomes.iterations`, `n_iterations`, `costs_wide`, and `effects_wide` came
+  back ordered ascending by iteration regardless of the order the
+  constructor's input rows were in. This broke `run_psa`'s contract that a
+  returned outcomes' iteration index equals the parameter draw index in the
+  same order: any `draws` table not already sorted ascending, such as one
+  `read_draws` built from an unsorted subject identifier column, raised
+  `Model violated the output contract: outcome iteration index does not
+  match the parameter draw index` even though the model function was
+  correct. It also broke the row-by-row alignment that `evppi` and
+  `evsi_regression` rely on between the parameter draws (or study summaries)
+  and `costs_wide`/`effects_wide`, silently mismatching rows for a
+  non-ascending iteration index. `Outcomes` now takes the iteration order
+  from the first intervention's own rows, and `costs_wide`/`effects_wide`
+  follow the same order; an outcomes table with an already-ascending or
+  `RangeIndex` iteration index, the common case, is unaffected
+  ([#107](https://github.com/pedroliman/heormodel/issues/107)).
+
 - `Dirichlet.__post_init__` checked that `names` matched the concentration
   count but not that its entries were unique. A copy-paste typo in a longer
   transition-probability vector's names, such as `("stay", "stay", "die")`,
