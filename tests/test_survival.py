@@ -36,7 +36,7 @@ from heormodel.survival import (
     to_transition_matrix,
     weibull,
 )
-from heormodel.survival.curve import numeric_inverse_cumulative_hazard
+from heormodel.survival.curve import SurvivalCurve, numeric_inverse_cumulative_hazard
 
 SHAPE, SCALE, DISCOUNT = 1.2, 6.0, 0.03
 ANALYTIC_DLE = 4.927093478597975
@@ -127,6 +127,10 @@ class TestCurveAlgebra:
             mix([exponential(0.1), exponential(0.5)], [0.3, 0.3])
         with pytest.raises(ValueError, match="non-negative"):
             mix([exponential(0.1), exponential(0.5)], [1.5, -0.5])
+        with pytest.raises(ValueError, match="at least two"):
+            mix([exponential(0.1)], [1.0])
+        with pytest.raises(ValueError, match="same length"):
+            mix([exponential(0.1), exponential(0.5)], [1.0])
 
     def test_mix_sample_time_matches_survival_function(self):
         """Numeric-inverse sampling from a mixture reproduces its own survival curve."""
@@ -161,6 +165,36 @@ class TestCurveAlgebra:
             curve.inverse_cumulative_hazard(target), rel=1e-6
         )
 
+    def test_apply_hazard_ratio_rejects_non_positive(self):
+        with pytest.raises(ValueError, match="hazard_ratio"):
+            apply_hazard_ratio(exponential(0.2), hazard_ratio=0.0)
+
+    def test_apply_hazard_ratio_sample_time_matches_survival_function(self):
+        """The hazard-ratio curve's own inverse cumulative hazard samples correctly."""
+        curve = apply_hazard_ratio(exponential(0.2), hazard_ratio=0.5)
+        rng = np.random.default_rng(2)
+        draws = curve.sample_time(rng, 50_000)
+        for t in (1.0, 3.0, 8.0):
+            empirical_survival = float(np.mean(draws > t))
+            assert empirical_survival == pytest.approx(float(curve.survival(t)), abs=0.01)
+
+    def test_apply_acceleration_factor_rejects_non_positive(self):
+        with pytest.raises(ValueError, match="acceleration_factor"):
+            apply_acceleration_factor(weibull(SHAPE, SCALE), acceleration_factor=0.0)
+
+    def test_apply_acceleration_factor_sample_time_matches_survival_function(self):
+        """The rescaled curve's own inverse cumulative hazard samples correctly."""
+        curve = apply_acceleration_factor(weibull(SHAPE, SCALE), acceleration_factor=2.0)
+        rng = np.random.default_rng(5)
+        draws = curve.sample_time(rng, 50_000)
+        for t in (1.0, 3.0, 8.0):
+            empirical_survival = float(np.mean(draws > t))
+            assert empirical_survival == pytest.approx(float(curve.survival(t)), abs=0.01)
+
+    def test_splice_rejects_non_positive_cutpoint(self):
+        with pytest.raises(ValueError, match="cutpoint"):
+            splice(exponential(0.1), exponential(0.4), cutpoint=0.0)
+
 
 class TestToTransitionMatrix:
     def test_single_curve_rows_sum_to_one(self):
@@ -187,14 +221,31 @@ class TestToTransitionMatrix:
         with pytest.raises(ValueError, match="n_cycles"):
             to_transition_matrix(weibull(SHAPE, SCALE), n_cycles=0)
 
+    def test_rejects_empty_curve_list(self):
+        with pytest.raises(ValueError, match="at least one"):
+            to_transition_matrix([], n_cycles=5)
+
+    def test_rejects_decreasing_cumulative_hazard(self):
+        """A curve whose cumulative hazard is not non-decreasing is not a survival curve."""
+        invalid_curve = SurvivalCurve(
+            cumulative_hazard=lambda time: -time,
+            inverse_cumulative_hazard=lambda value: value,
+        )
+        with pytest.raises(ValueError, match="non-decreasing"):
+            to_transition_matrix(invalid_curve, n_cycles=3)
+
 
 class TestFamilies:
     def test_families_reject_non_positive_parameters(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="rate"):
             exponential(0.0)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="shape"):
             weibull(-1.0, 6.0)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="scale"):
+            weibull(1.0, -6.0)
+        with pytest.raises(ValueError, match="shape"):
+            gompertz(-0.1, 0.01)
+        with pytest.raises(ValueError, match="rate"):
             gompertz(0.1, -0.01)
 
     def test_gompertz_survival(self):
@@ -208,6 +259,18 @@ class TestFamilies:
         for t in (2.0, 5.0, 10.0):
             empirical_survival = float(np.mean(draws > t))
             assert empirical_survival == pytest.approx(float(curve.survival(t)), abs=0.01)
+
+    def test_exponential_sample_time_matches_survival_function(self):
+        curve = exponential(rate=0.3)
+        rng = np.random.default_rng(4)
+        draws = curve.sample_time(rng, 50_000)
+        for t in (1.0, 3.0, 8.0):
+            empirical_survival = float(np.mean(draws > t))
+            assert empirical_survival == pytest.approx(float(curve.survival(t)), abs=0.01)
+
+    def test_survival_curve_repr_shows_label(self):
+        curve = weibull(SHAPE, SCALE)
+        assert repr(curve) == f"SurvivalCurve({curve.label!r})"
 
 
 lifelines = pytest.importorskip("lifelines")
@@ -246,6 +309,11 @@ class TestLifelinesAdapter:
         assert draws.index.name == "iteration"
         assert list(draws.index) == list(range(25))
         assert list(draws.columns) == list(fit.params_.index)
+
+    def test_sample_params_rejects_non_positive_n(self):
+        fit = _fit_weibull_at(300)
+        with pytest.raises(ValueError, match="n must be"):
+            sample_params(fit, n=0, seed=0)
 
     def test_sample_params_recovers_fit_moments(self):
         """Sampling recovers the fitted mean and covariance as the draw count grows."""
