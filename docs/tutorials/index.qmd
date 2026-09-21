@@ -23,6 +23,7 @@ listing:
       - markov-vs-microsim.qmd
       - des.qmd
       - seir-vaccination.qmd
+      - survival-models.qmd
     type: grid
     grid-columns: 3
     fields: [title, description]
@@ -61,6 +62,7 @@ listing:
       - mdm-cohort-timedep.qmd
       - mdm-microsim.qmd
       - mdm-des.qmd
+      - survival-bridge.qmd
     type: grid
     grid-columns: 3
     fields: [title, description]

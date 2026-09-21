@@ -76,8 +76,8 @@ website:
               text: Discrete-event simulation
             - href: tutorials/seir-vaccination.qmd
               text: Compartmental transmission model
-            - href: tutorials/survival-bridge.qmd
-              text: Survival analysis bridge
+            - href: tutorials/survival-models.qmd
+              text: Survival curves
         - section: Sensitivity and value of information
           contents:
             - href: tutorials/dsa.qmd
@@ -106,6 +106,8 @@ website:
               text: Microsimulation replication
             - href: tutorials/mdm-des.qmd
               text: Discrete-event simulation replication
+            - href: tutorials/survival-bridge.qmd
+              text: Survival analysis bridge (phase 1)
   page-footer:
     left: |
       © 2026 [Pedro Nascimento de Lima](https://pedrodelima.com)
@@ -186,6 +188,22 @@ quartodoc:
         - queue_waits
         - state_occupancy
         - LifeTable
+    - title: Survival curves (`heormodel.survival`)
+      desc: A survival curve as a cumulative hazard function, distribution families, a fitting adapter, curve algebra, and conversion to per-cycle transition probabilities. Requires the `survival` extra.
+      package: heormodel.survival
+      contents:
+        - SurvivalCurve
+        - exponential
+        - weibull
+        - gompertz
+        - from_lifelines
+        - sample_params
+        - FittedSurvivalModel
+        - apply_hazard_ratio
+        - apply_acceleration_factor
+        - mix
+        - splice
+        - to_transition_matrix
     - title: Run loop (`heormodel.run`)
       desc: Drive a model over parameter draws, or ingest external results tables.
       package: heormodel.run

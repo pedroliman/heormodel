@@ -47,6 +47,7 @@ EXTRAS = {
     "calibrate-sbi": "surrogate",
     "surrogate-calibration": "calibration,surrogate",
     "calibrate-microsim": "surrogate",
+    "survival-models": "survival",
 }
 
 # Tutorials whose code loads files from the repository, so the notebook clones it.
