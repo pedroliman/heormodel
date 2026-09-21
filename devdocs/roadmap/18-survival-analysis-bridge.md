@@ -1,8 +1,19 @@
 # 18. Survival analysis bridge
 
-Status: phase 1 shipped ([#58](https://github.com/pedroliman/heormodel/issues/58),
-`examples/survival_bridge.py`). Phase 2 (`heormodel.survival`) is pending until
-items 19 and 20 also replicate.
+Status: both phases shipped. Phase 1
+([#58](https://github.com/pedroliman/heormodel/issues/58),
+`examples/survival_bridge.py`) reproduced the reference model below with
+bespoke, example-local functions. Phase 2
+([#60](https://github.com/pedroliman/heormodel/issues/60), `heormodel.survival`)
+promoted that machinery to a public module, ahead of items 19 and 20's own
+replications, scoped to what item 18's own replication needed: `SurvivalCurve`,
+the `exponential`, `weibull`, and `gompertz` families, a `from_lifelines`
+fitting adapter and `sample_params`, the curve algebra
+(`apply_hazard_ratio`, `apply_acceleration_factor`, `mix`, `splice`), and
+`to_transition_matrix`. Items 19 and 20 still reuse item 18's phase-1
+helpers bespoke until they extract their own phase 2; the broader
+distribution-family and transition-intensity-matrix aspirations in the phase-2
+candidate section below remain unimplemented and are not committed to.
 
 Add the machinery that turns fitted parametric survival models into inputs the
 existing engines accept: time-varying transition probabilities for `MarkovModel`,
@@ -25,9 +36,11 @@ specified below with example-local functions, validated against the closed forms
 also given below. Only once the numbers match do we extract a public
 `heormodel.survival` layer, letting the replication code determine its shape. The
 API sketches later in this note are candidates to inform that second step, not
-commitments. This ordering applies across items 18, 19, and 20: reproduce all
-three reference models with bespoke code, confirm the numbers, then design the
-shared abstractions once, knowing what they have to carry.
+commitments. This ordering was meant to apply across items 18, 19, and 20:
+reproduce all three reference models with bespoke code, confirm the numbers,
+then design the shared abstractions once, knowing what they have to carry.
+Item 18 shipped its phase 2 first instead, once its own replication passed,
+rather than waiting on items 19 and 20; see the status note above.
 
 ## The reference model and its expected results
 
@@ -112,11 +125,23 @@ survival helpers that items 19 and 20 use in their own phase-1 replications, so 
 survival curve code is written once and exercised by all three before any of it is
 promoted.
 
-## Phase 2: extract the architecture (after parity)
+## Phase 2: extracted architecture (shipped)
 
-Once the replications of items 18, 19, and 20 all pass, promote the recurring
-machinery into `heormodel.survival`. What follows is the candidate shape, to be
-confirmed or revised by what the replications needed.
+`heormodel.survival` shipped as issue [#60](https://github.com/pedroliman/heormodel/issues/60),
+scoped to what item 18's own replication needed rather than waiting for items 19
+and 20 to replicate first. It carries three families (`exponential`, `weibull`,
+`gompertz`), not the eight the candidate sketch below lists, and
+`to_transition_matrix` splits each cycle's event probability across competing
+curves in proportion to their cumulative hazard increment, exact for constant
+hazards, rather than the transition-intensity matrix exponential the candidate
+sketch describes. The rest of what follows was confirmed by the shipped module:
+`SurvivalCurve` as a frozen dataclass wrapping a cumulative hazard function
+(`survival(t)` and `sample_time` are its methods, not free functions), a
+`from_lifelines` adapter duck-typed against a fitted model's public interface,
+`sample_params` on the canonical iteration index, and the four curve-algebra
+functions. What follows below is kept as the original candidate note, for the
+families and the transition-intensity approach a future extension could still
+add.
 
 ### Survival distributions (candidate)
 
@@ -182,18 +207,21 @@ draws, and uncertainty enters through the shared iteration index, so `run_psa`,
   `(discount * I - Q) v = r` for generator `Q` (reused across items 18 and 20);
   `transition_probability` integrates to the analytic transition matrix; and
   `sample_params` recovers the fitted mean and covariance as the draw count grows.
-- Phase 2 changes no number; it re-expresses the passing replication through the
-  extracted layer, and the same tests pass against the public API.
+- Phase 2 changed no number: `examples/survival_models.py` re-expresses the
+  passing phase-1 replication through the extracted `heormodel.survival` layer
+  and reproduces the same reference table and parameter recovery exercise, this
+  time fitting with `lifelines` instead of the phase-1 hand-rolled maximum
+  likelihood.
 
 ## Deliverables
 
-- Phase 1: `examples/survival_bridge.py` reproducing the reference table and the
-  parameter recovery exercise with bespoke survival helpers, its closed-form and
-  convergence tests, and a replication gallery entry.
-- Phase 2: `heormodel.survival` (distribution families, `lifelines` adapter,
-  `to_transition_matrix`, curve algebra), the `survival` optional extra, docstring
-  worked examples, tests, a website tutorial, and API reference and changelog
-  entries.
+- Phase 1 (done): `examples/survival_bridge.py` reproducing the reference table
+  and the parameter recovery exercise with bespoke survival helpers, its
+  closed-form and convergence tests, and a replication gallery entry.
+- Phase 2 (done): `heormodel.survival` (the three distribution families, the
+  `lifelines` adapter, `to_transition_matrix`, and the curve algebra), the
+  `survival` optional extra, docstring worked examples, tests, a website
+  tutorial, and API reference and changelog entries.
 
 ## Reasonable-extent boundaries
 

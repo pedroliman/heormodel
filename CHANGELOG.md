@@ -242,6 +242,28 @@ Each entry links to the pull request that introduced it. Add a line under
   the noise in the model are represented separately
   ([#66](https://github.com/pedroliman/heormodel/issues/66)).
 
+### Added
+
+- Survival analysis bridge, phase 2 (roadmap item 18): the bespoke phase-1 helpers
+  are promoted to `heormodel.survival`, a new optional-dependency extra
+  (`heormodel[survival]`). `SurvivalCurve` wraps a cumulative hazard function; the
+  three families `exponential`, `weibull`, and `gompertz` build one from
+  distribution parameters, and `from_lifelines` builds one from a fitted `lifelines`
+  model, duck-typed against the fitted model's public interface so
+  `heormodel.survival` imports cleanly whether or not `lifelines` is installed.
+  `sample_params` draws parameter sets from a fit's asymptotic covariance onto the
+  canonical `iteration` index. The curve algebra `apply_hazard_ratio`,
+  `apply_acceleration_factor`, `mix`, and `splice` each build a new `SurvivalCurve`
+  from one or more existing curves, and `to_transition_matrix` converts one curve,
+  or several cause-specific curves for competing risks, into the per-cycle
+  transition array `MarkovModel` consumes; `SurvivalCurve.sample_time` is the
+  matching entry point for `MicrosimModel.continuous`. `examples/survival_models.py`
+  reproduces every phase-1 number through the new public interface, this time
+  fitting with `lifelines` in place of the phase-1 hand-rolled maximum-likelihood
+  fit, and a website tutorial replaces the phase-1 one, which stays under
+  Replications as a validation exhibit
+  ([#60](https://github.com/pedroliman/heormodel/issues/60)).
+
 ## [0.7.4] - 2026-07-18
 
 ### Added

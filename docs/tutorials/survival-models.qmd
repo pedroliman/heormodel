@@ -1,0 +1,142 @@
+---
+title: Survival curves
+description: "Build, fit, and combine survival curves with `heormodel.survival`, and turn them into engine inputs."
+---
+
+<!-- colab-badge:start -->
+
+<a href="https://colab.research.google.com/github/pedroliman/heormodel/blob/main/docs/_notebooks/survival-models.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a>
+
+<!-- colab-badge:end -->
+
+This tutorial shows how to turn a fitted survival curve into inputs the engines accept, using `heormodel.survival`: sampled event times for `MicrosimModel.continuous`, per-cycle death probabilities for `MarkovModel`, a treatment arm built by curve algebra, and a curve read from a fit with its estimation uncertainty carried onto the iteration index. The reference curve is Weibull, `S(t) = exp(-(t / scale) ** shape)` with shape 1.2 and scale 6.0 years, run as a two-state alive-and-dead model at a 3% discount rate; both engines recover a discounted life expectancy of 4.927 years. This page supersedes [Survival analysis bridge](survival-bridge.qmd), which reproduced the same reference model with example-local functions before this module existed; that page remains under [Replications](replication-gallery.qmd) as a validation exhibit. The fitting step needs `lifelines`, installed with `heormodel[survival]`. Full script: [`examples/survival_models.py`](https://github.com/pedroliman/heormodel/blob/main/examples/survival_models.py).
+
+## Building a survival curve
+
+`heormodel.survival.weibull` builds a `SurvivalCurve` from the shape and scale parameters directly. A `SurvivalCurve` wraps a cumulative hazard function of time; its `survival` method is `exp(-cumulative_hazard(t))`, and `sample_time` inverts that same function to draw event times, so every downstream use reads from one definition of the curve.
+
+```{python}
+import numpy as np
+import pandas as pd
+
+from heormodel.survival import weibull
+
+SHAPE, SCALE, DISCOUNT = 1.2, 6.0, 0.03
+curve = weibull(shape=SHAPE, scale=SCALE)
+round(float(curve.survival(SCALE)), 5)
+```
+
+At `t = scale` the survival probability is `exp(-1)` for any shape, the value above. The discounted life expectancy is the integral of `exp(-rate * t) * survival(t)`, the value both engines below target.
+
+```{python}
+from scipy.integrate import quad
+
+discounted_le = quad(lambda t: np.exp(-DISCOUNT * t) * curve.survival(t), 0, np.inf)[0]
+round(discounted_le, 5)
+```
+
+Both engines below aim to recover this value, one by sampling from the curve, the other by converting it to per-cycle transition probabilities.
+
+## Sampling event times for an individual model
+
+`MicrosimModel.continuous` races one death time per person; `event_times` returns the time to each state, with `inf` where a move cannot happen. `SurvivalCurve.sample_time` draws directly from the curve, so `event_times` needs no distribution-specific sampling code, only the curve built from that iteration's parameters. Running the model at 200,000 individuals keeps Monte Carlo error well below the half-cycle correction error the cohort model introduces below, so the two engines' results are directly comparable.
+
+```{python}
+from heormodel.models import MicrosimModel
+from heormodel.run import run_psa
+
+STATES, ARM = ("alive", "dead"), "Standard care"
+
+def event_times(params, intervention, state, attrs, rng):
+    curve = weibull(shape=params["shape"], scale=params["scale"])
+    times = np.full((len(state), 2), np.inf)  # columns: to alive, to dead
+    alive = state == 0
+    times[alive, 1] = curve.sample_time(rng, int(alive.sum()))
+    return times
+
+def reward_rates(params, intervention, state, attrs):
+    alive = (state == 0).astype(float)
+    return np.zeros(len(state)), alive  # no cost; one life-year per year alive
+
+continuous = MicrosimModel.continuous(
+    states=STATES, event_times=event_times, state_reward_rates=reward_rates,
+    interventions=[ARM], horizon=80.0, n_individuals=200_000,
+    discount_rate=DISCOUNT, effect="lifeyears")
+```
+
+Running the model at the true shape and scale gives the sampled discounted life expectancy.
+
+```{python}
+draws = pd.DataFrame({"shape": [SHAPE], "scale": [SCALE]}, index=pd.RangeIndex(1, name="iteration"))
+run_psa(continuous, draws, seed=1, sequential=True).outcomes.summary().loc[ARM, "lifeyears"]
+```
+
+This is within 0.15% of the analytic 4.92709, the Monte Carlo error at this sample size.
+
+## Building per-cycle transition probabilities for a cohort model
+
+The other consumer is `MarkovModel`. `to_transition_matrix` converts the curve directly into the per-cycle transition array the engine needs, in place of a hand-written per-cycle death-probability loop.
+
+```{python}
+from heormodel.models import CohortSpec, MarkovModel
+from heormodel.survival import to_transition_matrix
+
+N_CYCLES = 60
+
+def transitions_and_rewards(params, intervention):
+    curve = weibull(shape=params["shape"], scale=params["scale"])
+    transition = to_transition_matrix(curve, n_cycles=N_CYCLES)
+    return CohortSpec(transition, np.zeros(2), np.array([1.0, 0.0]))
+
+cohort = MarkovModel(
+    states=STATES, interventions=[ARM], transitions_and_rewards=transitions_and_rewards,
+    n_cycles=N_CYCLES, initial_state="alive", discount_rate=DISCOUNT,
+    cycle_correction="half_cycle", effect="lifeyears")
+cohort.evaluate(draws).summary().loc[ARM, "lifeyears"]
+```
+
+This is within 0.4% of the analytic value, the half-cycle correction's error at 60 annual cycles. A model author gets the same answer whichever engine they use.
+
+## Modeling a treatment arm with a hazard ratio
+
+`apply_hazard_ratio` builds a new curve by scaling the cumulative hazard of an existing one, so a treatment arm is the comparator curve under a sampled hazard ratio rather than a second curve fit from scratch.
+
+```{python}
+from heormodel.survival import apply_hazard_ratio
+
+treated_curve = apply_hazard_ratio(curve, hazard_ratio=0.7)
+treated_le = quad(lambda t: np.exp(-DISCOUNT * t) * treated_curve.survival(t), 0, np.inf)[0]
+round(treated_le, 3)
+```
+
+A hazard ratio of 0.7 lowers the hazard at every time and raises the discounted life expectancy from 4.927 to 6.35 years. `apply_acceleration_factor`, `mix`, and `splice` build a curve the same way: from one or more existing curves, returning a new `SurvivalCurve` that plugs into the same two engines above.
+
+## Fitting the curve and carrying its uncertainty
+
+A real analysis fits the curve to data first. `from_lifelines` reads a fitted `lifelines` model into a `SurvivalCurve`, duck-typed against the fitted model's public interface rather than any one family, so it works with whichever parametric model was fit.
+
+```{python}
+from lifelines import WeibullFitter
+
+from heormodel.survival import from_lifelines, sample_params
+
+rng = np.random.default_rng(20260714)
+event_time = curve.sample_time(rng, 300)  # a 300-patient trial
+observed = np.minimum(event_time, 12.0)   # administrative censoring at 12 years
+observed_event = (event_time <= 12.0).astype(float)
+
+fit = WeibullFitter().fit(observed, event_observed=observed_event)
+fitted_curve = from_lifelines(fit)
+round(fit.params_["rho_"], 3), round(fit.params_["lambda_"], 3)  # fitted shape, scale
+```
+
+The fit recovers values close to the data-generating shape 1.2 and scale 6.0; `lifelines`' `WeibullFitter` names its two parameters `rho_` (shape) and `lambda_` (scale). `sample_params` draws parameter sets from the fit's asymptotic covariance onto the canonical `iteration` index, so `run_psa` propagates the estimation uncertainty like any other parameter.
+
+```{python}
+fitted_draws = sample_params(fit, n=1_000, seed=2)
+fitted_draws = fitted_draws.rename(columns={"lambda_": "scale", "rho_": "shape"})
+life_years = run_psa(continuous, fitted_draws, seed=2).outcomes.effects_wide()[ARM]
+round(life_years.mean(), 3), np.round(np.percentile(life_years, [2.5, 97.5]), 3)
+```
+
+The 95% credible interval, about 4.44 to 5.30 years, contains the analytic 4.927, and as the trial size grows the fit converges to shape 1.2 and scale 6.0 and the interval shrinks toward that value.
