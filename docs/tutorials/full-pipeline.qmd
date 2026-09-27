@@ -10,11 +10,11 @@ keywords: [cost-effectiveness analysis, cost-effectiveness modeling, probabilist
 
 <!-- colab-badge:end -->
 
-This tutorial shows how to run the standard probabilistic sensitivity analysis workflow end to end: specify parameters, sample draws, evaluate a model with `run_psa`, then pass the outcomes to cost-effectiveness and value-of-information analysis. [Bring your own outputs](byo-outputs.qmd) covers the analysis functions in more detail; here the focus is the run itself.
+This tutorial shows how to run the standard probabilistic sensitivity analysis workflow end to end. We specify parameters, sample draws, evaluate a model with `run_psa`, and pass the outcomes to cost-effectiveness and value-of-information analysis. The focus here is the run itself; [Bring your own outputs](byo-outputs.qmd) covers the analysis functions in more detail.
 
 ## Specifying and sampling parameters
 
-The workflow begins by describing each uncertain parameter as a probability distribution and drawing a sample from it. A distribution is specified directly, as with `Normal(0.70, 0.10)`, or from a published mean and standard error, as with `Beta.from_mean_se`. `ParameterSet.sample` returns a draw matrix with one row per iteration, and a Spearman rank correlation can be imposed on any pair of parameters to reflect a known dependence.
+The workflow begins by describing each uncertain parameter as a probability distribution and drawing a sample from it. A distribution is specified directly, as with `Normal(0.70, 0.10)`, or from a published mean and standard error, as with `Beta.from_mean_se`. `ParameterSet.sample` returns a draw matrix with one row per iteration. A Spearman rank correlation can be imposed on any pair of parameters to reflect a known dependence.
 
 ```{python}
 from heormodel.params import Beta, Gamma, Normal, ParameterSet
@@ -59,7 +59,7 @@ def decision_tree(d: pd.DataFrame) -> Outcomes:
 
 ## Running the probabilistic sensitivity analysis
 
-`run_psa` evaluates the model on every draw and keeps each outcome matched to the parameters that produced it, the matching that value-of-information analysis relies on. It runs in parallel by default; this run is small, so `sequential=True` runs it without that overhead.
+`run_psa` evaluates the model on every draw and keeps each outcome matched to the parameters that produced it. Value-of-information analysis relies on that matching. The run is parallel by default, but this one is small, so `sequential=True` avoids the overhead.
 
 ```{python}
 from heormodel.run import run_psa
@@ -70,7 +70,7 @@ outcomes.summary().round(3)
 
 ## Analyzing cost-effectiveness and value of information
 
-Nothing from here on is specific to a decision tree: the same `icer_table`, `evpi`, and `evppi_ranking` calls apply to the `Outcomes` any model produces. The incremental cost-effectiveness ratio (ICER) compares the more effective intervention against its next cheaper alternative,
+Nothing from here on is specific to a decision tree. The same `icer_table`, `evpi`, and `evppi_ranking` calls apply to the `Outcomes` of any model. The incremental cost-effectiveness ratio (ICER) compares the more effective intervention against its next cheaper alternative,
 
 $$\text{ICER} = \frac{C_1 - C_0}{E_1 - E_0},$$
 
@@ -84,7 +84,7 @@ from heormodel.voi import evpi, evppi_ranking
 icer_table(outcomes).round(3)
 ```
 
-Treatment is the more expensive, more effective intervention. Whether its ICER stays below a given willingness-to-pay threshold, and how much resolving the parameter uncertainty would be worth, are the questions the expected value of perfect information (EVPI) and the per-parameter ranking answer next.
+Treatment is the more expensive, more effective intervention. The next step asks how much resolving the parameter uncertainty would be worth at a given willingness-to-pay threshold. The expected value of perfect information (EVPI) answers that for all parameters together, and the per-parameter ranking shows which parameters account for it.
 
 ```{python}
 WTP = 50_000.0
@@ -94,7 +94,7 @@ evppi_ranking(outcomes, draws, WTP).round(2)
 
 ## Checking convergence with running means
 
-`running_means` tracks the running mean of an outcome column per intervention as iterations accumulate; flat traces at the right edge suggest the iteration count is adequate for the means (value-of-information estimates typically need more).
+`running_means` tracks the running mean of an outcome column for each intervention as iterations accumulate. Flat traces at the right edge suggest the iteration count is adequate for the means. Value-of-information estimates typically need more iterations.
 
 ```{python}
 from heormodel.run import running_means

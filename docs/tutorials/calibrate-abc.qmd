@@ -9,9 +9,9 @@ description: "Calibrate a parameter to observed data with approximate Bayesian c
 
 <!-- colab-badge:end -->
 
-This tutorial shows how to calibrate an unknown model parameter to observed data using [approximate Bayesian computation (ABC)](https://en.wikipedia.org/wiki/Approximate_Bayesian_computation), a method that infers parameters by simulating from the model and keeping the parameter sets whose output matches the data. It is the first of four calibration tutorials that share one disease model, so the posteriors can be compared across methods. Here the model is deterministic and the only uncertainty is in the data: the calibration target is a prevalence measured in a finite sample. It walks through [`examples/calibrate_abc.py`](https://github.com/pedroliman/heormodel/blob/main/examples/calibrate_abc.py) and needs the calibration extra: `uv pip install 'heormodel[calibration]'`.
+This tutorial shows how to calibrate unknown model parameters to observed data using [approximate Bayesian computation (ABC)](https://en.wikipedia.org/wiki/Approximate_Bayesian_computation). ABC infers parameters by simulating from the model and keeping the parameter sets whose output matches the data. It is the first of four calibration tutorials that share one disease model, so the posteriors can be compared across methods. Here the model is deterministic, and the only uncertainty is in the data, because the calibration target is a prevalence measured in a finite sample. The page walks through [`examples/calibrate_abc.py`](https://github.com/pedroliman/heormodel/blob/main/examples/calibrate_abc.py) and needs the calibration extra: `uv pip install 'heormodel[calibration]'`.
 
-Calibration is the inverse of running a model. A model turns parameters into outputs; calibration starts from observed outputs and recovers the parameters consistent with them. The target is the Bayesian posterior, the prior reweighted by how well each parameter set reproduces the data, $p(\theta \mid \text{data}) \propto p(\text{data} \mid \theta)\,p(\theta)$. ABC reaches it without writing down the likelihood $p(\text{data} \mid \theta)$: it proposes parameters $\theta$ from the prior, runs the model, and accepts the proposal when the simulated summary lands within a tolerance $\varepsilon$ of the observed one,
+Calibration is the inverse of running a model. A model turns parameters into outputs; calibration starts from observed outputs and recovers the parameters consistent with them. The goal is the Bayesian posterior, which is the prior reweighted by how well each parameter set reproduces the data, $p(\theta \mid \text{data}) \propto p(\text{data} \mid \theta)\,p(\theta)$. ABC approximates it without writing down the likelihood $p(\text{data} \mid \theta)$. It proposes parameters $\theta$ from the prior, runs the model, and accepts the proposal when the simulated summary is within a tolerance $\varepsilon$ of the observed one,
 
 $$\rho\big(S(\theta),\, S_\text{obs}\big) \le \varepsilon.$$
 
@@ -53,7 +53,7 @@ engine = MarkovModel(
 )
 ```
 
-The calibration reads three numbers from the cohort trace: the Sick-state prevalence at cycles 8, 16, and 28. An early, middle, and late reading of the Sick-state trajectory together separate the inflow probability `p_HS` from the outflow probability `p_SD`, which a single reading would confound.
+The calibration reads three numbers from the cohort trace: the Sick-state prevalence at cycles 8, 16, and 28. Early, middle, and late readings of the Sick-state trajectory together separate the inflow probability `p_HS` from the outflow probability `p_SD`. A single reading could not tell them apart.
 
 ```{python}
 def prevalence(params):
@@ -64,7 +64,7 @@ def prevalence(params):
 
 ## Measuring the target in a finite sample
 
-The target is not the prevalence itself but a measurement of it. Prevalence is estimated from a sample of people, and a sample of 1,000 carries a sampling error of about 1.5 percentage points at these values. The observed target is one such measurement: a count of how many of 1,000 people are in the Sick state, drawn once from the true prevalence with a fixed seed so the reading is reproducible. The model is deterministic, so this sampling error is the only uncertainty the calibration faces.
+The target is not the prevalence itself but a measurement of it. Prevalence is estimated from a sample of people, and a sample of 1,000 carries a sampling error of about 1.5 percentage points at these values. The observed target is one such measurement: the number of people in the Sick state out of 1,000, drawn once from the true prevalence with a fixed seed so the reading is reproducible. The model is deterministic, so this sampling error is the only uncertainty the calibration faces.
 
 ```{python}
 SURVEY_SIZE = 1_000
@@ -81,7 +81,7 @@ The observed prevalences fall within about one standard error of the truth that 
 
 ## Running the calibration
 
-`abc_calibrate` runs sequential Monte Carlo ABC. It needs three things: a simulator that turns a parameter set into the same quantities as the target, the priors to sample parameters from, and the observed target. The simulator mirrors the measurement, returning a fresh sample of the model's prevalence rather than the prevalence itself, so ABC recovers the parameters given a noisy reading and carries the sampling error into the posterior. The acceptance threshold anneals down to half the single-sample scale, which sharpens the posterior below the width one sample would give, because the simulator draws its own sample with the same error as the data.
+`abc_calibrate` runs sequential Monte Carlo ABC. It needs three things: a simulator that turns a parameter set into the same quantities as the target, the priors to sample parameters from, and the observed target. The simulator mirrors the measurement. It returns a fresh sample of the model's prevalence rather than the prevalence itself, so ABC accounts for the noise in the reading and carries the sampling error into the posterior. The acceptance threshold decreases across rounds to a floor, `epsilon`, of half the single-sample scale. The simulator draws its own sample with the same error as the data, and this floor makes the posterior narrower than the spread of a single sample.
 
 ```{python}
 import os
@@ -111,7 +111,7 @@ posterior = result.posterior
 print(f"{result.n_populations} populations, final epsilon {result.final_epsilon:.4f}")
 ```
 
-The result carries the posterior as an equally weighted draw matrix, the same form a probabilistic sensitivity analysis consumes, so a calibrated parameter feeds the rest of a model the same way a literature parameter does. Its mean recovers the values that generated the target.
+The result holds the posterior as an equally weighted draw matrix, the same form a probabilistic sensitivity analysis uses. A calibrated parameter enters the rest of a model the same way a literature parameter does. Its mean recovers the values that generated the target.
 
 ```{python}
 summary = pd.DataFrame({
@@ -139,6 +139,6 @@ fig.tight_layout()
 plt.show()
 ```
 
-The cost is the run count. Reaching this posterior took several thousand model evaluations, because every accepted parameter set in every population is a model run and most proposals are rejected. That cost is bearable when the model is a cohort trace that runs in milliseconds. When a single run is slow, it becomes the constraint, which the [surrogate tutorial](surrogate-calibration.qmd) addresses.
+The cost is the run count. Reaching this posterior took several thousand model evaluations, because every accepted parameter set in every population is a model run and most proposals are rejected. That cost is acceptable when the model is a cohort trace that runs in milliseconds. When a single run is slow, the run count becomes the constraint, and the [surrogate tutorial](surrogate-calibration.qmd) addresses that case.
 
 Next: the [simulation-based inference tutorial](calibrate-sbi.qmd) calibrates the same model to the same target with a different method, and reaches the same posterior.

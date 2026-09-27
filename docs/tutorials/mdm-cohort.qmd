@@ -10,7 +10,7 @@ keywords: [cohort state-transition model, Markov model, Markov cohort model, sta
 
 <!-- colab-badge:end -->
 
-This tutorial shows how to build a cohort state-transition model with `MarkovModel` and validate it against a published result, using the introductory Sick-Sicker analysis of Alarid-Escudero and others (2023). Reproducing a known answer first, before trusting the model on a new question, is the standard check for any cost-effectiveness model. Full script: [`examples/mdm_cohort.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_cohort.py); companion replications: [replication gallery](replication-gallery.qmd).
+This tutorial shows how to build a cohort state-transition model with `MarkovModel` and validate it against a published result, using the introductory Sick-Sicker analysis of Alarid-Escudero and others (2023). Reproducing a known answer before using the model on a new question is the standard check for any cost-effectiveness model. Full script: [`examples/mdm_cohort.py`](https://github.com/pedroliman/heormodel/blob/main/examples/mdm_cohort.py); companion replications: [replication gallery](replication-gallery.qmd).
 
 ## Specifying the four-state model
 
@@ -20,7 +20,7 @@ Transition rates, not probabilities, are the quantities sampled and adjusted by 
 
 $$p = 1 - e^{-r\,\Delta t}.$$
 
-That conversion is the `r2p` function; `hr_S1` and `hr_S2` multiply the death rate before it is converted, matching how the source article specifies uncertainty. The engine then propagates the cohort: with the state occupancy written as a row vector $m_t$ holding the proportion in each state at cycle $t$, one cycle advances it by the transition matrix $P$,
+That conversion is the `r2p` function. `hr_S1` and `hr_S2` multiply the death rate before it is converted, which matches how the source article specifies uncertainty. The engine then propagates the cohort. Writing the state occupancy as a row vector $m_t$ that holds the proportion in each state at cycle $t$, one cycle advances it by the transition matrix $P$,
 
 $$m_{t+1} = m_t P,$$
 
@@ -58,7 +58,7 @@ engine = MarkovModel(states=STATES, interventions=INTERVENTIONS, transitions_and
 
 ## Reproducing the published base case
 
-Before sampling any uncertainty, running the model once at the article's point estimates checks that the transition matrix and rewards are specified correctly: the result should match the published table exactly. It does. Intervention A is dominated; the frontier runs standard of care, then Intervention B (incremental cost-effectiveness ratio, or ICER, about 73,000 per quality-adjusted life-year, or QALY), then Intervention AB (about 126,000).
+Before sampling any uncertainty, we run the model once at the article's point estimates to check that the transition matrix and rewards are specified correctly. The result should match the published table exactly. It does. Intervention A is dominated, and the frontier runs standard of care, then Intervention B (incremental cost-effectiveness ratio, or ICER, about 73,000 per quality-adjusted life-year, or QALY), then Intervention AB (about 126,000).
 
 ```{python}
 from heormodel.cea import icer_table
@@ -71,7 +71,7 @@ icer_table(engine.evaluate(draws0)).round(2)
 
 ## Running the probabilistic sensitivity analysis
 
-The article's uncertainty distributions for each parameter become a `ParameterSet`; gamma distributions bound rates and costs at zero, beta distributions bound utilities to the unit interval, and log-normal distributions keep hazard ratios positive. From there the analysis is the same as for any other model. The run below passes `sequential=True` because 1,000 iterations finish quickly; larger runs are parallel by default.
+The article's uncertainty distributions for each parameter become a `ParameterSet`. Gamma distributions keep rates and costs above zero, beta distributions keep utilities between zero and one, and log-normal distributions keep hazard ratios positive. From there the analysis is the same as for any other model. The run below passes `sequential=True` because 1,000 iterations finish quickly. Larger runs are parallel by default.
 
 ```{python}
 from heormodel.params import Beta, Gamma, LogNormal, ParameterSet
@@ -92,16 +92,16 @@ outcomes = run_psa(engine, draws, sequential=True).outcomes
 format_icer_table(outcomes)
 ```
 
-Because `outcomes` holds 1,000 parameter draws, the table reports a 95% uncertainty interval for every estimate, written as the point estimate followed by its 2.5th and 97.5th percentiles in parentheses. `format_icer_table` rounds costs and the ratio to whole units and effects to two decimals for reading; `icer_table` returns the same numbers unrounded, in separate `_lo` and `_hi` columns, for further computation. Incremental cost and effect are differences against the comparator, the cheapest frontier intervention still above the row in cost, formed within every draw and then summarized by percentiles rather than by differencing the two interventions' separate intervals.
+Because `outcomes` holds 1,000 parameter draws, the table reports a 95% uncertainty interval for every estimate, written as the point estimate followed by its 2.5th and 97.5th percentiles in parentheses. `format_icer_table` rounds costs and the ratio to whole units and effects to two decimals for reading. `icer_table` returns the same numbers unrounded, in separate `_lo` and `_hi` columns, for further computation. Incremental cost and effect are differences against the comparator, which is the next cheaper intervention on the frontier. They are computed within every draw and then summarized by percentiles, not by differencing the two interventions' separate intervals.
 
-The ICER is a frontier quantity, so it is blank for a dominated intervention, and the status column carries the dominance label instead. Intervention A is dominated: it costs about 25,000 more than Intervention B for about 0.6 fewer QALYs, the negative incremental effect that marks the dominance. The mean frontier matches the deterministic ranking above: standard of care, then Intervention B at about 76,000 per QALY (95% interval about 52,000 to 104,000), then Intervention AB at about 122,000 (about 80,000 to 188,000). The interval on the ratio is wider for Intervention AB because its incremental effect over Intervention B, about 0.98 QALYs against 1.42, is smaller, so a given spread in incremental cost produces a wider range of ratios.
+The ICER is a frontier quantity, so it is blank for a dominated intervention, and the status column carries the dominance label instead. Intervention A is dominated: it costs about 25,000 more than Intervention B and yields about 0.6 fewer QALYs. The mean frontier matches the deterministic ranking above: standard of care, then Intervention B at about 76,000 per QALY (95% interval about 52,000 to 104,000), then Intervention AB at about 122,000 (about 80,000 to 188,000). The interval on the ratio is wider for Intervention AB because its incremental effect is smaller (about 0.98 QALYs over Intervention B, against 1.42 for Intervention B over standard of care). A given spread in incremental cost then produces a wider range of ratios.
 
-Whether that ranking holds at a given threshold in every draw, rather than only on average, is what the expected value of perfect information (EVPI) measures next:
+The ranking above holds on average, but not necessarily in every draw. The expected value of perfect information (EVPI) measures what that disagreement across draws costs at a given threshold:
 
 ```{python}
 print(f"EVPI at WTP 100,000: {evpi(outcomes, 100_000.0):,.0f}")
 ```
 
-EVPI is positive at a threshold of 100,000 because Intervention AB, the most expensive option, is the best choice in some draws but not others: the uncertainty in whether it is worth adopting has a real cost, and resolving it would be worth exactly this much per person. The [value of information](voi.qmd) tutorial takes this same model further: which parameter that uncertainty attaches to, and whether a proposed study to resolve it is worth its cost.
+EVPI is positive at a threshold of 100,000 because Intervention AB, the most expensive option, is the best choice in some draws but not in others. Resolving that uncertainty would be worth the printed amount per person. The [value of information](voi.qmd) tutorial takes this model further. It asks which parameter the uncertainty comes from and whether a proposed study to resolve it is worth its cost.
 
 Reference: Alarid-Escudero F, Krijkamp EM, Enns EA, Yang A, Hunink MGM, Pechlivanoglou P, Jalal H. An introductory tutorial on cohort state-transition models in R using a cost-effectiveness analysis example. Medical Decision Making. 2023;43(1):3-20.

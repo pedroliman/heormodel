@@ -10,11 +10,11 @@ keywords: [value of information, VOI, EVPI, EVPPI, EVSI, expected value of perfe
 
 <!-- colab-badge:end -->
 
-This tutorial shows how to run the full value-of-information workflow: expected value of perfect information (EVPI), of partial perfect information (EVPPI), and of sample information (EVSI), on the Sick-Sicker cohort state-transition model built in the [cohort state-transition tutorial](mdm-cohort.qmd). The full script is [`examples/voi_tutorial.py`](https://github.com/pedroliman/heormodel/blob/main/examples/voi_tutorial.py).
+This tutorial shows how to run the full value-of-information workflow on the Sick-Sicker cohort state-transition model from the [cohort state-transition tutorial](mdm-cohort.qmd). It computes the expected value of perfect information (EVPI), of partial perfect information (EVPPI), and of sample information (EVSI). The full script is [`examples/voi_tutorial.py`](https://github.com/pedroliman/heormodel/blob/main/examples/voi_tutorial.py).
 
 ## Specifying the decision model
 
-The model is the four-state, four-intervention Sick-Sicker model from the cohort state-transition tutorial: standard of care, Intervention A (raises the Sick-state utility), Intervention B (slows progression from Sick to Sicker), and the combination AB, evaluated over 75 annual cycles. See that tutorial for the state-transition model and the parameter distributions; the code below reconstructs both so this page runs on its own.
+The model is the four-state Sick-Sicker model from the cohort state-transition tutorial, evaluated over 75 annual cycles. It compares standard of care, Intervention A (raises the Sick-state utility), Intervention B (slows progression from Sick to Sicker), and the combination AB. That tutorial explains the model and the parameter distributions. The code below rebuilds both so this page runs on its own.
 
 ```{python}
 import numpy as np
@@ -64,7 +64,7 @@ Value-of-information estimates need more draws than a mean cost-effectiveness es
 
 ## Calculating the expected value of perfect information (EVPI)
 
-EVPI is the difference between a decision made with perfect information and one made with current information, an upper bound on the value of any research.
+EVPI is the expected gain from making the decision with perfect information rather than current information. It is an upper bound on the value of any research.
 
 ```{python}
 from heormodel.voi import evpi
@@ -87,11 +87,11 @@ ranking = evppi_ranking(outcomes, draws, WTP)
 ranking.round(1)
 ```
 
-`u_S1`, the Sick-state utility under standard of care, dominates the ranking: Intervention A's entire benefit is raising that utility to `u_trtA`, so whether the true `u_S1` is already close to `u_trtA` decides whether Intervention A is worth its cost. The two treatment costs `c_trtA` and `c_trtB` follow, with everything else contributing almost nothing at this threshold. The `spline` metamodel used by default handles one parameter at a time well; `method="gp"` (a Gaussian process) suits groups of many parameters evaluated jointly.
+`u_S1`, the Sick-state utility under standard of care, dominates the ranking. Intervention A's entire benefit is raising that utility to `u_trtA`, so whether the true `u_S1` is already close to `u_trtA` decides whether Intervention A is worth its cost. The two treatment costs `c_trtA` and `c_trtB` follow, and everything else contributes almost nothing at this threshold. The default `spline` metamodel handles one parameter at a time well. For groups of many parameters evaluated jointly, use `method="gp"` (a Gaussian process).
 
 ## Expected value of sample information (EVSI)
 
-EVSI is the value of a study of finite sample size, the practical counterpart to the perfect-information measures above, which assume a parameter is resolved exactly. Since `u_S1` drives the ranking, consider a preference-based utility survey of Sick patients, each reporting a health-utility score with the sampling standard deviation typical of an instrument like the EQ-5D-5L in a chronic-disease population. `simulate_summaries` draws one survey summary per parameter draw from its true `u_S1`, and `evsi_regression` computes the value from the fitted conditional means.
+EVSI is the value of a study of finite sample size. It is the practical counterpart to the perfect-information measures above, which assume a parameter is resolved exactly. Since `u_S1` drives the ranking, we consider a preference-based utility survey of Sick patients. Each patient reports a health-utility score with the sampling standard deviation typical of an instrument like the EQ-5D-5L in a chronic-disease population. `simulate_summaries` draws one survey summary per parameter draw from its true `u_S1`, and `evsi_regression` computes the value from the fitted conditional means.
 
 ```{python}
 from heormodel.voi import evsi_regression, simulate_summaries
@@ -104,7 +104,7 @@ summaries = simulate_summaries(
 evsi_regression(outcomes, summaries, WTP)
 ```
 
-Reported against the willingness-to-pay threshold, EVSI is a family of curves, one per sample size. Each stays below the `u_S1` EVPPI, which in turn tracks EVPI closely here: this survey targets the one parameter EVPPI ranked highest, so resolving it captures most of the value there would be in resolving everything. All three curves are small below about 90,000 per QALY, where the standard of care is optimal by a wide enough margin that the decision does not turn on `u_S1`, peak sharply near 120,000 where the optimal intervention is closely balanced, and fall off above that. Larger surveys shrink `tau`, lifting each curve toward the EVPPI ceiling.
+Reported against the willingness-to-pay threshold, EVSI is a family of curves, one per sample size. Each EVSI curve stays below the `u_S1` EVPPI, which in turn tracks EVPI closely. The survey targets the parameter EVPPI ranked highest, so resolving it captures most of the value of resolving everything. All the curves are small below about 90,000 per quality-adjusted life-year. In that range standard of care is optimal by a wide enough margin that the decision does not turn on `u_S1`. The curves peak sharply near 120,000, where the choice between interventions is closest, and fall off above that. Larger surveys shrink `tau`, which lifts each curve toward the EVPPI ceiling.
 
 ```{python}
 import matplotlib.pyplot as plt
@@ -134,7 +134,7 @@ fig.colorbar(sm, ax=ax, label="survey size (patients)");
 
 ## Expected net benefit of sampling (ENBS)
 
-How many patients should the survey enroll? The expected net benefit of sampling (ENBS) answers that by multiplying the per-person EVSI by the population it would inform and discounting to a present value, then subtracting the survey's cost. Suppose 2,000 patients enter the Sick state each year for 10 years, discounted at 3% a year, and each would benefit from a decision informed by the resolved utility. The survey costs a fixed 100,000 to set up plus 300 per participant. An ENBS at or above zero is the condition for running the survey; the size that maximizes it is the one worth funding.
+How many patients should the survey enroll? The expected net benefit of sampling (ENBS) answers that. It multiplies the per-person EVSI by the discounted population the decision would inform, then subtracts the survey's cost. Suppose 2,000 patients enter the Sick state each year for 10 years, discounted at 3% a year, and each would benefit from a decision informed by the resolved utility. The survey costs a fixed 100,000 to set up plus 300 per participant. A survey is worth running only if its ENBS is at least zero, and the size that maximizes ENBS is the one to fund.
 
 ```{python}
 i_wtp = int(np.where(grid == WTP)[0][0])
@@ -148,7 +148,7 @@ print(f"optimal size: {best} patients, ENBS {enbs[best]:,.0f}")
 enbs.round(0)
 ```
 
-ENBS rises with survey size as long as the added precision is worth more than its cost, then falls once EVSI approaches the EVPPI ceiling and the survey keeps costing more per patient without resolving much further uncertainty.
+ENBS rises with survey size while the added precision is worth more than its cost. It falls once EVSI approaches the EVPPI ceiling, because each extra participant still costs 300 but resolves little further uncertainty.
 
 ```{python}
 ax = enbs.plot(marker="o", xlabel="survey size (patients)", ylabel="ENBS")
