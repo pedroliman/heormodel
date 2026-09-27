@@ -10,11 +10,11 @@ keywords: [microsimulation, individual-level simulation, patient-level simulatio
 
 <!-- colab-badge:end -->
 
-This tutorial shows how to build an individual-level model with `MicrosimModel`, the model type to use when outcomes depend on a patient's history or on heterogeneity between patients, neither of which a cohort average preserves. It runs the same `run_psa`, cost-effectiveness, and value-of-information calls as the [Markov cohort model tutorial](mdm-cohort.qmd), so the two are worth reading as a pair. This page walks through [`examples/microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/microsim.py) step by step.
+This tutorial shows how to build an individual-level model with `MicrosimModel`. Use this model type when outcomes depend on a patient's history or on differences between patients, since a cohort average preserves neither. It runs the same `run_psa`, cost-effectiveness, and value-of-information calls as the [Markov cohort model tutorial](mdm-cohort.qmd), so the two are worth reading as a pair. This page walks through [`examples/microsim.py`](https://github.com/pedroliman/heormodel/blob/main/examples/microsim.py) step by step.
 
 ## Specifying individual-level transition probabilities and utilities
 
-The model has three states, Healthy, Sick, and Dead, over a 30-year horizon. Two features rule out a single cohort transition matrix: each individual carries a `frailty` attribute that scales their sick-state cost and mortality, and the Sick to Dead risk rises with time already spent sick. The engine maintains `time_in_state` and passes it, alongside the sampled attributes, to the `transition_probabilities` and `state_rewards` functions. Both also receive the intervention name as their second argument.
+The model has three states, Healthy, Sick, and Dead, over a 30-year horizon. Two features rule out a single cohort transition matrix. Each individual carries a `frailty` attribute that scales their sick-state cost and mortality, and the Sick to Dead risk rises with time already spent sick. The engine maintains `time_in_state` and passes it, alongside the sampled attributes, to the `transition_probabilities` and `state_rewards` functions. Both also receive the intervention name as their second argument.
 
 ```{python}
 import numpy as np
@@ -61,7 +61,7 @@ def state_rewards(params, intervention, state, attrs):
 
 ## Configuring once, evaluating on draws
 
-The model structure goes to the engine when you build it; the draw matrix goes to `run_psa`. The two interventions are bare names, and the model functions branch on the intervention name (`intervention == "Treatment"`) to decide whether treatment applies. The two interventions share one population through common random numbers (the engine default), so the incremental result reflects the treatment effect rather than sampling noise.
+The model structure goes to the engine when you build it, and the draw matrix goes to `run_psa`. The two interventions are bare names, and the model functions branch on the intervention name (`intervention == "Treatment"`) to decide whether treatment applies. The two interventions share one population through common random numbers (the engine default), so the incremental result reflects the treatment effect rather than sampling noise.
 
 ```{python}
 from heormodel.models import MicrosimModel
@@ -91,20 +91,20 @@ outcomes = run_psa(engine, draws, seed=seeds.entropy, sequential=True).outcomes
 outcomes.summary().round(3)
 ```
 
-This run passes `sequential=True` because a run this small finishes quickly; larger runs are parallel by default, and the two give identical results.
+This run passes `sequential=True` because a run this small finishes quickly. Larger runs are parallel by default, and the two modes give identical results.
 
 ## Branching on the intervention name versus using decision levers
 
 An intervention carries a name and, optionally, parameter decision levers. Which to use depends on how the arms differ:
 
 - Branch on the name when the arms differ in structure or in which model function runs, as here: treatment changes a utility and a cost, so the model reads `intervention == "Treatment"`. The comparison is not a number that lives in the `ParameterSet`.
-- Use an `Intervention` with decision levers for a numeric scenario knob the model already reads as a parameter, such as a server count `Intervention("Expanded", {"n_servers": 2})`. The discrete-event tutorial does this for clinic capacity.
+- Use an `Intervention` with decision levers for a numeric scenario setting the model already reads as a parameter, such as a server count `Intervention("Expanded", {"n_servers": 2})`. The discrete-event tutorial does this for clinic capacity.
 
-Do not encode an arm as a fake parameter, a flag like `{"on_treatment": 1.0}`. Such a flag is not part of the `ParameterSet`, so `evppi_ranking` and the deterministic sensitivity analyses never see it, and it would clutter the ranking with a value that is not a real source of uncertainty. Branching on the name keeps the ranking below to genuine parameters.
+Do not encode an arm as a fake parameter, a flag like `{"on_treatment": 1.0}`. Such a flag is not a real source of uncertainty, and placing it among the parameters would clutter `evppi_ranking` and the deterministic sensitivity analyses. Branching on the name keeps the ranking below limited to genuine parameters.
 
 ## Analyzing cost-effectiveness and value of information
 
-From here nothing is engine-specific: the same `icer_table`, `evpi`, and `evppi_ranking` calls used for a cohort model apply to this simulation's `Outcomes`. At a willingness-to-pay threshold near the base-case incremental cost-effectiveness ratio, the decision is genuinely uncertain, so the expected value of perfect information is positive and the per-parameter ranking below is informative.
+From here nothing is engine-specific. The same `icer_table`, `evpi`, and `evppi_ranking` calls used for a cohort model apply to this simulation's `Outcomes`. We set the willingness-to-pay threshold near the base-case incremental cost-effectiveness ratio, where the decision is uncertain. The expected value of perfect information is then positive, and the per-parameter ranking is informative.
 
 ```{python}
 from heormodel.cea import icer_table
@@ -123,7 +123,7 @@ The treatment cost and its effect `rr_tx` lead the ranking: they determine wheth
 
 ## Validating against the cohort closed form
 
-A microsimulation estimates each expected outcome as the mean over the $N$ simulated individuals, $\bar X = \frac{1}{N}\sum_{i=1}^{N} X_i$, whose Monte Carlo standard error falls as $\sigma/\sqrt{N}$: quadrupling the population halves it. With constant transitions and no heterogeneity, that mean must converge to the exact cohort calculation as the population grows; this section checks that it does, since a mismatch here would point to a bug rather than sampling noise. The engine and the cohort share the same discounting and half-cycle convention, so the only expected gap is that Monte Carlo error.
+A microsimulation estimates each expected outcome as the mean over the $N$ simulated individuals, $\bar X = \frac{1}{N}\sum_{i=1}^{N} X_i$. Its Monte Carlo standard error falls as $\sigma/\sqrt{N}$, so quadrupling the population halves it. With constant transitions and no heterogeneity, that mean must converge to the exact cohort calculation as the population grows. This section checks that it does, because a persistent mismatch would point to a bug rather than sampling noise. The engine and the cohort share the same discounting and half-cycle convention, so the only expected gap is that Monte Carlo error.
 
 ```{python}
 P = np.array([[0.80, 0.15, 0.05], [0.0, 0.90, 0.10], [0.0, 0.0, 1.0]])
@@ -156,6 +156,6 @@ The two agree to under 1% at 60,000 individuals, and the gap shrinks with the po
 
 ## Switching to a continuous-time clock
 
-`MicrosimModel.continuous` is set up the same way. Instead of per-cycle probabilities, `event_times` returns sampled times to each competing event; the engine takes the earliest, advances to it, and accrues continuously between events, valuing each segment through `state_reward_rates` (per-year flows rather than per-cycle amounts). On constant hazards it reproduces the exponential cohort solution.
+`MicrosimModel.continuous` is set up the same way. Instead of per-cycle probabilities, `event_times` returns sampled times to each competing event. The engine takes the earliest, advances to it, and accrues costs and QALYs continuously between events. It values each segment through `state_reward_rates`, which are per-year flows rather than per-cycle amounts. On constant hazards it reproduces the exponential cohort solution.
 
 Next: [Markov vs microsimulation models](markov-vs-microsim.qmd) builds this microsimulation and a cohort twin from the same rates, cross-validates them, and shows what the individual model carries that the cohort averages away.

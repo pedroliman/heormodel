@@ -72,25 +72,25 @@ listing:
     sort-ui: false
 ---
 
-This page lists the tutorials in the order a reader learns the package: the standard analysis workflow first, then one tutorial per model engine, then sensitivity and value-of-information analysis, calibration, and replications of published models. Each group builds on the ones before it, and within a group the prerequisite comes first.
+This page lists the tutorials in the order a reader learns the package. The standard analysis workflow comes first, then one tutorial per model engine, then sensitivity and value-of-information analysis, calibration, and replications of published models. Each group builds on the ones before it, and within a group the prerequisite comes first.
 
 ## Getting started
 
-The standard probabilistic sensitivity analysis runs in four steps: specify parameters, sample draws, evaluate a model, and analyze cost-effectiveness and value of information. The three tutorials here cover that workflow, and how to supply results or parameters computed outside the package.
+The standard probabilistic sensitivity analysis runs in four steps: specify parameters, sample draws, evaluate a model, and analyze cost-effectiveness and value of information. The three tutorials here cover that workflow and show how to supply results or parameters computed outside the package.
 
 :::{#getting-started}
 :::
 
 ## Model engines
 
-Each engine builds a different kind of model and then runs the same analysis, so only the model-building step changes between them. The cohort state-transition model is the standard engine; the microsimulation, discrete-event, and compartmental engines add the patient history, resource contention, and disease transmission a cohort average cannot represent.
+Each engine builds a different kind of model and then runs the same analysis, so only the model-building step changes between them. The cohort state-transition model is the standard engine. The microsimulation, discrete-event, and compartmental engines add the patient history, resource contention, and disease transmission a cohort average cannot represent.
 
 :::{#model-engines}
 :::
 
 ## Sensitivity and value of information
 
-Deterministic sensitivity analysis asks which parameters move the result; value-of-information analysis asks what resolving the remaining uncertainty is worth. Both read the outcomes an engine produces, so they apply after any of the model tutorials.
+Deterministic sensitivity analysis shows which parameters change the result. Value-of-information analysis estimates what resolving the remaining uncertainty is worth. Both read the outcomes an engine produces, so they apply after any of the model tutorials.
 
 :::{#sensitivity-voi}
 :::

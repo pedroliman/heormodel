@@ -10,13 +10,13 @@ keywords: [deterministic sensitivity analysis, DSA, one-way sensitivity analysis
 
 <!-- colab-badge:end -->
 
-Probabilistic sensitivity analysis answers how uncertain a decision is; deterministic sensitivity analysis (DSA) instead answers which parameters move the result, and by how much. This tutorial shows how to run the three standard DSA designs, one-way, one-at-a-time, and grid, on the same Sick-Sicker cohort model the [cohort tutorial](mdm-cohort.qmd) uses for its probabilistic analysis, so the two are worth reading as a pair. The full script is [`examples/dsa.py`](https://github.com/pedroliman/heormodel/blob/main/examples/dsa.py).
+Probabilistic sensitivity analysis measures how uncertain a decision is. Deterministic sensitivity analysis (DSA) shows which parameters change the result, and by how much. This tutorial shows how to run the three standard DSA designs (one-way, one-at-a-time, and grid) on the Sick-Sicker cohort model that the [cohort tutorial](mdm-cohort.qmd) uses for its probabilistic analysis. The full script is [`examples/dsa.py`](https://github.com/pedroliman/heormodel/blob/main/examples/dsa.py).
 
-`heormodel.dsa` builds scenario designs that run through `run_psa` like any draw matrix: a design has one row per scenario instead of one row per random draw, paired with a descriptor naming what each scenario varied. The same cost-effectiveness functions then read the outcomes, so a deterministic analysis reuses everything a probabilistic one does.
+`heormodel.dsa` builds scenario designs that run through `run_psa` like any draw matrix. A design has one row per scenario instead of one row per random draw, and it comes with a descriptor table naming what each scenario varied. The same cost-effectiveness functions then read the outcomes.
 
 ## Specifying the model and base case
 
-The model is the four-state Sick-Sicker cohort of the cohort tutorial. The base case is its Table 1 point estimates, held in a `pandas.Series` indexed by parameter name, the input every DSA builder takes.
+The model is the four-state Sick-Sicker cohort of the cohort tutorial. The base case is the point estimates from Table 1 of the source article (Alarid-Escudero and others, 2023), held in a `pandas.Series` indexed by parameter name. Every DSA builder takes this series as input.
 
 ```{python}
 import numpy as np
@@ -56,7 +56,7 @@ WTP = 100_000.0
 
 ## Running a one-way sweep
 
-`one_way` varies a single parameter across the listed values, holding the rest at base. The result each design reads is the incremental net monetary benefit of one intervention over its comparator, $\text{INMB} = \lambda\,\Delta E - \Delta C$, which is positive exactly when the intervention is cost-effective at the threshold $\lambda$. Here the incremental net monetary benefit of Intervention AB over standard of care falls as the treatment-B cost rises, crossing zero near its base value.
+`one_way` varies a single parameter across the listed values, holding the rest at base. Each design reports the incremental net monetary benefit of one intervention over its comparator, $\text{INMB} = \lambda\,\Delta E - \Delta C$. It is positive exactly when the intervention is cost-effective at the threshold $\lambda$. Here the incremental net monetary benefit of Intervention AB over standard of care falls as the treatment-B cost rises, crossing zero near its base value.
 
 ```{python}
 from heormodel.cea import nmb
@@ -70,7 +70,7 @@ nb = nmb(run_psa(engine, design).outcomes, WTP)
 
 ## Building a one-at-a-time tornado
 
-`one_at_a_time` sweeps each parameter between its low and high in turn, the union of one-way sweeps with the base case included once. `tornado_data` reads the `(design, descriptor)` pair directly, taking the net monetary benefit at each parameter's low and high value. It returns the same table its probabilistic form does, so `plot_tornado` is unchanged.
+`one_at_a_time` sweeps each parameter between its low and high value in turn. The result is the set of one-way sweeps with the base case included once. `tornado_data` reads the `(design, descriptor)` pair directly, taking the net monetary benefit at each parameter's low and high value. It returns the same table its probabilistic form does, so `plot_tornado` is unchanged.
 
 ```{python}
 from heormodel.dsa import one_at_a_time
@@ -83,11 +83,11 @@ td = tornado_data(run_psa(engine, oat[0]).outcomes, oat, wtp=WTP,
 plot_tornado(td.head(6))
 ```
 
-The utility of the treated Sick state (`u_trtA`) and the progression hazard ratio under treatment B (`hr_S1S2_trtB`) move the result most; the state costs move it least.
+The utility of the treated Sick state (`u_trtA`) and the progression hazard ratio under treatment B (`hr_S1S2_trtB`) change the result most. The state costs change it least.
 
 ## Sweeping a two-way grid
 
-`grid` takes the full factorial of two or more parameters. `heatmap_data` reshapes a per-scenario outcome into a matrix over two of them. Here the incremental net monetary benefit of Intervention AB spans positive to negative across the two treatment costs.
+`grid` takes the full factorial of two or more parameters. `heatmap_data` reshapes a per-scenario outcome into a matrix over two of them. Here the incremental net monetary benefit of Intervention AB ranges from positive to negative across the two treatment costs.
 
 ```{python}
 from heormodel.dsa import grid
@@ -100,6 +100,6 @@ heatmap_data(gnb["Intervention AB"] - gnb["Standard of care"], gdesc,
              x="c_trtA", y="c_trtB").round(0)
 ```
 
-The grid center reproduces the one-way sweep's base value, since both hold the other parameters at base. Where the probabilistic analysis integrates over the joint distribution, the deterministic analysis holds everything else fixed and reads one axis at a time.
+The grid center reproduces the one-way sweep's base value, since both hold the other parameters at base. The probabilistic analysis averages over the joint distribution of all parameters. The deterministic analysis instead holds everything else fixed and varies one or two parameters at a time.
 
 Next: the [replication gallery](replication-gallery.qmd) collects the published models these engines reproduce.
