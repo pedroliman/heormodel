@@ -78,6 +78,12 @@ class _MicrosimBase(StreamingEngine):
                 raise ValueError(f"Unknown state {state!r}; states are {self._states}.")
             return self._states.index(state)
         idx = int(state)
+        if isinstance(state, float | np.floating) and state != idx:
+            raise ValueError(
+                f"state index {state!r} is not integer-valued: truncating it to "
+                f"{idx} would silently start the cohort in the wrong state. Use "
+                "an integer index or a state name."
+            )
         if not 0 <= idx < len(self._states):
             raise ValueError(f"initial_state index {idx} out of range.")
         return idx

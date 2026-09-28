@@ -12,6 +12,14 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Fixed
 
+- `MicrosimModel`'s `_state_index` truncated a non-integer float `initial_state`
+  with `int()` instead of raising, so `initial_state=1.9` silently started the
+  cohort in state index 1 rather than failing. `_state_index` now raises
+  `ValueError`, naming the offending value, when a float state index is not
+  integer-valued; integer indices, integer-valued floats (`2.0`), and state
+  names are unchanged
+  ([#115](https://github.com/pedroliman/heormodel/issues/115)).
+
 - `running_means` built its wide matrix for the cost column with
   `Outcomes.costs_wide`, which reindexes to the constructor's iteration order,
   but for any other column, an effect or a disaggregated component, it

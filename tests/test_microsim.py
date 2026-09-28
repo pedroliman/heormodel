@@ -312,6 +312,12 @@ class TestConstructorValidation:
                 population=10, interventions=["care"], horizon=10.0,
             )
 
+    def test_non_integer_initial_state_index_rejected(self):
+        # 1.9 truncating to 1 would silently start the cohort in state "S"
+        # instead of raising, so it must be rejected instead.
+        with pytest.raises(ValueError, match="1.9"):
+            _small_engine(initial_state=1.9)
+
     def test_mode_invalid_parameter_rejected(self):
         # A cycle-grid parameter passed to the continuous constructor is a
         # TypeError at the call site, not a runtime validation error.
