@@ -202,3 +202,19 @@ class TestDiagnostics:
         trace = running_means(out)
         assert trace["A"].iloc[-1] == pytest.approx(out.summary().loc["A", "cost"])
         assert trace["A"].iloc[0] == out.costs_wide()["A"].iloc[0]
+
+    def test_running_means_non_cost_column_follows_run_order(self):
+        # Iteration index 5, 1, 3 is not sorted ascending; a non-cost column
+        # must be run in that order, matching the cost column, not resorted
+        # to 1, 3, 5 by `unstack`.
+        costs = pd.DataFrame({"A": [1.0, 3.0, 5.0]}, index=[5, 1, 3])
+        effects = pd.DataFrame({"A": [0.1, 0.2, 0.3]}, index=[5, 1, 3])
+        out = Outcomes.from_wide(costs, effects)
+
+        cost_trace = running_means(out, "cost")
+        qaly_trace = running_means(out, "qaly")
+
+        expected_qaly = np.cumsum([0.1, 0.2, 0.3]) / np.arange(1, 4)
+        assert qaly_trace["A"].tolist() == pytest.approx(expected_qaly)
+        assert cost_trace.index.equals(qaly_trace.index)
+        assert cost_trace.columns.equals(qaly_trace.columns)

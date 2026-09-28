@@ -36,11 +36,7 @@ def running_means(outcomes: Outcomes, column: str | None = None) -> pd.DataFrame
         >>> running_means(Outcomes.from_wide(c, e))["A"].tolist()
         [1.0, 2.0]
     """
-    wide = (
-        outcomes.costs_wide()
-        if column in (None, "cost")
-        else (outcomes.data[column].unstack("intervention")[outcomes.interventions])
-    )
+    wide = outcomes.costs_wide() if column in (None, "cost") else outcomes.effects_wide(column)
     values = wide.to_numpy(dtype=np.float64)
     k = np.arange(1, len(values) + 1, dtype=np.float64)
     running = np.cumsum(values, axis=0) / k[:, None]
