@@ -12,6 +12,20 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Fixed
 
+- `running_means` built its wide matrix for the cost column with
+  `Outcomes.costs_wide`, which reindexes to the constructor's iteration order,
+  but for any other column, an effect or a disaggregated component, it
+  unstacked the column directly and returned `DataFrame.unstack`'s own sort
+  order instead, silently, with no error raised. For iterations run in the
+  order 5, 1, 3 with quality-adjusted life-years (QALYs) 0.1, 0.2, 0.3, the
+  correct running mean is 0.1, 0.15, 0.2; the cost trace used the run order
+  and got this right, while the QALY trace resorted to iteration order 1, 3,
+  5 first and returned 0.2, 0.25, 0.2 instead. `running_means` now calls
+  `Outcomes.effects_wide` for every non-cost column, the same reindexed
+  accessor `costs_wide` uses, so the trace follows the actual run order
+  regardless of which column is requested
+  ([#114](https://github.com/pedroliman/heormodel/issues/114)).
+
 - `evppi`'s `method="spline"` metamodel fit an additive cubic-spline basis,
   one spline per parameter summed by a linear model, with no term for a
   product between grouped parameters. Grouping parameters in `params` is
