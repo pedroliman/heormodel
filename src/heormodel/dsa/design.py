@@ -71,6 +71,7 @@ def one_way(base: pd.Series, parameter: str, values: Sequence[float]) -> Design:
         [0.5, 1.5]
     """
     _check_names(base, [parameter])
+    base = base.astype(float)
     values = list(values)
     if not values:
         raise ValueError("values must contain at least one value.")
@@ -113,6 +114,7 @@ def one_at_a_time(base: pd.Series, ranges: Mapping[str, Sequence[float]]) -> Des
         ['(base)', 'a=0.5', 'a=1.5', 'b=1', 'b=3']
     """
     _check_names(base, list(ranges))
+    base = base.astype(float)
     rows: list[pd.Series] = [base.copy()]
     descriptor_rows: list[dict[str, object]] = [
         {SCENARIO_COL: BASE_LABEL, PARAMETER_COL: BASE_LABEL, VALUE_COL: float("nan")}
@@ -160,6 +162,7 @@ def grid(base: pd.Series, grids: Mapping[str, Sequence[float]]) -> Design:
     if not names:
         raise ValueError("grids must list at least one parameter.")
     _check_names(base, names)
+    base = base.astype(float)
     value_lists = [list(grids[n]) for n in names]
     for name, seq in zip(names, value_lists, strict=True):
         if not seq:
