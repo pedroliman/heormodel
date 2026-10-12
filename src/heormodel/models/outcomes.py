@@ -80,9 +80,15 @@ class Outcomes:
         if not np.isfinite(data.to_numpy(dtype=np.float64)).all():
             raise ValueError("Outcomes data contains NaN or infinite values.")
         self.data = data.astype(np.float64)
+        # Intervention labels are strings throughout, so integer labels from
+        # `from_tidy` must also be strings in the index, or lookups by name fail.
+        self.data.index = self.data.index.set_levels(
+            self.data.index.levels[self.data.index.names.index(INTERVENTION_LEVEL)].astype(str),
+            level=INTERVENTION_LEVEL,
+        )
         self.effect = effect
-        interventions = list(dict.fromkeys(data.index.get_level_values(INTERVENTION_LEVEL)))
-        self._interventions: list[str] = [str(s) for s in interventions]
+        interventions = list(dict.fromkeys(self.data.index.get_level_values(INTERVENTION_LEVEL)))
+        self._interventions: list[str] = list(interventions)
         if comparator is not None and comparator not in self._interventions:
             raise KeyError(f"Unknown comparator intervention: {comparator!r}.")
         self.comparator = comparator
@@ -94,8 +100,8 @@ class Outcomes:
         # iteration order. Take the order from the first intervention's own
         # rows instead, matching whatever order the caller's data was in
         # (for example, the parameter draw index passed to `run_psa`).
-        first_rows = data.index.get_level_values(INTERVENTION_LEVEL) == self._interventions[0]
-        first_iterations = data.index.get_level_values(ITERATION_LEVEL)[first_rows]
+        first_rows = self.data.index.get_level_values(INTERVENTION_LEVEL) == self._interventions[0]
+        first_iterations = self.data.index.get_level_values(ITERATION_LEVEL)[first_rows]
         self._iterations = pd.Index(list(dict.fromkeys(first_iterations)), name=ITERATION_LEVEL)
 
     # -- constructors ------------------------------------------------------

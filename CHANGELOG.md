@@ -12,6 +12,9 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Fixed
 
+- `Outcomes` stored its intervention names as strings but left the data index with the original labels, so integer intervention labels passed to `Outcomes.from_tidy` raised `KeyError` in `costs_wide`, `effects_wide`, and `select`, and therefore in `ceac`, `nmb`, and `icer_table`. The constructor now converts the intervention index level to strings
+  ([#118](https://github.com/pedroliman/heormodel/issues/118)).
+
 - `MicrosimModel`'s `_state_index` truncated a non-integer float `initial_state`
   with `int()` instead of raising, so `initial_state=1.9` silently started the
   cohort in state index 1 rather than failing. `_state_index` now raises
