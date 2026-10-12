@@ -12,6 +12,9 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Fixed
 
+- `one_way`, `one_at_a_time`, and `grid` in `heormodel.dsa` raised `TypeError` ("Invalid value 0.5 for dtype int64") when the base `Series` had an integer dtype and a swept value was a float. The builders now cast the base to float on entry, as `single_draw` does
+  ([#120](https://github.com/pedroliman/heormodel/issues/120)).
+
 - `iteration_key` returned a negative integer iteration label unchanged, and `SeedManager.child_sequence` rejects negative spawn keys, so a draws table indexed by `[-1, 0]` raised an unhelpful "expected non-negative integer" `ValueError` in `run_psa` for a stochastic engine, while the cohort engine accepted it. A negative label is now mapped to a fixed hashed key, as non-numeric labels already are; keys for non-negative labels are unchanged
   ([#119](https://github.com/pedroliman/heormodel/issues/119)).
 

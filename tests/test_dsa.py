@@ -121,3 +121,20 @@ class TestTornadoFromDsa:
         outcomes = run_psa(linear_model, design).outcomes
         with pytest.raises(ValueError, match="one-way"):
             tornado_data(outcomes, (design, descriptor), wtp=50.0, intervention="T")
+
+
+def test_builders_accept_integer_base() -> None:
+    """Float sweep values must not be rejected by an integer-dtype base."""
+    base = pd.Series({"a": 1, "b": 2})
+
+    design, _ = one_way(base, "a", [0.5, 1.5])
+    assert design["a"].tolist() == [0.5, 1.5]
+    assert design["b"].tolist() == [2.0, 2.0]
+
+    design, _ = one_at_a_time(base, {"a": (0.5, 1.5), "b": (1.5, 2.5)})
+    assert design["a"].tolist() == [1.0, 0.5, 1.5, 1.0, 1.0]
+    assert design["b"].tolist() == [2.0, 2.0, 2.0, 1.5, 2.5]
+
+    design, _ = grid(base, {"a": [0.5, 1.5], "b": [1.5, 2.5]})
+    assert len(design) == 5
+    assert design["a"].tolist() == [1.0, 0.5, 0.5, 1.5, 1.5]
