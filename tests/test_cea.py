@@ -391,3 +391,22 @@ class TestExpectedLoss:
         losses = expected_loss(Outcomes.from_wide(costs, effects), wtp=[100.0])
         assert losses.loc[100.0, "B"] == 0.0
         assert losses.loc[100.0, "A"] == pytest.approx(90.0)
+
+
+def test_from_tidy_integer_intervention_labels():
+    """Integer intervention labels become strings and work in downstream functions."""
+    df = pd.DataFrame(
+        {
+            "intervention": [1, 1, 2, 2],
+            "iteration": [0, 1, 0, 1],
+            "cost": [1.0, 2.0, 3.0, 4.0],
+            "qaly": [1.0, 1.0, 2.0, 2.0],
+        }
+    )
+    outcomes = Outcomes.from_tidy(df)
+    assert list(outcomes.costs_wide().columns) == ["1", "2"]
+    assert list(outcomes.effects_wide().columns) == ["1", "2"]
+    assert outcomes.select(["2"]).interventions == ["2"]
+    assert ceac(outcomes, [100.0]).shape[0] == 1
+    assert set(nmb(outcomes, 100.0).columns) == {"1", "2"}
+    assert set(icer_table(outcomes).index) == {"1", "2"}
