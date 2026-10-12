@@ -39,7 +39,10 @@ _COST_COL = "cost"
 def iteration_key(label: Any) -> int:
     """Turn an iteration label into a stable integer seed key.
 
-    A non-numeric label is hashed instead of converted. A float label must be
+    A non-numeric label is hashed instead of converted. A negative integer
+    label is hashed too, because a seed key must be non-negative; the hash is
+    fixed, so the key is stable across runs, and non-negative keys are
+    unchanged. A float label must be
     integer-valued (``12.0``, not ``12.1``); otherwise two distinct labels that
     truncate to the same integer, such as ``12.1`` and ``12.9``, would seed the
     identical random stream.
@@ -56,6 +59,9 @@ def iteration_key(label: Any) -> int:
             "Round the iteration column to whole numbers or use distinct integer "
             "labels."
         )
+    if as_int < 0:
+        digest = hashlib.blake2b(f"negative:{as_int}".encode(), digest_size=8).digest()
+        return int.from_bytes(digest, "big")
     return as_int
 
 
