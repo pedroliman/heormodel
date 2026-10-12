@@ -12,6 +12,9 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Fixed
 
+- `iteration_key` returned a negative integer iteration label unchanged, and `SeedManager.child_sequence` rejects negative spawn keys, so a draws table indexed by `[-1, 0]` raised an unhelpful "expected non-negative integer" `ValueError` in `run_psa` for a stochastic engine, while the cohort engine accepted it. A negative label is now mapped to a fixed hashed key, as non-numeric labels already are; keys for non-negative labels are unchanged
+  ([#119](https://github.com/pedroliman/heormodel/issues/119)).
+
 - `Outcomes` stored its intervention names as strings but left the data index with the original labels, so integer intervention labels passed to `Outcomes.from_tidy` raised `KeyError` in `costs_wide`, `effects_wide`, and `select`, and therefore in `ceac`, `nmb`, and `icer_table`. The constructor now converts the intervention index level to strings
   ([#118](https://github.com/pedroliman/heormodel/issues/118)).
 

@@ -169,3 +169,22 @@ class TestSeededStochasticRun:
         # A plain function produces no event or individual log.
         with pytest.raises(ValueError, match="only available for a stochastic engine"):
             run_psa(_model, _draws(), collect="events", sequential=True)
+
+
+class TestNegativeIterationLabels:
+    def test_negative_labels_run_and_are_stable(self):
+        engine = _stochastic_engine()
+        draws = pd.DataFrame({"p": [0.2, 0.3]}, index=pd.Index([-1, 0], name="iteration"))
+        first = run_psa(engine, draws, seed=5, sequential=True).outcomes
+        second = run_psa(engine, draws, seed=5, sequential=True).outcomes
+        pd.testing.assert_frame_equal(first.data, second.data)
+        assert list(first.data.index.get_level_values("iteration").unique()) == [-1, 0]
+
+    def test_keys_distinct_and_non_negative_unchanged(self):
+        from heormodel.models._engine import iteration_key
+
+        assert iteration_key(0) == 0
+        assert iteration_key(7) == 7
+        assert iteration_key(-1) >= 0
+        assert iteration_key(-1) != iteration_key(-2)
+        assert iteration_key(np.int64(-1)) == iteration_key(-1)
