@@ -87,6 +87,24 @@ def from_lifelines(fitted_model: FittedSurvivalModel, *, label: str | None = Non
     )
 
 
+# Parameters constrained to be positive, by fitter class name. Everything else
+# (location parameters such as `mu_`, and the log-scale `ln_sigma_` of the
+# generalized gamma) is unconstrained and is sampled on its natural scale. A
+# fitter missing from this table is sampled entirely on the natural scale.
+_POSITIVE_PARAMS: dict[str, tuple[str, ...]] = {
+    "WeibullFitter": ("lambda_", "rho_"),
+    "ExponentialFitter": ("lambda_",),
+    "LogNormalFitter": ("sigma_",),
+    "LogLogisticFitter": ("alpha_", "beta_"),
+}
+
+
+def _is_positive_param(model_name: str, name: str) -> bool:
+    if model_name == "PiecewiseExponentialFitter":
+        return name.startswith("lambda_")
+    return name in _POSITIVE_PARAMS.get(model_name, ())
+
+
 def sample_params(
     fitted_model: FittedSurvivalModel,
     n: int,
@@ -94,14 +112,24 @@ def sample_params(
 ) -> pd.DataFrame:
     """Draw parameter sets from a fit's asymptotic covariance.
 
-    Draws `n` parameter vectors from the multivariate normal approximation to
+    Draws `n` parameter vectors from the asymptotic normal approximation to
     the maximum-likelihood estimate, `Normal(params_, variance_matrix_)`, the
     same approximation the fitting package itself uses for confidence
-    intervals. The draws land on the canonical `iteration` index, so the
-    fitted survival curve's uncertainty flows into `heormodel.run.run_psa`
-    alongside every other parameter, keyed by the fitted model's own
-    parameter names (for `lifelines.WeibullFitter`, `lambda_` for the scale
-    and `rho_` for the shape).
+    intervals. Parameters that must be positive (`lambda_` and `rho_` of
+    `WeibullFitter`, `lambda_` of `ExponentialFitter`, `sigma_` of
+    `LogNormalFitter`, `alpha_` and `beta_` of `LogLogisticFitter`, and each
+    `lambda_` of `PiecewiseExponentialFitter`) are sampled on the log scale
+    and exponentiated, so every draw is positive. The covariance on the log
+    scale follows from the delta method, `Var(log p) = Var(p) / p**2`, applied
+    to the whole matrix. Unconstrained parameters, such as the location `mu_`
+    of `LogNormalFitter`, stay on the natural scale, and a fitter that is not
+    listed here is sampled entirely on the natural scale.
+
+    The draws land on the canonical `iteration` index, so the fitted survival
+    curve's uncertainty flows into `heormodel.run.run_psa` alongside every
+    other parameter, keyed by the fitted model's own parameter names (for
+    `lifelines.WeibullFitter`, `lambda_` for the scale and `rho_` for the
+    shape).
 
     Args:
         fitted_model: A fitted parametric survival model exposing `params_`
@@ -124,9 +152,18 @@ def sample_params(
     if n <= 0:
         raise ValueError("n must be a positive integer.")
 
+    names = list(fitted_model.params_.index)
     mean = np.asarray(fitted_model.params_, dtype=np.float64)
     covariance = np.asarray(fitted_model.variance_matrix_, dtype=np.float64)
+    model_name = type(fitted_model).__name__
+    positive = np.array([_is_positive_param(model_name, str(name)) for name in names])
+    if np.any(mean[positive] <= 0):
+        raise ValueError("Positive-only parameters must have positive estimates.")
+    # Delta method: the Jacobian of log(p) is 1 / p for positive parameters, 1 otherwise.
+    scale = np.where(positive, 1.0 / np.where(positive, mean, 1.0), 1.0)
+    mean = np.where(positive, np.log(np.where(positive, mean, 1.0)), mean)
+    covariance = covariance * np.outer(scale, scale)
     rng = as_rng(seed)
     draws = rng.multivariate_normal(mean, covariance, size=n)
-    columns = list(fitted_model.params_.index)
-    return pd.DataFrame(draws, columns=columns, index=pd.RangeIndex(n, name="iteration"))
+    draws[:, positive] = np.exp(draws[:, positive])
+    return pd.DataFrame(draws, columns=names, index=pd.RangeIndex(n, name="iteration"))

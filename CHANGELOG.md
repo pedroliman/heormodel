@@ -12,6 +12,9 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Fixed
 
+- `sample_params` in `heormodel.survival` drew every parameter from a multivariate normal on the natural scale, so positive-only parameters such as the Weibull `lambda_` and `rho_` could be negative in small samples. Positive-only parameters (Weibull, exponential, log-normal `sigma_`, log-logistic, piecewise exponential) are now sampled on the log scale with the delta-method covariance and exponentiated; location parameters stay on the natural scale, and the docstring states the sampling scale
+  ([#121](https://github.com/pedroliman/heormodel/issues/121)).
+
 - `one_way`, `one_at_a_time`, and `grid` in `heormodel.dsa` raised `TypeError` ("Invalid value 0.5 for dtype int64") when the base `Series` had an integer dtype and a swept value was a float. The builders now cast the base to float on entry, as `single_draw` does
   ([#120](https://github.com/pedroliman/heormodel/issues/120)).
 

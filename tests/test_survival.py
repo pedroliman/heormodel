@@ -316,13 +316,59 @@ class TestLifelinesAdapter:
             sample_params(fit, n=0, seed=0)
 
     def test_sample_params_recovers_fit_moments(self):
-        """Sampling recovers the fitted mean and covariance as the draw count grows."""
-        fit = _fit_weibull_at(300)
+        """Log-scale sampling matches the fitted mean and covariance when the fit is precise."""
+        fit = _fit_weibull_at(20_000)
         draws = sample_params(fit, n=200_000, seed=0)
-        assert draws.mean().to_numpy() == pytest.approx(fit.params_.to_numpy(), abs=5e-3)
+        assert draws.mean().to_numpy() == pytest.approx(fit.params_.to_numpy(), rel=1e-3)
         assert np.cov(draws.to_numpy().T) == pytest.approx(
-            fit.variance_matrix_.to_numpy(), abs=5e-3
+            fit.variance_matrix_.to_numpy(), rel=0.05
         )
+
+    def test_sample_params_positive_only_draws_stay_positive(self):
+        """Regression for #121: a small sample no longer yields negative Weibull draws."""
+        data = 5 * np.random.default_rng(0).weibull(1.5, 8)
+        fit = WeibullFitter().fit(data)
+        draws = sample_params(fit, 5000, seed=1)
+        assert (draws > 0).all().all()
+
+    def test_sample_params_keeps_location_parameter_on_natural_scale(self):
+        """`mu_` of a log-normal fit is unconstrained, so it may be negative."""
+        from lifelines import LogNormalFitter
+
+        data = np.random.default_rng(0).lognormal(-1.0, 2.0, 8)
+        fit = LogNormalFitter().fit(data)
+        draws = sample_params(fit, 5000, seed=1)
+        assert (draws["sigma_"] > 0).all()
+        assert (draws["mu_"] < 0).any()
+
+    @pytest.mark.parametrize(
+        "fitter_name", ["ExponentialFitter", "LogNormalFitter", "LogLogisticFitter"]
+    )
+    def test_sample_params_positive_for_other_fitters(self, fitter_name):
+        import lifelines
+
+        data = 5 * np.random.default_rng(0).weibull(1.5, 8)
+        fit = getattr(lifelines, fitter_name)().fit(data)
+        draws = sample_params(fit, 2000, seed=1)
+        positive = [c for c in draws.columns if c != "mu_"]
+        assert (draws[positive] > 0).all().all()
+
+    def test_sample_params_piecewise_exponential_stays_positive(self):
+        from lifelines import PiecewiseExponentialFitter
+
+        data = 5 * np.random.default_rng(0).weibull(1.5, 30)
+        fit = PiecewiseExponentialFitter(breakpoints=[3.0]).fit(data)
+        draws = sample_params(fit, 2000, seed=1)
+        assert (draws > 0).all().all()
+
+    def test_sample_params_rejects_non_positive_estimate(self):
+        class ExponentialFitter:
+            params_ = pd.Series({"lambda_": -1.0})
+            variance_matrix_ = pd.DataFrame([[0.1]])
+
+        stub = ExponentialFitter()
+        with pytest.raises(ValueError, match="positive estimates"):
+            sample_params(stub, 5, seed=0)
 
     def test_parameter_recovery_converges(self):
         """The fit converges to the data-generating parameters as the sample grows."""
