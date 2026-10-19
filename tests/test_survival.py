@@ -353,6 +353,23 @@ class TestLifelinesAdapter:
         positive = [c for c in draws.columns if c != "mu_"]
         assert (draws[positive] > 0).all().all()
 
+    def test_sample_params_piecewise_exponential_stays_positive(self):
+        from lifelines import PiecewiseExponentialFitter
+
+        data = 5 * np.random.default_rng(0).weibull(1.5, 30)
+        fit = PiecewiseExponentialFitter(breakpoints=[3.0]).fit(data)
+        draws = sample_params(fit, 2000, seed=1)
+        assert (draws > 0).all().all()
+
+    def test_sample_params_rejects_non_positive_estimate(self):
+        class ExponentialFitter:
+            params_ = pd.Series({"lambda_": -1.0})
+            variance_matrix_ = pd.DataFrame([[0.1]])
+
+        stub = ExponentialFitter()
+        with pytest.raises(ValueError, match="positive estimates"):
+            sample_params(stub, 5, seed=0)
+
     def test_parameter_recovery_converges(self):
         """The fit converges to the data-generating parameters as the sample grows."""
         fit_large = _fit_weibull_at(200_000)
