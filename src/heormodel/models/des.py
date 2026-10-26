@@ -156,9 +156,7 @@ class _DESToolkit:
             component: Optional label for the cost subtotal.
         """
         now = float(self.env.now)
-        self.accrue_over(
-            now, now + float(duration), cost_rate, effect_rate, component=component
-        )
+        self.accrue_over(now, now + float(duration), cost_rate, effect_rate, component=component)
 
     def state(self, name: str) -> None:
         """Mark the entity as entering trajectory segment ``name`` in the log."""
@@ -179,9 +177,7 @@ class _DESToolkit:
             )
         return _RequestContext(self, resource_name, self._resources[resource_name])
 
-    def _record(
-        self, event: str, *, state: str | None = None, resource: str | None = None
-    ) -> None:
+    def _record(self, event: str, *, state: str | None = None, resource: str | None = None) -> None:
         if self._log is None:
             return
         self._log.append(
@@ -351,7 +347,6 @@ class DESModel(StreamingEngine):
         for name in component_names:
             result[name] = np.array([tk.components.get(name, 0.0) for tk in toolkits])
         return result
-
 
 
 def queue_waits(trace: pd.DataFrame) -> pd.DataFrame:

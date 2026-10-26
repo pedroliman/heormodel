@@ -25,9 +25,7 @@ from heormodel.run import run_psa  # noqa: E402
 
 
 def _draws(n_iter=1):
-    return pd.DataFrame(
-        {"unused": np.zeros(n_iter)}, index=pd.RangeIndex(n_iter, name="iteration")
-    )
+    return pd.DataFrame({"unused": np.zeros(n_iter)}, index=pd.RangeIndex(n_iter, name="iteration"))
 
 
 class TestMM1Validation:
@@ -340,23 +338,32 @@ class TestPopulationValidation:
 
     def test_none_population_uses_n_individuals(self):
         engine = DESModel(
-            process=_noop_process, population=None, n_individuals=3,
-            interventions=["a"], horizon=5.0,
+            process=_noop_process,
+            population=None,
+            n_individuals=3,
+            interventions=["a"],
+            horizon=5.0,
         )
         assert engine.evaluate(_draws()).n_iterations == 1
 
     def test_sampler_must_return_a_dataframe(self):
         engine = DESModel(
-            process=_noop_process, population=lambda rng, n: [1, 2],
-            n_individuals=2, interventions=["a"], horizon=5.0,
+            process=_noop_process,
+            population=lambda rng, n: [1, 2],
+            n_individuals=2,
+            interventions=["a"],
+            horizon=5.0,
         )
         with pytest.raises(TypeError, match="must return a DataFrame"):
             engine.evaluate(_draws())
 
     def test_sampler_row_count_is_checked(self):
         engine = DESModel(
-            process=_noop_process, population=lambda rng, n: pd.DataFrame({"x": [1.0]}),
-            n_individuals=2, interventions=["a"], horizon=5.0,
+            process=_noop_process,
+            population=lambda rng, n: pd.DataFrame({"x": [1.0]}),
+            n_individuals=2,
+            interventions=["a"],
+            horizon=5.0,
         )
         with pytest.raises(ValueError, match="rows, expected"):
             engine.evaluate(_draws())

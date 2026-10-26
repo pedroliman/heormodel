@@ -170,9 +170,7 @@ class ODEModel(DeterministicEngine):
     def _check_vector(self, name: str, value: NDArray[np.float64]) -> NDArray[np.float64]:
         arr = np.asarray(value, dtype=np.float64)
         if arr.shape != (self._n_states,):
-            raise ValueError(
-                f"{name} must have shape {(self._n_states,)}, got {arr.shape}."
-            )
+            raise ValueError(f"{name} must have shape {(self._n_states,)}, got {arr.shape}.")
         return arr
 
     def _rewards_of_events(
@@ -182,9 +180,7 @@ class ODEModel(DeterministicEngine):
         if spec.event_rates is None:
             return None, np.zeros(0), np.zeros(0)
         if spec.event_cost is None or spec.event_effect is None:
-            raise ValueError(
-                "event_cost and event_effect are required when event_rates is given."
-            )
+            raise ValueError("event_cost and event_effect are required when event_rates is given.")
         cost = np.asarray(spec.event_cost, dtype=np.float64)
         effect = np.asarray(spec.event_effect, dtype=np.float64)
         if cost.shape != effect.shape or cost.ndim != 1:
@@ -213,9 +209,7 @@ class ODEModel(DeterministicEngine):
             y = y_aug[:n]
             dy = np.asarray(derivatives(t, y), dtype=np.float64)
             if dy.shape != (n,):
-                raise ValueError(
-                    f"derivatives must return shape {(n,)}, got {dy.shape}."
-                )
+                raise ValueError(f"derivatives must return shape {(n,)}, got {dy.shape}.")
             cost_flow = float(y @ state_cost)
             effect_flow = float(y @ state_effect)
             if event_rates is not None:
@@ -299,4 +293,3 @@ class ODEModel(DeterministicEngine):
         for i, name in enumerate(self._states):
             frame[name] = sol.y[i]
         return frame
-

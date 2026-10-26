@@ -50,9 +50,7 @@ def _cohort_reference(horizon, rate_cost, rate_eff, half_cycle, cycle_length=1.0
 
 
 def _draws(n_iter=1):
-    return pd.DataFrame(
-        {"unused": np.zeros(n_iter)}, index=pd.RangeIndex(n_iter, name="iteration")
-    )
+    return pd.DataFrame({"unused": np.zeros(n_iter)}, index=pd.RangeIndex(n_iter, name="iteration"))
 
 
 class TestDiscreteValidation:
@@ -190,9 +188,7 @@ class TestContract:
         assert isinstance(_small_engine(), ModelEngine)
 
     def test_float_iterations_sharing_an_integer_part_are_rejected(self):
-        draws = pd.DataFrame(
-            {"unused": [0.0, 0.0]}, index=pd.Index([12.1, 12.9], name="iteration")
-        )
+        draws = pd.DataFrame({"unused": [0.0, 0.0]}, index=pd.Index([12.1, 12.9], name="iteration"))
         with pytest.raises(ValueError, match="12.1"):
             _small_engine().evaluate(draws)
 
@@ -214,9 +210,7 @@ class TestContract:
             state_rewards=payoffs, interventions=["base", Intervention("double", {"mult": 2.0})]
         )
         summary = engine.evaluate(_draws(3)).summary()
-        assert summary.loc["double", "cost"] == pytest.approx(
-            2.0 * summary.loc["base", "cost"]
-        )
+        assert summary.loc["double", "cost"] == pytest.approx(2.0 * summary.loc["base", "cost"])
 
     def test_intervention_name_reaches_the_model(self):
         # An intervention can branch on its name instead of a parameter decision lever.
@@ -226,9 +220,7 @@ class TestContract:
 
         engine = _small_engine(state_rewards=payoffs, interventions=["base", "double"])
         summary = engine.evaluate(_draws(3)).summary()
-        assert summary.loc["double", "cost"] == pytest.approx(
-            2.0 * summary.loc["base", "cost"]
-        )
+        assert summary.loc["double", "cost"] == pytest.approx(2.0 * summary.loc["base", "cost"])
 
 
 class TestPopulationAndTrace:
@@ -241,9 +233,7 @@ class TestPopulationAndTrace:
             sick = (state == 1).astype(float)
             return COST_VEC[state] + sick * attrs["frail"].to_numpy() * 1_000.0, EFF_VEC[state]
 
-        engine = _small_engine(
-            state_rewards=payoffs, population=population, n_individuals=300
-        )
+        engine = _small_engine(state_rewards=payoffs, population=population, n_individuals=300)
         out = engine.evaluate(_draws(2))
         assert out.n_iterations == 2
 
@@ -276,8 +266,11 @@ class TestDurationGroups:
 
         engine = MicrosimModel.discrete(
             states=("H", "S1", "S2", "D"),
-            transition_probabilities=transition, state_rewards=payoffs,
-            population=1, interventions=["s"], n_cycles=len(path) - 1,
+            transition_probabilities=transition,
+            state_rewards=payoffs,
+            population=1,
+            interventions=["s"],
+            n_cycles=len(path) - 1,
             duration_groups={"sick_dur": ("S1", "S2")},
         )
         engine.evaluate(_draws())
@@ -298,8 +291,11 @@ class TestConstructorValidation:
     def test_discrete_requires_transition(self):
         with pytest.raises(TypeError, match="transition_probabilities"):
             MicrosimModel.discrete(
-                states=("H", "S", "D"), state_rewards=_payoffs, population=10,
-                interventions=["care"], n_cycles=10,
+                states=("H", "S", "D"),
+                state_rewards=_payoffs,
+                population=10,
+                interventions=["care"],
+                n_cycles=10,
             )
 
     def test_continuous_requires_event_times(self):
@@ -308,8 +304,11 @@ class TestConstructorValidation:
 
         with pytest.raises(TypeError, match="event_times"):
             MicrosimModel.continuous(
-                states=("H", "S", "D"), state_reward_rates=reward_rates,
-                population=10, interventions=["care"], horizon=10.0,
+                states=("H", "S", "D"),
+                state_reward_rates=reward_rates,
+                population=10,
+                interventions=["care"],
+                horizon=10.0,
             )
 
     def test_non_integer_initial_state_index_rejected(self):
@@ -329,7 +328,11 @@ class TestConstructorValidation:
 
         with pytest.raises(TypeError, match="cycle_correction"):
             MicrosimModel.continuous(
-                states=("H", "S", "D"), event_times=event_times,
-                state_reward_rates=reward_rates, population=10, interventions=["care"],
-                horizon=10.0, cycle_correction="none",
+                states=("H", "S", "D"),
+                event_times=event_times,
+                state_reward_rates=reward_rates,
+                population=10,
+                interventions=["care"],
+                horizon=10.0,
+                cycle_correction="none",
             )

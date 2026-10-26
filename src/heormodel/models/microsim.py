@@ -51,9 +51,7 @@ class _MicrosimBase(StreamingEngine):
         self,
         *,
         states: tuple[str, ...],
-        state_rewards: Callable[
-            ..., tuple[NDArray[np.float64], NDArray[np.float64]]
-        ],
+        state_rewards: Callable[..., tuple[NDArray[np.float64], NDArray[np.float64]]],
         population: PopulationSpec,
         interventions: InterventionSpec,
         n_individuals: int,
@@ -89,8 +87,13 @@ class _MicrosimBase(StreamingEngine):
         return idx
 
     def _simulate(
-        self, params: pd.Series, intervention: str, attrs: pd.DataFrame,
-        rng: np.random.Generator, *, collect_events: bool = False,
+        self,
+        params: pd.Series,
+        intervention: str,
+        attrs: pd.DataFrame,
+        rng: np.random.Generator,
+        *,
+        collect_events: bool = False,
     ) -> tuple[NDArray[np.float64], NDArray[np.float64], pd.DataFrame | None]:
         raise NotImplementedError
 
@@ -168,9 +171,7 @@ class MicrosimModel(_MicrosimBase):
         *,
         clock: str,
         states: tuple[str, ...],
-        state_rewards: Callable[
-            ..., tuple[NDArray[np.float64], NDArray[np.float64]]
-        ],
+        state_rewards: Callable[..., tuple[NDArray[np.float64], NDArray[np.float64]]],
         interventions: InterventionSpec,
         transition_probabilities: Callable[..., NDArray[np.float64]] | None = None,
         event_times: Callable[..., NDArray[np.float64]] | None = None,
@@ -369,8 +370,13 @@ class MicrosimModel(_MicrosimBase):
         )
 
     def _simulate(
-        self, params: pd.Series, intervention: str, attrs: pd.DataFrame,
-        rng: np.random.Generator, *, collect_events: bool = False,
+        self,
+        params: pd.Series,
+        intervention: str,
+        attrs: pd.DataFrame,
+        rng: np.random.Generator,
+        *,
+        collect_events: bool = False,
     ) -> tuple[NDArray[np.float64], NDArray[np.float64], pd.DataFrame | None]:
         if self._clock == "discrete":
             return self._simulate_discrete(
@@ -408,8 +414,13 @@ class MicrosimModel(_MicrosimBase):
         )
 
     def _simulate_discrete(
-        self, params: pd.Series, intervention: str, attrs: pd.DataFrame,
-        rng: np.random.Generator, *, collect_events: bool = False,
+        self,
+        params: pd.Series,
+        intervention: str,
+        attrs: pd.DataFrame,
+        rng: np.random.Generator,
+        *,
+        collect_events: bool = False,
     ) -> tuple[NDArray[np.float64], NDArray[np.float64], pd.DataFrame | None]:
         n = len(attrs)
         n_states = len(self._states)
@@ -467,17 +478,20 @@ class MicrosimModel(_MicrosimBase):
         return cost_total, eff_total, events
 
     @staticmethod
-    def _sample_next(
-        probs: NDArray[np.float64], rng: np.random.Generator
-    ) -> NDArray[np.int64]:
+    def _sample_next(probs: NDArray[np.float64], rng: np.random.Generator) -> NDArray[np.int64]:
         cdf = np.cumsum(probs, axis=1)
         cdf[:, -1] = 1.0  # guard against floating-point shortfall in the last bin
         u = np.asarray(rng.random(probs.shape[0]))
         return (u[:, None] < cdf).argmax(axis=1).astype(np.int64)
 
     def _simulate_continuous(
-        self, params: pd.Series, intervention: str, attrs: pd.DataFrame,
-        rng: np.random.Generator, *, collect_events: bool = False,
+        self,
+        params: pd.Series,
+        intervention: str,
+        attrs: pd.DataFrame,
+        rng: np.random.Generator,
+        *,
+        collect_events: bool = False,
     ) -> tuple[NDArray[np.float64], NDArray[np.float64], pd.DataFrame | None]:
         n = len(attrs)
         n_states = len(self._states)

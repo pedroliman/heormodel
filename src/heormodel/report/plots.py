@@ -109,8 +109,8 @@ def _hdr_regions(ax: Axes, x: np.ndarray, y: np.ndarray, color: str) -> bool:
     pad_x = 0.30 * np.ptp(x)
     pad_y = 0.30 * np.ptp(y)
     grid_x, grid_y = np.mgrid[
-        x.min() - pad_x:x.max() + pad_x:200j,
-        y.min() - pad_y:y.max() + pad_y:200j,
+        x.min() - pad_x : x.max() + pad_x : 200j,
+        y.min() - pad_y : y.max() + pad_y : 200j,
     ]
     density = kde(np.vstack([grid_x.ravel(), grid_y.ravel()])).reshape(grid_x.shape)
     levels = thresholds + [float(density.max()) + 1e-12]
@@ -120,8 +120,9 @@ def _hdr_regions(ax: Axes, x: np.ndarray, y: np.ndarray, color: str) -> bool:
     alphas = (0.20, 0.40, 0.65)  # outer to inner band
     fills = [mcolors.to_rgba(color, a) for a in alphas]
     ax.contourf(grid_x, grid_y, density, levels=levels, colors=fills)
-    ax.contour(grid_x, grid_y, density, levels=[thresholds[-1]],
-               colors=[color], linewidths=1.0, alpha=0.7)
+    ax.contour(
+        grid_x, grid_y, density, levels=[thresholds[-1]], colors=[color], linewidths=1.0, alpha=0.7
+    )
     return True
 
 
@@ -417,8 +418,12 @@ def tornado_data(
     if isinstance(draws, tuple):
         _, descriptor = draws
         return _tornado_from_dsa(
-            outcomes, descriptor, wtp,
-            intervention=intervention, comparator=comparator, effect=effect,
+            outcomes,
+            descriptor,
+            wtp,
+            intervention=intervention,
+            comparator=comparator,
+            effect=effect,
         )
     require_shared_index(draws.index, outcomes.iterations, "draws")
     yv = _target_nmb(

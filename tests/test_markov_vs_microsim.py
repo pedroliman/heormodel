@@ -24,8 +24,17 @@ STATES = ("H", "S1", "S2", "D")
 N_CYCLES = 40
 INTERVENTION = "Standard of care"
 BASE = dict(
-    r_HS1=0.12, r_S1S2=0.10, r_HD=0.010, hr_S1=3.0, hr_S2=10.0,
-    c_H=1_000.0, c_S1=4_000.0, c_S2=15_000.0, u_H=1.0, u_S1=0.75, u_S2=0.5,
+    r_HS1=0.12,
+    r_S1S2=0.10,
+    r_HD=0.010,
+    hr_S1=3.0,
+    hr_S2=10.0,
+    c_H=1_000.0,
+    c_S1=4_000.0,
+    c_S2=15_000.0,
+    u_H=1.0,
+    u_S1=0.75,
+    u_S2=0.5,
 )
 COST = np.array([BASE["c_H"], BASE["c_S1"], BASE["c_S2"], 0.0])
 EFF = np.array([BASE["u_H"], BASE["u_S1"], BASE["u_S2"], 0.0])
@@ -85,15 +94,22 @@ def _microsim(n, var):
         transition_probabilities=_transition,
         state_rewards=_payoffs,
         population=_make_pop(var),
-        n_individuals=n, interventions=[INTERVENTION], n_cycles=N_CYCLES,
-        discount_rate=0.03, cycle_correction="half_cycle",
+        n_individuals=n,
+        interventions=[INTERVENTION],
+        n_cycles=N_CYCLES,
+        discount_rate=0.03,
+        cycle_correction="half_cycle",
     )
 
 
 def _cohort():
     return MarkovModel(
-        states=STATES, interventions=(INTERVENTION,), transitions_and_rewards=_cohort_model,
-        n_cycles=N_CYCLES, initial_state="H", discount_rate=0.03,
+        states=STATES,
+        interventions=(INTERVENTION,),
+        transitions_and_rewards=_cohort_model,
+        n_cycles=N_CYCLES,
+        initial_state="H",
+        discount_rate=0.03,
         cycle_correction="half_cycle",
     )
 

@@ -12,6 +12,9 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Fixed
 
+- `MarkovModel` multiplied one-time transition rewards by the within-cycle correction weight, so `"half_cycle"` and `"simpson"` changed the total cost of an event such as dying (a cost of 100 on alive to dead over two cycles with `p_die = 0.2` gave 28.0 under `"half_cycle"` instead of 36.0). Transition rewards are now discounted but not reweighted, so they total the expected number of events times the amount under every correction setting; state rewards keep the correction. The module and `CohortSpec` docstrings state the convention
+  ([#126](https://github.com/pedroliman/heormodel/issues/126)).
+
 - `sample_params` in `heormodel.survival` drew every parameter from a multivariate normal on the natural scale, so positive-only parameters such as the Weibull `lambda_` and `rho_` could be negative in small samples. Positive-only parameters (Weibull, exponential, log-normal `sigma_`, log-logistic, piecewise exponential) are now sampled on the log scale with the delta-method covariance and exponentiated; location parameters stay on the natural scale, and the docstring states the sampling scale
   ([#121](https://github.com/pedroliman/heormodel/issues/121)).
 

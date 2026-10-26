@@ -58,9 +58,11 @@ def test_reference_table_rows():
 
 def test_two_engines_recover_discounted_life_expectancy():
     """The continuous sampler and the cohort both recover the discounted value."""
-    continuous = run_psa(
-        continuous_engine(200_000), _draws(SHAPE, SCALE), seed=1, sequential=True
-    ).outcomes.summary().loc[INTERVENTION, "lifeyears"]
+    continuous = (
+        run_psa(continuous_engine(200_000), _draws(SHAPE, SCALE), seed=1, sequential=True)
+        .outcomes.summary()
+        .loc[INTERVENTION, "lifeyears"]
+    )
     cohort = cohort_engine().evaluate(_draws(SHAPE, SCALE)).summary().loc[INTERVENTION, "lifeyears"]
     # Continuous integration matches within Monte Carlo error; the cohort matches
     # within the cycle-correction error.
@@ -74,9 +76,13 @@ def test_constant_hazard_closed_form():
     shape, scale = 1.0, 1.0 / hazard  # exponential: Weibull with shape one
     expected = 1.0 / (DISCOUNT + hazard)
     assert discounted_life_expectancy(shape, scale) == pytest.approx(expected, abs=1e-9)
-    engine = run_psa(
-        continuous_engine(200_000, horizon=400.0), _draws(shape, scale), seed=3, sequential=True
-    ).outcomes.summary().loc[INTERVENTION, "lifeyears"]
+    engine = (
+        run_psa(
+            continuous_engine(200_000, horizon=400.0), _draws(shape, scale), seed=3, sequential=True
+        )
+        .outcomes.summary()
+        .loc[INTERVENTION, "lifeyears"]
+    )
     assert engine == pytest.approx(expected, rel=0.01)
 
 

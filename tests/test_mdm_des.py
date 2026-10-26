@@ -32,18 +32,35 @@ STATES = ("H", "S1", "S2", "D")
 LIFE_TABLE = LifeTable(ages=[0.0], rates=[MORTALITY_RATE])
 
 BASE = dict(
-    r_HS1=0.15, r_S1H=0.5, r_S1S2_scale=0.09, r_S1S2_shape=1.0,
-    hr_S1=3.0, hr_S2=10.0, hr_S1S2_trtB=0.6,
-    c_H=2000.0, c_S1=4000.0, c_S2=15000.0, c_trtA=12000.0, c_trtB=13000.0,
-    u_H=1.0, u_S1=0.75, u_S2=0.5,
-    du_HS1=0.01, ic_HS1=1000.0, ic_D=2000.0,
+    r_HS1=0.15,
+    r_S1H=0.5,
+    r_S1S2_scale=0.09,
+    r_S1S2_shape=1.0,
+    hr_S1=3.0,
+    hr_S2=10.0,
+    hr_S1S2_trtB=0.6,
+    c_H=2000.0,
+    c_S1=4000.0,
+    c_S2=15000.0,
+    c_trtA=12000.0,
+    c_trtB=13000.0,
+    u_H=1.0,
+    u_S1=0.75,
+    u_S2=0.5,
+    du_HS1=0.01,
+    ic_HS1=1000.0,
+    ic_D=2000.0,
 )
 
 
 def _engine(interventions: list[Intervention], population: int):
     return build_engine(
-        life_table=LIFE_TABLE, states=STATES, interventions=interventions,
-        age_start=0.0, horizon=HORIZON, discount_rate=DISCOUNT,
+        life_table=LIFE_TABLE,
+        states=STATES,
+        interventions=interventions,
+        age_start=0.0,
+        horizon=HORIZON,
+        discount_rate=DISCOUNT,
         population=population,
     )
 
@@ -53,8 +70,11 @@ def ctmc_value(p: dict, *, trt_a: bool, trt_b: bool) -> tuple[float, float]:
     lam_prog = p["r_S1S2_scale"] * (p["hr_S1S2_trtB"] if trt_b else 1.0)
     m = MORTALITY_RATE
     rates = {
-        (0, 1): p["r_HS1"], (0, 3): m,
-        (1, 0): p["r_S1H"], (1, 2): lam_prog, (1, 3): p["hr_S1"] * m,
+        (0, 1): p["r_HS1"],
+        (0, 3): m,
+        (1, 0): p["r_S1H"],
+        (1, 2): lam_prog,
+        (1, 3): p["hr_S1"] * m,
         (2, 3): p["hr_S2"] * m,
     }
     q = np.zeros((3, 3))
@@ -68,28 +88,41 @@ def ctmc_value(p: dict, *, trt_a: bool, trt_b: bool) -> tuple[float, float]:
     # A transition amount accrues over the sojourn, so it enters the state's flow
     # as the amount times its transition rate over the state's total exit rate:
     # its expected annual flow while occupying the state.
-    reward_cost = np.array([
-        rates[(0, 1)] * p["ic_HS1"] + rates[(0, 3)] * p["ic_D"],
-        rates[(1, 3)] * p["ic_D"],
-        rates[(2, 3)] * p["ic_D"],
-    ]) / exit_rate
+    reward_cost = (
+        np.array(
+            [
+                rates[(0, 1)] * p["ic_HS1"] + rates[(0, 3)] * p["ic_D"],
+                rates[(1, 3)] * p["ic_D"],
+                rates[(2, 3)] * p["ic_D"],
+            ]
+        )
+        / exit_rate
+    )
     reward_eff = np.array([rates[(0, 1)] * (-p["du_HS1"]), 0.0, 0.0]) / exit_rate
     cost_rate = np.array([p["c_H"], p["c_S1"] + tx_cost, p["c_S2"] + tx_cost]) + reward_cost
-    eff_rate = np.array([
-        p["u_H"],
-        (p["u_S1"] + 0.20) if trt_a else p["u_S1"],
-        p["u_S2"],
-    ]) + reward_eff
+    eff_rate = (
+        np.array(
+            [
+                p["u_H"],
+                (p["u_S1"] + 0.20) if trt_a else p["u_S1"],
+                p["u_S2"],
+            ]
+        )
+        + reward_eff
+    )
     lhs = DISCOUNT * np.eye(3) - q
     cost = float(np.linalg.solve(lhs, cost_rate)[0])
     eff = float(np.linalg.solve(lhs, eff_rate)[0])
     return cost, eff
 
 
-@pytest.mark.parametrize("intervention,decision_levers", [
-    ("Standard of care", {"trtA": 0.0, "trtB": 0.0}),
-    ("Intervention AB", {"trtA": 1.0, "trtB": 1.0}),
-])
+@pytest.mark.parametrize(
+    "intervention,decision_levers",
+    [
+        ("Standard of care", {"trtA": 0.0, "trtB": 0.0}),
+        ("Intervention AB", {"trtA": 1.0, "trtB": 1.0}),
+    ],
+)
 def test_engine_matches_ctmc_closed_form(intervention, decision_levers):
     engine = _engine([Intervention(intervention, decision_levers)], population=120_000)
     draws = single_draw(BASE)
@@ -98,8 +131,9 @@ def test_engine_matches_ctmc_closed_form(intervention, decision_levers):
         result.outcomes, result.events, draws, n_individuals=120_000, discount_rate=DISCOUNT
     )
     got = outcomes.summary().loc[intervention]
-    want_cost, want_eff = ctmc_value(BASE, trt_a=bool(decision_levers["trtA"]),
-                                     trt_b=bool(decision_levers["trtB"]))
+    want_cost, want_eff = ctmc_value(
+        BASE, trt_a=bool(decision_levers["trtA"]), trt_b=bool(decision_levers["trtB"])
+    )
     assert got["cost"] == pytest.approx(want_cost, rel=0.01)
     assert got["qaly"] == pytest.approx(want_eff, rel=0.01)
 

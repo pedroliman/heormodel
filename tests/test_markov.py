@@ -53,8 +53,12 @@ def test_two_state_closed_form():
         return CohortSpec(P, np.array([cost, 0.0]), np.array([1.0, 0.0]))
 
     engine = MarkovModel(
-        states=("alive", "dead"), interventions=("s",), transitions_and_rewards=model,
-        n_cycles=horizon, discount_rate=rate, cycle_correction="none",
+        states=("alive", "dead"),
+        interventions=("s",),
+        transitions_and_rewards=model,
+        n_cycles=horizon,
+        discount_rate=rate,
+        cycle_correction="none",
     )
     got = engine.evaluate(_draws()).summary().loc["s"]
     # occupancy of alive at cycle t is (1-p)^t; accrue discounted, unit weights
@@ -84,9 +88,22 @@ def test_half_cycle_correction_changes_result():
 # -- published Sick-Sicker replication --------------------------------------
 
 _SICK_SICKER = dict(
-    r_HD=0.002, r_HS1=0.15, r_S1H=0.5, r_S1S2=0.105, hr_S1=3.0, hr_S2=10.0,
-    hr_S1S2_trtB=0.6, c_H=2000.0, c_S1=4000.0, c_S2=15000.0, c_trtA=12000.0,
-    c_trtB=13000.0, u_H=1.0, u_S1=0.75, u_S2=0.5, u_trtA=0.95,
+    r_HD=0.002,
+    r_HS1=0.15,
+    r_S1H=0.5,
+    r_S1S2=0.105,
+    hr_S1=3.0,
+    hr_S2=10.0,
+    hr_S1S2_trtB=0.6,
+    c_H=2000.0,
+    c_S1=4000.0,
+    c_S2=15000.0,
+    c_trtA=12000.0,
+    c_trtB=13000.0,
+    u_H=1.0,
+    u_S1=0.75,
+    u_S2=0.5,
+    u_trtA=0.95,
 )
 _INTERVENTIONS = ("Standard of care", "Intervention A", "Intervention B", "Intervention AB")
 
@@ -108,9 +125,12 @@ def _sick_sicker_model(params, intervention):
     P[1, 2] = (1 - p_S1D) * p_prog
     P[2, 2], P[2, 3] = 1 - p_S2D, p_S2D
     P[3, 3] = 1.0
-    add = {"Standard of care": 0.0, "Intervention A": params["c_trtA"],
-           "Intervention B": params["c_trtB"],
-           "Intervention AB": params["c_trtA"] + params["c_trtB"]}[intervention]
+    add = {
+        "Standard of care": 0.0,
+        "Intervention A": params["c_trtA"],
+        "Intervention B": params["c_trtB"],
+        "Intervention AB": params["c_trtA"] + params["c_trtB"],
+    }[intervention]
     cost = np.array([params["c_H"], params["c_S1"] + add, params["c_S2"] + add, 0.0])
     on_trtA = intervention in ("Intervention A", "Intervention AB")
     u_s1 = params["u_trtA"] if on_trtA else params["u_S1"]
@@ -121,8 +141,11 @@ def _sick_sicker_model(params, intervention):
 def test_sick_sicker_matches_published_icers():
     """Reproduce the published deterministic CEA table of the intro tutorial."""
     engine = MarkovModel(
-        states=("H", "S1", "S2", "D"), interventions=_INTERVENTIONS,
-        transitions_and_rewards=_sick_sicker_model, n_cycles=75, initial_state="H",
+        states=("H", "S1", "S2", "D"),
+        interventions=_INTERVENTIONS,
+        transitions_and_rewards=_sick_sicker_model,
+        n_cycles=75,
+        initial_state="H",
         cycle_correction="simpson",
     )
     draws = pd.DataFrame([_SICK_SICKER], index=pd.RangeIndex(1, name="iteration"))
@@ -153,12 +176,21 @@ def test_per_cycle_transition_differs_from_constant():
         P = np.array([[1 - 0.01, 0.01], [0.0, 1.0]])
         return CohortSpec(P, np.array([100.0, 0.0]), np.array([1.0, 0.0]))
 
-    common = dict(states=("a", "d"), interventions=("s",), n_cycles=n_cycles,
-                  cycle_correction="none")
-    q_var = MarkovModel(transitions_and_rewards=model_varying, **common).evaluate(
-        _draws()).summary().loc["s", "qaly"]
-    q_con = MarkovModel(transitions_and_rewards=model_constant, **common).evaluate(
-        _draws()).summary().loc["s", "qaly"]
+    common = dict(
+        states=("a", "d"), interventions=("s",), n_cycles=n_cycles, cycle_correction="none"
+    )
+    q_var = (
+        MarkovModel(transitions_and_rewards=model_varying, **common)
+        .evaluate(_draws())
+        .summary()
+        .loc["s", "qaly"]
+    )
+    q_con = (
+        MarkovModel(transitions_and_rewards=model_constant, **common)
+        .evaluate(_draws())
+        .summary()
+        .loc["s", "qaly"]
+    )
     assert q_var < q_con  # rising mortality accrues fewer QALYs
 
 
@@ -173,12 +205,15 @@ def test_transition_reward_adds_one_time_cost():
         P = np.array([[0.8, 0.2], [0.0, 1.0]])
         tc = np.zeros((2, 2))
         tc[0, 1] = death_cost
-        return CohortSpec(P, np.array([0.0, 0.0]), np.array([1.0, 0.0]),
-                          transition_cost=tc)
+        return CohortSpec(P, np.array([0.0, 0.0]), np.array([1.0, 0.0]), transition_cost=tc)
 
     engine = MarkovModel(
-        states=("a", "d"), interventions=("s",), transitions_and_rewards=model, n_cycles=40,
-        discount_rate=0.0, cycle_correction="none",
+        states=("a", "d"),
+        interventions=("s",),
+        transitions_and_rewards=model,
+        n_cycles=40,
+        discount_rate=0.0,
+        cycle_correction="none",
     )
     cost = engine.evaluate(_draws()).summary().loc["s", "cost"]
     # everyone dies within 40 cycles from 'a'; total death cost approaches 5000
@@ -201,26 +236,43 @@ def test_per_cycle_transition_reward_matches_constant():
         tc[:, 0, 1] = death_cost
         return CohortSpec(P, np.array([0.0, 0.0]), np.array([1.0, 0.0]), transition_cost=tc)
 
-    common = dict(states=("a", "d"), interventions=("s",), n_cycles=n_cycles,
-                  discount_rate=0.0, cycle_correction="none")
-    cost_constant = MarkovModel(transitions_and_rewards=model_constant, **common).evaluate(
-        _draws()).summary().loc["s", "cost"]
-    cost_per_cycle = MarkovModel(transitions_and_rewards=model_per_cycle, **common).evaluate(
-        _draws()).summary().loc["s", "cost"]
+    common = dict(
+        states=("a", "d"),
+        interventions=("s",),
+        n_cycles=n_cycles,
+        discount_rate=0.0,
+        cycle_correction="none",
+    )
+    cost_constant = (
+        MarkovModel(transitions_and_rewards=model_constant, **common)
+        .evaluate(_draws())
+        .summary()
+        .loc["s", "cost"]
+    )
+    cost_per_cycle = (
+        MarkovModel(transitions_and_rewards=model_per_cycle, **common)
+        .evaluate(_draws())
+        .summary()
+        .loc["s", "cost"]
+    )
     assert cost_per_cycle == pytest.approx(cost_constant)
 
 
 def test_transition_reward_rejects_wrong_shape():
     """A per-state vector passed as a transition reward raises instead of broadcasting."""
+
     def model(params, intervention):
         P = np.array([[0.8, 0.2], [0.0, 1.0]])
         wrong = np.array([0.0, 5000.0])  # per-state shape, not per-transition
-        return CohortSpec(P, np.array([0.0, 0.0]), np.array([1.0, 0.0]),
-                          transition_cost=wrong)
+        return CohortSpec(P, np.array([0.0, 0.0]), np.array([1.0, 0.0]), transition_cost=wrong)
 
     engine = MarkovModel(
-        states=("a", "d"), interventions=("s",), transitions_and_rewards=model, n_cycles=40,
-        discount_rate=0.0, cycle_correction="none",
+        states=("a", "d"),
+        interventions=("s",),
+        transitions_and_rewards=model,
+        n_cycles=40,
+        discount_rate=0.0,
+        cycle_correction="none",
     )
     with pytest.raises(ValueError, match="transition reward must have shape"):
         engine.evaluate(_draws())
@@ -231,14 +283,17 @@ def test_transition_reward_rejects_wrong_shape():
 
 def test_trace_shape_and_occupancy():
     """trace returns a cycle-indexed occupancy distribution per state."""
+
     def model(params, intervention):
         p_die = 0.1
         transition = np.array([[1 - p_die, p_die], [0.0, 1.0]])
         return CohortSpec(transition, np.array([params["c"], 0.0]), np.array([1.0, 0.0]))
 
     engine = MarkovModel(
-        states=("alive", "dead"), interventions=("care",),
-        transitions_and_rewards=model, n_cycles=5,
+        states=("alive", "dead"),
+        interventions=("care",),
+        transitions_and_rewards=model,
+        n_cycles=5,
     )
     trace = engine.trace(pd.Series({"c": 1000.0}), "care")
     assert list(trace.columns) == ["cycle", "alive", "dead"]
@@ -251,14 +306,17 @@ def test_trace_shape_and_occupancy():
 
 def test_trace_reflects_the_intervention():
     """Branching the model on the intervention name changes the trace."""
+
     def model(params, intervention):
         p_die = 0.3 if intervention == "aggressive" else 0.1
         transition = np.array([[1 - p_die, p_die], [0.0, 1.0]])
         return CohortSpec(transition, np.zeros(2), np.array([1.0, 0.0]))
 
     engine = MarkovModel(
-        states=("alive", "dead"), interventions=("mild", "aggressive"),
-        transitions_and_rewards=model, n_cycles=4,
+        states=("alive", "dead"),
+        interventions=("mild", "aggressive"),
+        transitions_and_rewards=model,
+        n_cycles=4,
     )
     mild = engine.trace(pd.Series(dtype=float), "mild")
     aggressive = engine.trace(pd.Series(dtype=float), "aggressive")
@@ -271,7 +329,10 @@ def test_trace_unknown_intervention_rejected():
         return CohortSpec(np.eye(2), np.zeros(2), np.zeros(2))
 
     engine = MarkovModel(
-        states=("a", "d"), interventions=("s",), transitions_and_rewards=model, n_cycles=3,
+        states=("a", "d"),
+        interventions=("s",),
+        transitions_and_rewards=model,
+        n_cycles=3,
     )
     with pytest.raises(KeyError, match="Unknown intervention"):
         engine.trace(pd.Series(dtype=float), "missing")
@@ -286,7 +347,10 @@ def test_engine_satisfies_protocol_and_contract():
         return CohortSpec(P, np.array([params["c"], 0.0]), np.array([1.0, 0.0]))
 
     engine = MarkovModel(
-        states=("a", "d"), interventions=("x", "y"), transitions_and_rewards=model, n_cycles=5,
+        states=("a", "d"),
+        interventions=("x", "y"),
+        transitions_and_rewards=model,
+        n_cycles=5,
     )
     assert isinstance(engine, ModelEngine)
     draws = _draws(4, c=np.arange(4, dtype=float))
@@ -318,8 +382,13 @@ def test_start_distribution_forms():
         return CohortSpec(P, np.zeros(3), np.array([1.0, 0.0, 0.0]))
 
     engine = MarkovModel(
-        states=("a", "b", "c"), interventions=("s",), transitions_and_rewards=model, n_cycles=3,
-        initial_state={"a": 0.6, "b": 0.4}, discount_rate=0.0, cycle_correction="none",
+        states=("a", "b", "c"),
+        interventions=("s",),
+        transitions_and_rewards=model,
+        n_cycles=3,
+        initial_state={"a": 0.6, "b": 0.4},
+        discount_rate=0.0,
+        cycle_correction="none",
     )
     # only state 'a' has unit utility; with 60% starting there, each of 4 cycles
     # contributes 0.6
@@ -331,8 +400,13 @@ def test_bad_start_rejected():
         return CohortSpec(np.eye(2), np.zeros(2), np.zeros(2))
 
     with pytest.raises(ValueError, match="sum to 1"):
-        MarkovModel(states=("a", "d"), interventions=("s",), transitions_and_rewards=model,
-                           n_cycles=3, initial_state=[0.7, 0.7])
+        MarkovModel(
+            states=("a", "d"),
+            interventions=("s",),
+            transitions_and_rewards=model,
+            n_cycles=3,
+            initial_state=[0.7, 0.7],
+        )
 
 
 def _absorbing(params, intervention):
@@ -341,37 +415,66 @@ def _absorbing(params, intervention):
 
 def test_unknown_initial_state_label_rejected():
     with pytest.raises(ValueError, match="Unknown initial_state"):
-        MarkovModel(states=("a", "d"), interventions=("s",), transitions_and_rewards=_absorbing,
-                    n_cycles=3, initial_state="z")
+        MarkovModel(
+            states=("a", "d"),
+            interventions=("s",),
+            transitions_and_rewards=_absorbing,
+            n_cycles=3,
+            initial_state="z",
+        )
 
 
 def test_unknown_initial_state_in_mapping_rejected():
     with pytest.raises(ValueError, match="Unknown initial_state"):
-        MarkovModel(states=("a", "d"), interventions=("s",), transitions_and_rewards=_absorbing,
-                    n_cycles=3, initial_state={"a": 0.5, "z": 0.5})
+        MarkovModel(
+            states=("a", "d"),
+            interventions=("s",),
+            transitions_and_rewards=_absorbing,
+            n_cycles=3,
+            initial_state={"a": 0.5, "z": 0.5},
+        )
 
 
 def test_initial_state_array_wrong_length_rejected():
     with pytest.raises(ValueError, match="must have length"):
-        MarkovModel(states=("a", "d"), interventions=("s",), transitions_and_rewards=_absorbing,
-                    n_cycles=3, initial_state=[1.0, 0.0, 0.0])
+        MarkovModel(
+            states=("a", "d"),
+            interventions=("s",),
+            transitions_and_rewards=_absorbing,
+            n_cycles=3,
+            initial_state=[1.0, 0.0, 0.0],
+        )
 
 
 def test_initial_state_out_of_bounds_rejected():
     with pytest.raises(ValueError, match="'a' is 1.5"):
-        MarkovModel(states=("a", "d"), interventions=("s",), transitions_and_rewards=_absorbing,
-                    n_cycles=3, initial_state=[1.5, -0.5])
+        MarkovModel(
+            states=("a", "d"),
+            interventions=("s",),
+            transitions_and_rewards=_absorbing,
+            n_cycles=3,
+            initial_state=[1.5, -0.5],
+        )
     with pytest.raises(ValueError, match="'d' is -0.5"):
-        MarkovModel(states=("a", "d"), interventions=("s",), transitions_and_rewards=_absorbing,
-                    n_cycles=3, initial_state={"a": 0.5, "d": -0.5})
+        MarkovModel(
+            states=("a", "d"),
+            interventions=("s",),
+            transitions_and_rewards=_absorbing,
+            n_cycles=3,
+            initial_state={"a": 0.5, "d": -0.5},
+        )
 
 
 def test_initial_state_within_bounds_still_accepted():
     # an initial state with every entry in [0, 1] that sums to 1 is unaffected
     # by the bounds check.
-    engine = MarkovModel(states=("a", "d"), interventions=("s",),
-                          transitions_and_rewards=_absorbing,
-                          n_cycles=3, initial_state=[0.3, 0.7])
+    engine = MarkovModel(
+        states=("a", "d"),
+        interventions=("s",),
+        transitions_and_rewards=_absorbing,
+        n_cycles=3,
+        initial_state=[0.3, 0.7],
+    )
     assert engine.evaluate(_draws()).summary().loc["s", "qaly"] == pytest.approx(0.0)
 
 
@@ -379,8 +482,9 @@ def test_bad_transition_shape_rejected():
     def model(params, intervention):
         return CohortSpec(np.zeros((3, 3)), np.zeros(2), np.zeros(2))
 
-    engine = MarkovModel(states=("a", "d"), interventions=("s",), transitions_and_rewards=model,
-                                n_cycles=3)
+    engine = MarkovModel(
+        states=("a", "d"), interventions=("s",), transitions_and_rewards=model, n_cycles=3
+    )
     with pytest.raises(ValueError, match="shape"):
         engine.evaluate(_draws())
 
@@ -390,8 +494,9 @@ def test_rows_must_sum_to_one():
         P = np.array([[0.5, 0.2], [0.0, 1.0]])  # first row sums to 0.7
         return CohortSpec(P, np.zeros(2), np.zeros(2))
 
-    engine = MarkovModel(states=("a", "d"), interventions=("s",), transitions_and_rewards=model,
-                                n_cycles=3)
+    engine = MarkovModel(
+        states=("a", "d"), interventions=("s",), transitions_and_rewards=model, n_cycles=3
+    )
     with pytest.raises(ValueError, match="sum to 1"):
         engine.evaluate(_draws())
 
@@ -400,8 +505,35 @@ def test_empty_draws_rejected():
     def model(params, intervention):
         return CohortSpec(np.eye(2), np.zeros(2), np.zeros(2))
 
-    engine = MarkovModel(states=("a", "d"), interventions=("s",), transitions_and_rewards=model,
-                                n_cycles=3)
+    engine = MarkovModel(
+        states=("a", "d"), interventions=("s",), transitions_and_rewards=model, n_cycles=3
+    )
     with pytest.raises(ValueError, match="empty"):
         engine.evaluate(pd.DataFrame(index=pd.RangeIndex(0, name="iteration")))
 
+
+@pytest.mark.parametrize("correction", ["none", "half_cycle", "simpson"])
+def test_transition_reward_ignores_within_cycle_correction(correction):
+    p_die = 0.2
+
+    def build(params, intervention):
+        transition = np.array([[1 - p_die, p_die], [0.0, 1.0]])
+        transition_cost = np.array([[0.0, 100.0], [0.0, 0.0]])
+        return CohortSpec(
+            transition,
+            np.array([0.0, 0.0]),
+            np.array([0.0, 0.0]),
+            transition_cost=transition_cost,
+        )
+
+    engine = MarkovModel(
+        states=("alive", "dead"),
+        interventions=("care",),
+        transitions_and_rewards=build,
+        n_cycles=2,
+        discount_rate=0.0,
+        cycle_correction=correction,
+    )
+    out = engine.evaluate(_draws())
+    expected = 100 * (1 - 0.8**2)
+    assert float(out.costs_wide().iloc[0, 0]) == pytest.approx(expected)
