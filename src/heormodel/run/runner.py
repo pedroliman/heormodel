@@ -124,6 +124,8 @@ def _split_batches(draws: pd.DataFrame, workers: int, batch_size: int | None) ->
     if batch_size is None:
         n_batches = max(1, min(len(draws), effective_n_jobs(workers) * 4))
     else:
+        if batch_size < 1:
+            raise ValueError(f"batch_size must be a positive integer, got {batch_size}.")
         n_batches = max(1, int(np.ceil(len(draws) / batch_size)))
     splits = np.array_split(np.arange(len(draws)), n_batches)
     return [draws.iloc[ix] for ix in splits if len(ix)]

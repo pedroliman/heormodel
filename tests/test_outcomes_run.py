@@ -191,6 +191,13 @@ class TestSeedManager:
         x = SeedManager(123).spawn(2)
         assert x[0].integers(1_000_000) != x[1].integers(1_000_000)
 
+    def test_keyed_children_never_repeat_spawned_streams(self):
+        manager = SeedManager(5)
+        spawned = [g.integers(1_000_000, size=4).tolist() for g in manager.spawn(4)]
+        for key in range(4):
+            keyed = np.random.default_rng(manager.child_sequence(key))
+            assert keyed.integers(1_000_000, size=4).tolist() not in spawned
+
     def test_entropy_recorded(self):
         assert SeedManager(42).entropy == 42
         assert isinstance(SeedManager().entropy, int)

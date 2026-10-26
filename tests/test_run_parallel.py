@@ -64,6 +64,11 @@ class TestSplitBatchesScalesWithCores:
         batches = _split_batches(draws, -1, batch_size=None)
         assert len(batches) == n_workers * 4
 
+    @pytest.mark.parametrize("batch_size", [0, -2])
+    def test_non_positive_batch_size_raises(self, batch_size):
+        with pytest.raises(ValueError, match="batch_size"):
+            _split_batches(pd.DataFrame({"x": range(5)}), 1, batch_size=batch_size)
+
     def test_sequential_worker_count_still_yields_four_batches(self):
         draws = pd.DataFrame({"c": np.arange(1000)})
         batches = _split_batches(draws, 1, batch_size=None)
