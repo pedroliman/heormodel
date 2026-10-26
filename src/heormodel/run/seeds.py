@@ -10,6 +10,10 @@ from __future__ import annotations
 
 import numpy as np
 
+# Marks the spawn keys of `SeedManager.child_sequence`. `spawn` appends one
+# integer to the root key, so the extra element keeps the two key spaces apart.
+_KEYED_NAMESPACE = 1
+
 
 class SeedManager:
     """Root seed source that spawns independent child generators.
@@ -58,7 +62,8 @@ class SeedManager:
         """A child seed sequence addressed by a stable integer ``key``.
 
         Unlike `spawn`, the returned sequence depends only on ``key`` and
-        this manager's seed, not on call order. Keying by iteration index
+        this manager's seed, not on call order. Its stream never coincides
+        with a stream returned by `spawn`. Keying by iteration index
         gives per-iteration streams that stay identical however a run is
         chunked across workers. Spawn from the sequence for sub-streams
         (population sampling, per-intervention randomness).
@@ -74,7 +79,7 @@ class SeedManager:
         """
         return np.random.SeedSequence(
             entropy=self._sequence.entropy,
-            spawn_key=(*self._sequence.spawn_key, int(key)),
+            spawn_key=(*self._sequence.spawn_key, _KEYED_NAMESPACE, int(key)),
         )
 
     def __repr__(self) -> str:

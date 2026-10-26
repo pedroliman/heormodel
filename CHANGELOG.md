@@ -12,6 +12,9 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Fixed
 
+- Discrete `MicrosimModel` accepted transition probabilities outside [0, 1] when the rows summed to 1, so a row such as `[1.3, -0.3]` never moved anyone, and the continuous clock accepted negative or NaN event times, which ran the clock backwards and returned negative cost and QALYs. Both paths now raise `ValueError`, as `MarkovModel` does. `SeedManager.child_sequence` used the same spawn key as `SeedManager.spawn`, so mixing the two repeated streams; it now has its own key space, which changes the streams it returns for a given seed. `run_psa` with `batch_size=0` raised `ZeroDivisionError` and now raises `ValueError`
+  ([#127](https://github.com/pedroliman/heormodel/issues/127)).
+
 - `MarkovModel` multiplied one-time transition rewards by the within-cycle correction weight, so `"half_cycle"` and `"simpson"` changed the total cost of an event such as dying (a cost of 100 on alive to dead over two cycles with `p_die = 0.2` gave 28.0 under `"half_cycle"` instead of 36.0). Transition rewards are now discounted but not reweighted, so they total the expected number of events times the amount under every correction setting; state rewards keep the correction. The module and `CohortSpec` docstrings state the convention
   ([#126](https://github.com/pedroliman/heormodel/issues/126)).
 

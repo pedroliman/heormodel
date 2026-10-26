@@ -450,6 +450,10 @@ class MicrosimModel(_MicrosimBase):
                         f"transition_probabilities must return shape {(n, n_states)}, "
                         f"got {probs.shape}."
                     )
+                if np.isnan(probs).any() or (probs < -1e-8).any() or (probs > 1 + 1e-8).any():
+                    raise ValueError(
+                        "transition_probabilities entries must lie in [0, 1] and not be NaN."
+                    )
                 if not np.allclose(probs.sum(axis=1), 1.0, atol=1e-8):
                     raise ValueError("transition_probabilities rows must each sum to 1.")
                 new_state = self._sample_next(probs, rng)
@@ -516,6 +520,8 @@ class MicrosimModel(_MicrosimBase):
                 raise ValueError(
                     f"event_times must return shape {(n, n_states)}, got {times.shape}."
                 )
+            if np.isnan(times).any() or (times < 0).any():
+                raise ValueError("event_times must be non-negative and not NaN.")
             dest = np.argmin(times, axis=1)
             dt = times[np.arange(n), dest]
             remaining = horizon - clock

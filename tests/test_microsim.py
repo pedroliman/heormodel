@@ -78,6 +78,48 @@ class TestDiscreteValidation:
         assert ref_on != ref_off
 
 
+class TestInputValidation:
+    @pytest.mark.parametrize("bad", [[1.3, -0.3], [np.nan, 1.0], [1.5, -0.5]])
+    def test_discrete_rejects_invalid_probabilities(self, bad):
+        def transition(params, intervention, state, attrs, rng):
+            return np.tile(np.array(bad), (len(state), 1))
+
+        engine = MicrosimModel.discrete(
+            states=("alive", "dead"),
+            transition_probabilities=transition,
+            state_rewards=lambda params, intervention, state, attrs: (
+                np.ones(len(state)),
+                np.ones(len(state)),
+            ),
+            population=10,
+            interventions=["care"],
+            n_cycles=5,
+        )
+        with pytest.raises(ValueError, match=r"\[0, 1\]"):
+            engine.evaluate(_draws())
+
+    @pytest.mark.parametrize("bad", [-1.0, np.nan])
+    def test_continuous_rejects_invalid_event_times(self, bad):
+        def event_times(params, intervention, state, attrs, rng):
+            times = np.full((len(state), 2), np.inf)
+            times[:, 1] = bad
+            return times
+
+        engine = MicrosimModel.continuous(
+            states=("alive", "dead"),
+            event_times=event_times,
+            state_reward_rates=lambda params, intervention, state, attrs: (
+                np.ones(len(state)),
+                np.ones(len(state)),
+            ),
+            population=10,
+            interventions=["care"],
+            horizon=10.0,
+        )
+        with pytest.raises(ValueError, match="non-negative"):
+            engine.evaluate(_draws())
+
+
 class TestContinuousValidation:
     def test_constant_hazard_matches_exponential_cohort(self):
         lam, cost_year, horizon, rate = 0.05, 1_000.0, 40.0, 0.03
