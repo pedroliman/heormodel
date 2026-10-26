@@ -24,9 +24,7 @@ def _prevalence(occ: pd.DataFrame, states, dead_state: str) -> pd.Series:
 
 
 def _draws(n_iter=1):
-    return pd.DataFrame(
-        {"unused": np.zeros(n_iter)}, index=pd.RangeIndex(n_iter, name="iteration")
-    )
+    return pd.DataFrame({"unused": np.zeros(n_iter)}, index=pd.RangeIndex(n_iter, name="iteration"))
 
 
 def _hand_log() -> pd.DataFrame:
@@ -45,9 +43,13 @@ def _hand_log() -> pd.DataFrame:
 class TestStateOccupancy:
     def test_hand_built_log(self):
         occ = state_occupancy(
-            _hand_log(), states=("H", "S", "D"), initial_state="H",
-            n_individuals=4, times=[0.0, 1.0, 2.5, 5.0],
-            interventions=["care"], iterations=[0],
+            _hand_log(),
+            states=("H", "S", "D"),
+            initial_state="H",
+            n_individuals=4,
+            times=[0.0, 1.0, 2.5, 5.0],
+            interventions=["care"],
+            iterations=[0],
         )
         assert occ.loc[("care", 0, 0.0)].tolist() == [1.0, 0.0, 0.0]
         # An event at exactly the requested time counts as having happened.
@@ -58,8 +60,13 @@ class TestStateOccupancy:
 
     def test_survival_and_prevalence(self):
         occ = state_occupancy(
-            _hand_log(), states=("H", "S", "D"), initial_state="H",
-            n_individuals=4, times=[2.5], interventions=["care"], iterations=[0],
+            _hand_log(),
+            states=("H", "S", "D"),
+            initial_state="H",
+            n_individuals=4,
+            times=[2.5],
+            interventions=["care"],
+            iterations=[0],
         )
         assert _survival(occ, dead_state="D").tolist() == [0.75]
         assert _prevalence(occ, states=("S",), dead_state="D").iloc[0] == pytest.approx(1 / 3)
@@ -67,8 +74,13 @@ class TestStateOccupancy:
     def test_prevalence_nan_when_no_one_alive(self):
         events = _hand_log()
         occ = state_occupancy(
-            events, states=("H", "S", "D"), initial_state="H", n_individuals=2, times=[10.0],
-            interventions=["care"], iterations=[0],
+            events,
+            states=("H", "S", "D"),
+            initial_state="H",
+            n_individuals=2,
+            times=[10.0],
+            interventions=["care"],
+            iterations=[0],
         )
         assert np.isnan(_prevalence(occ, states=("S",), dead_state="D").iloc[0])
 
@@ -77,9 +89,13 @@ class TestStateOccupancy:
         # during the horizon; it must still show up in the result rather
         # than being silently dropped.
         occ = state_occupancy(
-            _hand_log(), states=("H", "S", "D"), initial_state="H",
-            n_individuals=4, times=[0.0, 1.0, 2.5],
-            interventions=["care"], iterations=[0, 1],
+            _hand_log(),
+            states=("H", "S", "D"),
+            initial_state="H",
+            n_individuals=4,
+            times=[0.0, 1.0, 2.5],
+            interventions=["care"],
+            iterations=[0, 1],
         )
         assert sorted(occ.index.get_level_values("iteration").unique()) == [0, 1]
         for time in (0.0, 1.0, 2.5):
@@ -91,9 +107,13 @@ class TestStateOccupancy:
         # An intervention absent from events entirely (nobody moved under
         # it, in any iteration) must still appear when named explicitly.
         occ = state_occupancy(
-            _hand_log(), states=("H", "S", "D"), initial_state="H",
-            n_individuals=4, times=[2.5],
-            interventions=["care", "usual_care"], iterations=[0],
+            _hand_log(),
+            states=("H", "S", "D"),
+            initial_state="H",
+            n_individuals=4,
+            times=[2.5],
+            interventions=["care", "usual_care"],
+            iterations=[0],
         )
         assert occ.loc[("usual_care", 0, 2.5)].tolist() == [1.0, 0.0, 0.0]
 
@@ -101,21 +121,35 @@ class TestStateOccupancy:
         # events, interventions, and iterations agree on nothing to report.
         with pytest.raises(ValueError, match="No \\(intervention, iteration\\) pairs"):
             state_occupancy(
-                _hand_log().iloc[:0], states=("H", "S", "D"), initial_state="H",
-                n_individuals=4, times=[0.0], interventions=[], iterations=[],
+                _hand_log().iloc[:0],
+                states=("H", "S", "D"),
+                initial_state="H",
+                n_individuals=4,
+                times=[0.0],
+                interventions=[],
+                iterations=[],
             )
 
     def test_rejects_unknown_states_and_missing_columns(self):
         with pytest.raises(ValueError, match="not listed in states"):
             state_occupancy(
-                _hand_log(), states=("H", "D"), initial_state="H",
-                n_individuals=4, times=[0.0], interventions=["care"], iterations=[0],
+                _hand_log(),
+                states=("H", "D"),
+                initial_state="H",
+                n_individuals=4,
+                times=[0.0],
+                interventions=["care"],
+                iterations=[0],
             )
         with pytest.raises(ValueError, match="missing columns"):
             state_occupancy(
-                _hand_log().drop(columns=["individual"]), states=("H", "S", "D"),
-                initial_state="H", n_individuals=4, times=[0.0],
-                interventions=["care"], iterations=[0],
+                _hand_log().drop(columns=["individual"]),
+                states=("H", "S", "D"),
+                initial_state="H",
+                n_individuals=4,
+                times=[0.0],
+                interventions=["care"],
+                iterations=[0],
             )
 
 
@@ -146,12 +180,21 @@ class TestEventTrace:
         engine = self._continuous_engine()
         events = run_psa(engine, _draws(), seed=5, collect="events").events
         assert list(events.columns) == [
-            "intervention", "iteration", "individual", "time", "from_state", "to_state",
+            "intervention",
+            "iteration",
+            "individual",
+            "time",
+            "from_state",
+            "to_state",
         ]
         occ = state_occupancy(
-            events, states=("alive", "dead"), initial_state="alive",
-            n_individuals=20_000, times=[5.0, 10.0, 20.0],
-            interventions=["care"], iterations=[0],
+            events,
+            states=("alive", "dead"),
+            initial_state="alive",
+            n_individuals=20_000,
+            times=[5.0, 10.0, 20.0],
+            interventions=["care"],
+            iterations=[0],
         )
         surv = _survival(occ, dead_state="dead")
         for t in (5.0, 10.0, 20.0):
@@ -184,9 +227,13 @@ class TestEventTrace:
         )
         events = run_psa(engine, _draws(), seed=6, collect="events").events
         occ = state_occupancy(
-            events, states=("alive", "dead"), initial_state="alive",
-            n_individuals=50_000, times=[1.0, 3.0],
-            interventions=["care"], iterations=[0],
+            events,
+            states=("alive", "dead"),
+            initial_state="alive",
+            n_individuals=50_000,
+            times=[1.0, 3.0],
+            interventions=["care"],
+            iterations=[0],
         )
         assert occ.loc[("care", 0, 1.0), "alive"] == pytest.approx(0.7, abs=0.01)
         assert occ.loc[("care", 0, 3.0), "alive"] == pytest.approx(0.7**3, abs=0.01)

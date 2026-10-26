@@ -12,7 +12,12 @@ from numpy.typing import ArrayLike
 from heormodel.models.outcomes import INTERVENTION_LEVEL, ITERATION_LEVEL
 
 _EVENT_COLUMNS = (
-    INTERVENTION_LEVEL, ITERATION_LEVEL, "individual", "time", "from_state", "to_state"
+    INTERVENTION_LEVEL,
+    ITERATION_LEVEL,
+    "individual",
+    "time",
+    "from_state",
+    "to_state",
 )
 
 

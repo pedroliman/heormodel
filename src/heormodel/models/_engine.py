@@ -221,9 +221,7 @@ class StreamingEngine(_EngineBase):
         cost and effect); the matching field of the returned `EngineResult` is set.
         """
         if collect not in (None, "events", "individuals"):
-            raise ValueError(
-                f"collect must be None, 'events', or 'individuals', got {collect!r}."
-            )
+            raise ValueError(f"collect must be None, 'events', or 'individuals', got {collect!r}.")
         if draws.empty:
             raise ValueError("draws is empty.")
         collect_events = collect == "events"

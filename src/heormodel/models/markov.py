@@ -17,7 +17,10 @@ occupancy trace. Optional transition rewards accrue on the flow between states,
 so a one-time cost of dying or a disutility of onset attaches to the transition
 rather than to a state. Discounting reuses `heormodel.models._accrual`, and the
 within-cycle correction offers `gen_wcc`'s ``"simpson"`` convention, the
-half-cycle weights, or none.
+half-cycle weights, or none. The correction applies to state rewards only, since
+it approximates continuous accrual of occupancy. A transition reward is counted
+once per event, so it is discounted but never reweighted: it totals the expected
+number of events times the amount under every correction setting.
 """
 
 from __future__ import annotations
@@ -57,9 +60,11 @@ class CohortSpec:
         transition_cost: Optional extra cost attached to a transition, added on
             the flow between states, shape ``(n_states, n_states)`` or
             ``(n_cycles, n_states, n_states)``. Entry ``[i, j]`` is the cost of
-            moving from state ``i`` to state ``j``.
+            moving from state ``i`` to state ``j``. It is discounted but not
+            scaled by the within-cycle correction, because each event is
+            counted once.
         transition_effect: Optional effect attached to a transition, same shape
-            rule as ``transition_cost``.
+            and same correction convention as ``transition_cost``.
     """
 
     transition: NDArray[np.float64]
@@ -209,9 +214,7 @@ class MarkovModel(DeterministicEngine):
         elif isinstance(initial_state, Mapping):
             for name, prob in initial_state.items():
                 if name not in self._states:
-                    raise ValueError(
-                        f"Unknown initial_state {name!r}; states are {self._states}."
-                    )
+                    raise ValueError(f"Unknown initial_state {name!r}; states are {self._states}.")
                 vec[self._states.index(name)] = float(prob)
         else:
             vec = np.asarray(initial_state, dtype=np.float64)
@@ -297,18 +300,17 @@ class MarkovModel(DeterministicEngine):
 
     def _accrue(self, spec: CohortSpec) -> tuple[float, float]:
         trace = self._trace(spec.transition)
-        cost_cycle = self._state_reward(trace, spec.state_cost)
-        eff_cycle = self._state_reward(trace, spec.state_effect)
+        state_weight = self._disc * self._wcc
+        total_cost = float(self._state_reward(trace, spec.state_cost) @ state_weight)
+        total_effect = float(self._state_reward(trace, spec.state_effect) @ state_weight)
         if spec.transition_cost is not None:
-            cost_cycle = cost_cycle + self._transition_reward(
-                trace, spec.transition, spec.transition_cost
+            total_cost += float(
+                self._transition_reward(trace, spec.transition, spec.transition_cost) @ self._disc
             )
         if spec.transition_effect is not None:
-            eff_cycle = eff_cycle + self._transition_reward(
-                trace, spec.transition, spec.transition_effect
+            total_effect += float(
+                self._transition_reward(trace, spec.transition, spec.transition_effect) @ self._disc
             )
-        total_cost = float(cost_cycle @ (self._disc * self._wcc))
-        total_effect = float(eff_cycle @ (self._disc * self._wcc))
         return total_cost, total_effect
 
     def trace(self, params: pd.Series, intervention: str) -> pd.DataFrame:
@@ -357,4 +359,3 @@ class MarkovModel(DeterministicEngine):
         for i, name in enumerate(self._states):
             frame[name] = occupancy[:, i]
         return frame
-

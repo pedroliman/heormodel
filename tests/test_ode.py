@@ -34,8 +34,12 @@ def _decay_engine(*, horizon=20.0, rate=0.03, **kw):
         )
 
     return ODEModel(
-        states=("alive", "dead"), interventions=("s",), dynamics_and_rewards=model,
-        horizon=horizon, discount_rate=rate, **kw,
+        states=("alive", "dead"),
+        interventions=("s",),
+        dynamics_and_rewards=model,
+        horizon=horizon,
+        discount_rate=rate,
+        **kw,
     )
 
 
@@ -75,8 +79,11 @@ def test_flow_event_reward_charges_once_per_event():
         )
 
     engine = ODEModel(
-        states=("alive", "dead"), interventions=("s",), dynamics_and_rewards=model,
-        horizon=horizon, discount_rate=0.0,
+        states=("alive", "dead"),
+        interventions=("s",),
+        dynamics_and_rewards=model,
+        horizon=horizon,
+        discount_rate=0.0,
     )
     cost = engine.evaluate(_draws()).summary().loc["s", "cost"]
     # undiscounted, the integral of k e^{-kt} over [0, H] is 1 - e^{-kH}
@@ -96,7 +103,10 @@ def test_engine_satisfies_protocol_and_contract():
         )
 
     engine = ODEModel(
-        states=("a", "d"), interventions=("x", "y"), dynamics_and_rewards=model, horizon=5.0,
+        states=("a", "d"),
+        interventions=("x", "y"),
+        dynamics_and_rewards=model,
+        horizon=5.0,
     )
     assert isinstance(engine, ModelEngine)
     draws = _draws(4, c=np.arange(4, dtype=float))
@@ -136,8 +146,9 @@ def _absorbing(params, intervention):
 
 def test_horizon_must_be_positive():
     with pytest.raises(ValueError, match="horizon must be positive"):
-        ODEModel(states=("a", "d"), interventions=("s",), dynamics_and_rewards=_absorbing,
-                 horizon=0.0)
+        ODEModel(
+            states=("a", "d"), interventions=("s",), dynamics_and_rewards=_absorbing, horizon=0.0
+        )
 
 
 def test_at_least_two_states():
@@ -146,8 +157,9 @@ def test_at_least_two_states():
 
 
 def test_empty_draws_rejected():
-    engine = ODEModel(states=("a", "d"), interventions=("s",), dynamics_and_rewards=_absorbing,
-                      horizon=5.0)
+    engine = ODEModel(
+        states=("a", "d"), interventions=("s",), dynamics_and_rewards=_absorbing, horizon=5.0
+    )
     with pytest.raises(ValueError, match="empty"):
         engine.evaluate(pd.DataFrame(index=pd.RangeIndex(0, name="iteration")))
 
@@ -157,11 +169,13 @@ def test_initial_wrong_length_rejected():
         return ODESpec(
             derivatives=lambda t, y: np.zeros(2),
             initial=np.array([1.0, 0.0, 0.0]),  # three, not two
-            state_cost=np.zeros(2), state_effect=np.zeros(2),
+            state_cost=np.zeros(2),
+            state_effect=np.zeros(2),
         )
 
-    engine = ODEModel(states=("a", "d"), interventions=("s",), dynamics_and_rewards=model,
-                      horizon=5.0)
+    engine = ODEModel(
+        states=("a", "d"), interventions=("s",), dynamics_and_rewards=model, horizon=5.0
+    )
     with pytest.raises(ValueError, match="initial must have shape"):
         engine.evaluate(_draws())
 
@@ -171,11 +185,13 @@ def test_state_reward_wrong_length_rejected():
         return ODESpec(
             derivatives=lambda t, y: np.zeros(2),
             initial=np.array([1.0, 0.0]),
-            state_cost=np.zeros(3), state_effect=np.zeros(2),  # cost wrong length
+            state_cost=np.zeros(3),
+            state_effect=np.zeros(2),  # cost wrong length
         )
 
-    engine = ODEModel(states=("a", "d"), interventions=("s",), dynamics_and_rewards=model,
-                      horizon=5.0)
+    engine = ODEModel(
+        states=("a", "d"), interventions=("s",), dynamics_and_rewards=model, horizon=5.0
+    )
     with pytest.raises(ValueError, match="state_cost must have shape"):
         engine.evaluate(_draws())
 
@@ -185,11 +201,13 @@ def test_derivatives_wrong_shape_rejected():
         return ODESpec(
             derivatives=lambda t, y: np.zeros(3),  # three, not two
             initial=np.array([1.0, 0.0]),
-            state_cost=np.zeros(2), state_effect=np.zeros(2),
+            state_cost=np.zeros(2),
+            state_effect=np.zeros(2),
         )
 
-    engine = ODEModel(states=("a", "d"), interventions=("s",), dynamics_and_rewards=model,
-                      horizon=5.0)
+    engine = ODEModel(
+        states=("a", "d"), interventions=("s",), dynamics_and_rewards=model, horizon=5.0
+    )
     with pytest.raises(ValueError, match="derivatives must return shape"):
         engine.evaluate(_draws())
 
@@ -199,13 +217,15 @@ def test_event_rewards_require_both_amounts():
         return ODESpec(
             derivatives=lambda t, y: np.zeros(2),
             initial=np.array([1.0, 0.0]),
-            state_cost=np.zeros(2), state_effect=np.zeros(2),
+            state_cost=np.zeros(2),
+            state_effect=np.zeros(2),
             event_rates=lambda t, y: np.array([0.0]),
             event_cost=np.array([1.0]),  # event_effect omitted
         )
 
-    engine = ODEModel(states=("a", "d"), interventions=("s",), dynamics_and_rewards=model,
-                      horizon=5.0)
+    engine = ODEModel(
+        states=("a", "d"), interventions=("s",), dynamics_and_rewards=model, horizon=5.0
+    )
     with pytest.raises(ValueError, match="event_cost and event_effect are required"):
         engine.evaluate(_draws())
 
@@ -229,8 +249,11 @@ def test_seir_vaccination_averts_infections_and_is_cost_effective():
     from seir_vaccination import BASE, INTERVENTIONS, STATES, seir
 
     engine = ODEModel(
-        states=STATES, interventions=INTERVENTIONS, dynamics_and_rewards=seir,
-        horizon=10.0, discount_rate=0.03,
+        states=STATES,
+        interventions=INTERVENTIONS,
+        dynamics_and_rewards=seir,
+        horizon=10.0,
+        discount_rate=0.03,
     )
     base = pd.Series(BASE)
     no_vacc = engine.trajectory(base, "No vaccination")

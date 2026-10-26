@@ -137,8 +137,12 @@ def _stochastic_engine():
         return alive * 100.0, alive
 
     return MicrosimModel.discrete(
-        states=("well", "dead"), transition_probabilities=transition,
-        state_rewards=rewards, population=200, interventions=["A", "B"], n_cycles=8,
+        states=("well", "dead"),
+        transition_probabilities=transition,
+        state_rewards=rewards,
+        population=200,
+        interventions=["A", "B"],
+        n_cycles=8,
     )
 
 
@@ -160,9 +164,7 @@ class TestSeededStochasticRun:
     def test_collect_events_parallel_equals_sequential(self):
         engine, draws = _stochastic_engine(), _stochastic_draws()
         serial = run_psa(engine, draws, seed=5, sequential=True, collect="events").events
-        parallel = run_psa(
-            engine, draws, seed=5, n_jobs=2, batch_size=2, collect="events"
-        ).events
+        parallel = run_psa(engine, draws, seed=5, n_jobs=2, batch_size=2, collect="events").events
         pd.testing.assert_frame_equal(serial, parallel)
 
     def test_collect_on_a_deterministic_model_is_rejected(self):
