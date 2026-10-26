@@ -518,12 +518,13 @@ def test_transition_reward_ignores_within_cycle_correction(correction):
 
     def build(params, intervention):
         transition = np.array([[1 - p_die, p_die], [0.0, 1.0]])
-        transition_cost = np.array([[0.0, 100.0], [0.0, 0.0]])
+        flow_reward = np.array([[0.0, 100.0], [0.0, 0.0]])
         return CohortSpec(
             transition,
             np.array([0.0, 0.0]),
             np.array([0.0, 0.0]),
-            transition_cost=transition_cost,
+            transition_cost=flow_reward,
+            transition_effect=flow_reward / 100,
         )
 
     engine = MarkovModel(
@@ -537,3 +538,4 @@ def test_transition_reward_ignores_within_cycle_correction(correction):
     out = engine.evaluate(_draws())
     expected = 100 * (1 - 0.8**2)
     assert float(out.costs_wide().iloc[0, 0]) == pytest.approx(expected)
+    assert float(out.effects_wide().iloc[0, 0]) == pytest.approx(expected / 100)
