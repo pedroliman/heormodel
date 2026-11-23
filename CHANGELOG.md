@@ -12,6 +12,9 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Fixed
 
+- `splice` returned NaN, with a `RuntimeWarning`, when the late curve's survival at the cutpoint underflowed to zero: `splice(exponential(0.2), exponential(1000.0), 4.0).survival(np.array([3., 5.]))` gave `[0.5488, nan]`. The spliced curve is now built on the cumulative hazard scale, `H_early(cutpoint) + H_late(t) - H_late(cutpoint)`, which gives `[0.5488, 0.0]` and is identical to the previous result wherever the old formula was finite
+  ([#132](https://github.com/pedroliman/heormodel/issues/132)).
+
 - `MarkovModel` and `MicrosimModel` accepted a zero or negative `cycle_length` and a `discount_rate` outside [0, 1], which gave silently wrong discounting: for a two-state model with 10 cycles and a 3% rate, `cycle_length=1.0` gave a cost of 61.27, `0.0` gave 68.62 (no discounting), and `-1.0` gave 77.48 (discount factor above one). A `discount_rate` typed as a percent (3.0) also ran. `cycle_length` must now be positive and finite, and `discount_rate` must lie between 0 and 1; otherwise a `ValueError` is raised. The `discount_rate` check applies to every engine, including `DESModel`
   ([#131](https://github.com/pedroliman/heormodel/issues/131)).
 

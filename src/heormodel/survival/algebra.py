@@ -152,8 +152,10 @@ def splice(early: SurvivalCurve, late: SurvivalCurve, cutpoint: float) -> Surviv
 
     Up to `cutpoint`, the result is `early`'s survival exactly. Beyond it, the
     result rescales `late`'s survival function to stay continuous at the
-    cutpoint, `early.survival(cutpoint) * late.survival(t) / late.survival(cutpoint)`, so
-    the tail follows `late`'s hazard shape from that point on. This is the
+    cutpoint. On the cumulative hazard scale this is
+    `H_early(cutpoint) + H_late(t) - H_late(cutpoint)`, so the tail follows
+    `late`'s hazard shape from that point on, even when `late` has almost no
+    survival left at the cutpoint. This is the
     standard construction for a long-term model built on an observed curve
     that only covers a follow-up window: `early` is fit to the trial data,
     `late` is a parametric or external curve chosen for the extrapolation.
@@ -175,17 +177,18 @@ def splice(early: SurvivalCurve, late: SurvivalCurve, cutpoint: float) -> Surviv
     if cutpoint <= 0:
         raise ValueError("cutpoint must be positive.")
     cut = np.asarray([cutpoint], dtype=np.float64)
-    early_survival_at_cut = float(early.survival(cut)[0])
-    late_survival_at_cut = float(late.survival(cut)[0])
+    early_hazard_at_cut = float(early.cumulative_hazard(cut)[0])
+    late_hazard_at_cut = float(late.cumulative_hazard(cut)[0])
 
     def cumulative_hazard(time: _FloatArray) -> _FloatArray:
         time = np.asarray(time, dtype=np.float64)
-        survival = np.where(
+        # Work on the cumulative hazard scale so a late curve with survival
+        # near zero at the cutpoint does not divide by zero.
+        return np.where(
             time <= cutpoint,
-            early.survival(time),
-            early_survival_at_cut * late.survival(time) / late_survival_at_cut,
+            early.cumulative_hazard(time),
+            early_hazard_at_cut + late.cumulative_hazard(time) - late_hazard_at_cut,
         )
-        return -np.log(np.clip(survival, 1e-300, None))
 
     label = f"{early.label} to {cutpoint:g}, then {late.label}"
     return SurvivalCurve(
