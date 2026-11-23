@@ -33,7 +33,7 @@ import pandas as pd
 from numpy.typing import NDArray
 
 from heormodel.models._accrual import discount_factor
-from heormodel.models._engine import DeterministicEngine
+from heormodel.models._engine import DeterministicEngine, _check_cycle_length
 from heormodel.models._interventions import (
     InterventionSpec,
     merge_decision_levers,
@@ -124,7 +124,8 @@ def gen_wcc(n_cycles: int, method: str = "simpson") -> NDArray[np.float64]:
 class MarkovModel(DeterministicEngine):
     """Cohort state-transition model engine.
 
-    ``discount_rate`` is an annual rate on an annual clock. ``cycle_length``
+    ``discount_rate`` is an annual rate on an annual clock, given as a proportion
+    between 0 and 1 (0.03 for 3%). ``cycle_length`` must be positive and
     scales the clock: with ``cycle_length=0.5`` each cycle discounts by half a
     year.
 
@@ -141,9 +142,9 @@ class MarkovModel(DeterministicEngine):
         initial_state: Initial state distribution: a state label (all mass
             there), a mapping of state label to probability, or a
             length-``n_states`` array. Defaults to all mass in the first state.
-        cycle_length: Years per cycle; scales the discount clock.
-        discount_rate: Annual discount rate for costs and effects (0.03 by
-            default).
+        cycle_length: Years per cycle; scales the discount clock. Must be positive.
+        discount_rate: Annual discount rate for costs and effects, as a proportion
+            between 0 and 1 (0.03 by default).
         cycle_correction: ``"simpson"`` (default), ``"half_cycle"``, or
             ``"none"``; see `gen_wcc`. The default keeps ``"simpson"`` to
             reproduce a published cost-effectiveness replication;
@@ -193,7 +194,7 @@ class MarkovModel(DeterministicEngine):
         self._n_states = len(self._states)
         self._transitions_and_rewards = transitions_and_rewards
         self._n_cycles = int(n_cycles)
-        self._cycle_length = float(cycle_length)
+        self._cycle_length = _check_cycle_length(cycle_length)
         self._start = self._resolve_start(initial_state)
         times = np.arange(self._n_cycles + 1, dtype=np.float64) * self._cycle_length
         self._disc = discount_factor(times, self._discount_rate)
