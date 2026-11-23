@@ -378,3 +378,39 @@ class TestConstructorValidation:
                 horizon=10.0,
                 cycle_correction="none",
             )
+
+
+# -- timing input validation --------------------------------------------------
+
+
+def _discrete_kwargs():
+    def transition_probabilities(params, intervention, state, attrs, rng):
+        probs = np.zeros((len(state), 2))
+        probs[state == 0] = [0.9, 0.1]
+        probs[state == 1] = [0.0, 1.0]
+        return probs
+
+    def state_rewards(params, intervention, state, attrs):
+        alive = (state == 0).astype(float)
+        return alive * 100.0, alive
+
+    return dict(
+        states=("alive", "dead"),
+        transition_probabilities=transition_probabilities,
+        state_rewards=state_rewards,
+        interventions=["care"],
+        n_cycles=10,
+        n_individuals=50,
+    )
+
+
+@pytest.mark.parametrize("cycle_length", [0.0, -1.0, float("nan"), float("inf")])
+def test_discrete_rejects_invalid_cycle_length(cycle_length):
+    with pytest.raises(ValueError, match="cycle_length"):
+        MicrosimModel.discrete(**_discrete_kwargs(), cycle_length=cycle_length)
+
+
+@pytest.mark.parametrize("discount_rate", [-0.01, 3.0, float("nan")])
+def test_discrete_rejects_invalid_discount_rate(discount_rate):
+    with pytest.raises(ValueError, match="discount_rate"):
+        MicrosimModel.discrete(**_discrete_kwargs(), discount_rate=discount_rate)

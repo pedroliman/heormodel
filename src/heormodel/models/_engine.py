@@ -127,8 +127,37 @@ class _EngineBase:
     ) -> None:
         self._interventions = normalize_interventions(interventions)
         self._comparator = comparator_of(interventions)
-        self._discount_rate = float(discount_rate)
+        self._discount_rate = _check_discount_rate(discount_rate)
         self._effect = effect
+
+
+def _check_discount_rate(discount_rate: float) -> float:
+    """Return ``discount_rate`` as a float after checking it is a proportion in [0, 1].
+
+    Example:
+        >>> _check_discount_rate(0.03)
+        0.03
+    """
+    rate = float(discount_rate)
+    if not 0.0 <= rate <= 1.0:
+        raise ValueError(
+            f"discount_rate must be an annual proportion between 0 and 1 "
+            f"(0.03 for 3%), got {discount_rate!r}."
+        )
+    return rate
+
+
+def _check_cycle_length(cycle_length: float) -> float:
+    """Return ``cycle_length`` as a float after checking it is positive and finite.
+
+    Example:
+        >>> _check_cycle_length(0.5)
+        0.5
+    """
+    length = float(cycle_length)
+    if not np.isfinite(length) or length <= 0.0:
+        raise ValueError(f"cycle_length must be a positive number of years, got {cycle_length!r}.")
+    return length
 
 
 class DeterministicEngine(_EngineBase):

@@ -34,7 +34,12 @@ import pandas as pd
 from numpy.typing import NDArray
 
 from heormodel.models._accrual import accrue, integrate_flow
-from heormodel.models._engine import PopulationSampler, PopulationSpec, StreamingEngine
+from heormodel.models._engine import (
+    PopulationSampler,
+    PopulationSpec,
+    StreamingEngine,
+    _check_cycle_length,
+)
 from heormodel.models._interventions import InterventionSpec
 from heormodel.models.markov import gen_wcc
 
@@ -135,7 +140,8 @@ class MicrosimModel(_MicrosimBase):
     current clock is passed to ``event_times`` and ``state_reward_rates`` as a
     ``time`` attribute column.
 
-    ``discount_rate`` is an annual rate on an annual clock. ``cycle_length``
+    ``discount_rate`` is an annual rate on an annual clock, given as a proportion
+    between 0 and 1 (0.03 for 3%). ``cycle_length`` must be positive and
     scales the discrete clock: with ``cycle_length=0.5`` each cycle discounts
     by half a year.
 
@@ -207,7 +213,7 @@ class MicrosimModel(_MicrosimBase):
             if n_cycles < 1:
                 raise ValueError("n_cycles must be at least one.")
             self._transition_probabilities = transition_probabilities
-            self._cycle_length = float(cycle_length)
+            self._cycle_length = _check_cycle_length(cycle_length)
             self._n_cycles = int(n_cycles)
             self._wcc = gen_wcc(self._n_cycles, cycle_correction)
             self._duration_groups = {
@@ -261,7 +267,7 @@ class MicrosimModel(_MicrosimBase):
             population: Attribute sampler ``fn(rng, n) -> DataFrame`` for
                 heterogeneity, or an ``int`` count for a featureless population.
                 ``None`` uses ``n_individuals`` with no attributes.
-            cycle_length: Years per cycle; scales the discount clock.
+            cycle_length: Years per cycle; scales the discount clock. Must be positive.
             discount_rate: Annual discount rate for costs and effects (0.03 by
                 default).
             cycle_correction: ``"half_cycle"`` (default), ``"simpson"``, or

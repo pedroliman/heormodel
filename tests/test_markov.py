@@ -539,3 +539,37 @@ def test_transition_reward_ignores_within_cycle_correction(correction):
     expected = 100 * (1 - 0.8**2)
     assert float(out.costs_wide().iloc[0, 0]) == pytest.approx(expected)
     assert float(out.effects_wide().iloc[0, 0]) == pytest.approx(expected / 100)
+
+
+# -- timing input validation --------------------------------------------------
+
+
+def _two_state_engine(**kwargs):
+    def transitions_and_rewards(params, intervention):
+        transition = np.array([[0.9, 0.1], [0.0, 1.0]])
+        return CohortSpec(transition, np.array([100.0, 0.0]), np.array([1.0, 0.0]))
+
+    return MarkovModel(
+        states=("alive", "dead"),
+        interventions=("care",),
+        transitions_and_rewards=transitions_and_rewards,
+        n_cycles=10,
+        **kwargs,
+    )
+
+
+@pytest.mark.parametrize("cycle_length", [0.0, -1.0, float("nan"), float("inf")])
+def test_markov_rejects_invalid_cycle_length(cycle_length):
+    with pytest.raises(ValueError, match="cycle_length"):
+        _two_state_engine(cycle_length=cycle_length)
+
+
+@pytest.mark.parametrize("discount_rate", [-0.01, 3.0, float("nan")])
+def test_markov_rejects_invalid_discount_rate(discount_rate):
+    with pytest.raises(ValueError, match="discount_rate"):
+        _two_state_engine(discount_rate=discount_rate)
+
+
+def test_markov_accepts_boundary_discount_rates():
+    _two_state_engine(discount_rate=0.0)
+    _two_state_engine(discount_rate=1.0)
