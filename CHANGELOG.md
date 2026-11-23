@@ -12,6 +12,9 @@ Each entry links to the pull request that introduced it. Add a line under
 
 ### Fixed
 
+- `evppi`, `evppi_ranking`, and `evsi_regression` overstated the value of information for groups of many parameters. The default `"spline"` metamodel was an unpenalised least-squares fit, so a group of irrelevant parameters fitted noise: with 1,000 draws, pure-noise groups of 1, 3, 5, and 8 parameters gave EVPPI of 0.006, 0.073, 0.192, and 0.325 against a true value of 0, and 12 noise parameters with 500 draws returned the full EVPI because the fit was exactly determined. The spline basis is now fitted by ridge regression with the penalty chosen by leave-one-out cross-validation, which brings the same cases to 0.002 or less (0.005 for 12 parameters), and a `UserWarning` is issued when the basis has more columns than there are draws. Estimates for informative parameters shrink slightly when the signal is weak relative to the noise, so rankings and sample-size curves in the tutorials change in the lower digits
+  ([#130](https://github.com/pedroliman/heormodel/issues/130)).
+
 - Discrete `MicrosimModel` accepted transition probabilities outside [0, 1] when the rows summed to 1, so a row such as `[1.3, -0.3]` never moved anyone, and the continuous clock accepted negative or NaN event times, which ran the clock backwards and returned negative cost and QALYs. Both paths now raise `ValueError`, as `MarkovModel` does. `SeedManager.child_sequence` used the same spawn key as `SeedManager.spawn`, so mixing the two repeated streams; it now has its own key space, which changes the streams it returns for a given seed. `run_psa` with `batch_size=0` raised `ZeroDivisionError` and now raises `ValueError`
   ([#127](https://github.com/pedroliman/heormodel/issues/127)).
 

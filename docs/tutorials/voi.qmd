@@ -87,7 +87,7 @@ ranking = evppi_ranking(outcomes, draws, WTP)
 ranking.round(1)
 ```
 
-`u_S1`, the Sick-state utility under standard of care, dominates the ranking. Intervention A's entire benefit is raising that utility to `u_trtA`, so whether the true `u_S1` is already close to `u_trtA` decides whether Intervention A is worth its cost. The two treatment costs `c_trtA` and `c_trtB` follow, and everything else contributes almost nothing at this threshold. The default `spline` metamodel handles one parameter at a time well. For groups of many parameters evaluated jointly, use `method="gp"` (a Gaussian process).
+`u_S1`, the Sick-state utility under standard of care, dominates the ranking. Intervention A's entire benefit is raising that utility to `u_trtA`, so whether the true `u_S1` is already close to `u_trtA` decides whether Intervention A is worth its cost. The two treatment costs `c_trtA` and `c_trtB` follow, and everything else contributes almost nothing at this threshold. The default `spline` metamodel fits a ridge regression, with the penalty chosen by cross-validation, so a parameter with no effect on the decision receives an EVPPI near zero rather than a positive value produced by fitting noise. A group with many parameters needs many more draws than a single parameter: `evppi` warns when the spline basis has more columns than there are draws, and `method="gp"` (a Gaussian process) is the alternative for such groups.
 
 ## Expected value of sample information (EVSI)
 
@@ -104,7 +104,7 @@ summaries = simulate_summaries(
 evsi_regression(outcomes, summaries, WTP)
 ```
 
-Reported against the willingness-to-pay threshold, EVSI is a family of curves, one per sample size. Each EVSI curve stays below the `u_S1` EVPPI, which in turn tracks EVPI closely. The survey targets the parameter EVPPI ranked highest, so resolving it captures most of the value of resolving everything. All the curves are small below about 90,000 per quality-adjusted life-year. In that range standard of care is optimal by a wide enough margin that the decision does not turn on `u_S1`. The curves peak sharply near 120,000, where the choice between interventions is closest, and fall off above that. Larger surveys shrink `tau`, which lifts each curve toward the EVPPI ceiling.
+Reported against the willingness-to-pay threshold, EVSI is a family of curves, one per sample size. Each EVSI curve stays below the `u_S1` EVPPI, apart from small differences between the two regression fits, and the EVPPI in turn tracks EVPI closely. The survey targets the parameter EVPPI ranked highest, so resolving it captures most of the value of resolving everything. All the curves are small below about 90,000 per quality-adjusted life-year. In that range standard of care is optimal by a wide enough margin that the decision does not turn on `u_S1`. The curves peak sharply near 120,000, where the choice between interventions is closest, and fall off above that. Larger surveys shrink `tau`, which lifts each curve toward the EVPPI ceiling.
 
 ```{python}
 import matplotlib.pyplot as plt

@@ -119,7 +119,7 @@ print(f"EVPI at WTP {WTP:,.0f}: {evpi(outcomes, WTP):,.1f}")
 evppi_ranking(outcomes, draws, WTP).round(1)
 ```
 
-The treatment cost and its effect `rr_tx` lead the ranking: they determine whether treatment's incremental cost-effectiveness ratio stays below the threshold.
+The treatment cost `c_treat` and the healthy-to-sick transition probability `p_hs` lead the ranking, followed by the sick-state cost and the treatment effect `rr_tx`: these determine whether treatment's incremental cost-effectiveness ratio stays below the threshold.
 
 ## Validating against the cohort closed form
 

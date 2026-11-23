@@ -9,6 +9,7 @@ expectations.
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 import numpy as np
@@ -17,11 +18,13 @@ from numpy.typing import NDArray
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import RidgeCV
 from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.preprocessing import SplineTransformer, StandardScaler
 
 _GP_MAX_FIT = 500
+# Ridge penalty grid, chosen per fit by generalised (leave-one-out) cross-validation.
+_RIDGE_ALPHAS = np.logspace(-3, 5, 25)
 
 
 class _TensorProductSplineFeatures(BaseEstimator, TransformerMixin):  # type: ignore[misc]
@@ -74,8 +77,24 @@ def _spline_pipeline(n_knots: int, degree: int) -> Pipeline:
     return make_pipeline(
         StandardScaler(),
         _TensorProductSplineFeatures(n_knots=n_knots, degree=degree),
-        LinearRegression(),
+        StandardScaler(),
+        RidgeCV(alphas=_RIDGE_ALPHAS),
     )
+
+
+def _warn_if_basis_too_large(xv: NDArray[np.float64], n_knots: int, degree: int) -> None:
+    """Warn when the spline basis has more columns than there are draws."""
+    n_draws, n_cols = xv.shape
+    per_column = n_knots + degree - 2
+    n_basis = n_cols * per_column + n_cols * (n_cols - 1) // 2 * per_column**2
+    if n_basis > n_draws:
+        warnings.warn(
+            f"The spline basis has {n_basis} columns for {n_draws} draws. The ridge "
+            "penalty limits overfitting, but the estimate is unreliable and is shrunk "
+            "toward zero. Use more draws, a smaller group, or fewer knots.",
+            UserWarning,
+            stacklevel=4,
+        )
 
 
 def fitted_conditional_means(
@@ -102,7 +121,12 @@ def fitted_conditional_means(
             probability; with three or more grouped variables it still
             captures every pairwise interaction, but not three-way ones,
             so ``"gp"`` remains the more general, slower alternative.
-        n_knots, degree: Spline basis controls (``method="spline"``).
+        n_knots, degree: Spline basis controls (``method="spline"``). The
+            basis is fitted by ridge regression with the penalty chosen by
+            leave-one-out cross-validation, so an irrelevant group of
+            variables gives a fitted surface near constant rather than one
+            that interpolates the noise. A ``UserWarning`` is issued when the
+            basis has more columns than there are draws.
         seed: Subsample seed (``method="gp"``).
 
     Returns:
@@ -113,6 +137,8 @@ def fitted_conditional_means(
     xv = x.to_numpy(dtype=np.float64)
     nbv = nb.to_numpy(dtype=np.float64)
     fitted = np.empty_like(nbv)
+    if method == "spline":
+        _warn_if_basis_too_large(xv, n_knots, degree)
     for j in range(nbv.shape[1]):
         y = nbv[:, j]
         if np.ptp(y) == 0.0:  # constant NB needs no regression
