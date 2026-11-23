@@ -14,6 +14,8 @@ probabilistic discounted life expectancies converge to the analytic 4.92709.
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -155,6 +157,16 @@ class TestCurveAlgebra:
         assert curve.survival(cutpoint - 1e-6) == pytest.approx(
             curve.survival(cutpoint + 1e-6), abs=1e-5
         )
+
+    def test_splice_with_zero_late_survival_at_cutpoint_is_finite(self):
+        """A late curve with survival of exactly zero at the cutpoint gives no NaN."""
+        curve = splice(exponential(0.2), exponential(1000.0), 4.0)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            values = curve.survival(np.array([3.0, 5.0]))
+        assert not np.any(np.isnan(values))
+        assert values[0] == pytest.approx(np.exp(-0.6))
+        assert values[1] == pytest.approx(np.exp(-0.8) * np.exp(-1000.0))
 
     def test_numeric_inverse_matches_closed_form(self):
         """The generic bisection inverse matches a family's own closed-form inverse."""
