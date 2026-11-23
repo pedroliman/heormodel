@@ -7,6 +7,8 @@ regression-based VoI estimators, cf. Strong, Oakley & Brennan 2014). The
 estimators must agree with the analytic values within Monte Carlo error.
 """
 
+import warnings
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -220,3 +222,43 @@ class TestVoiGuards:
         summaries = simulate_summaries(draws, study, seed=1)
         assert summaries.index.equals(draws.index)
         assert summaries.loc[1, "x"] > summaries.loc[0, "x"]
+
+
+def _noise_group_case(n_draws: int, n_noise: int) -> tuple[Outcomes, pd.DataFrame]:
+    """Outcome driven by `x` alone, with `n_noise` irrelevant parameters."""
+    rng = np.random.default_rng(1)
+    x = rng.normal(size=n_draws)
+    draws = pd.DataFrame(
+        rng.normal(size=(n_draws, n_noise)),
+        columns=[f"noise{i}" for i in range(n_noise)],
+        index=pd.RangeIndex(n_draws, name="iteration"),
+    )
+    draws.insert(0, "x", x)
+    out = Outcomes.from_wide(
+        pd.DataFrame({"A": np.zeros(n_draws), "B": np.zeros(n_draws)}),
+        pd.DataFrame({"A": np.zeros(n_draws), "B": x}),
+    )
+    return out, draws
+
+
+@pytest.mark.parametrize("n_noise", [1, 3, 5, 8])
+def test_evppi_pure_noise_group_is_near_zero(n_noise: int) -> None:
+    out, draws = _noise_group_case(1000, n_noise)
+    noise = [c for c in draws.columns if c.startswith("noise")]
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        value = evppi(out, draws, noise, 1.0)
+    assert value < 0.02  # EVPI is 0.364; unpenalised fits gave 0.07 to 0.33
+
+
+def test_evppi_many_noise_parameters_few_draws_warns_and_stays_near_zero() -> None:
+    out, draws = _noise_group_case(500, 12)
+    noise = [c for c in draws.columns if c.startswith("noise")]
+    with pytest.warns(UserWarning, match="basis has"):
+        value = evppi(out, draws, noise, 1.0)
+    assert value < 0.02  # unpenalised, the exactly determined fit returned EVPI (0.39)
+
+
+def test_evppi_informative_parameter_survives_penalty() -> None:
+    out, draws = _noise_group_case(1000, 3)
+    assert abs(evppi(out, draws, "x", 1.0) - 0.364) < 0.03
